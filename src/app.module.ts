@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import validate from './config/validate';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { typeOrmConfig } from './config/typeorm';
+
+// Need to check if the database is connected successfully
 
 @Module({
   imports: [
@@ -8,6 +12,11 @@ import validate from './config/validate';
       cache: true,
       isGlobal: true,
       validate,
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        typeOrmConfig(configService),
     }),
   ],
 })

@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { dataSourceOptions } from './database/data-source';
 import { configuration } from './config/configuration';
+import { dataSourceOptions } from './database/data-source';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { configuration } from './config/configuration';
       load: [configuration],
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    HealthModule,
   ],
 })
 export class AppModule {}

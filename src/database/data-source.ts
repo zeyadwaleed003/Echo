@@ -10,9 +10,21 @@ export const dataSourceOptions: DataSourceOptions = {
   username: env.DB_USERNAME,
   password: env.DB_PASSWORD,
   database: env.DB_NAME,
-  entities: [`${env.SOURCE_FOLDER}/modules/**/*.entity.ts`],
-  migrations: [`${env.SOURCE_FOLDER}/database/migrations/*.ts`],
+  entities: [__dirname + '/../modules/**/entities/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
 };
 
 const dataSource = new DataSource(dataSourceOptions);
+
+dataSource.initialize().then(() => {
+  console.log(
+    'Loaded entities:',
+    dataSource.entityMetadatas.map((e) => e.name)
+  );
+  console.log(
+    'Migrations:',
+    dataSource.migrations.map((m) => m.name)
+  );
+});
+
 export default dataSource;

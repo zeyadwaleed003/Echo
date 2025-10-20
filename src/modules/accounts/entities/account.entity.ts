@@ -19,6 +19,12 @@ export class Account {
 
   @Column({
     type: 'varchar',
+    length: 100,
+  })
+  name!: string;
+
+  @Column({
+    type: 'varchar',
     length: 50,
     unique: true,
   })
@@ -155,6 +161,32 @@ export class Account {
     default: Role.USER,
   })
   role!: Role;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  verificationCode!: string | null;
+
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
+  verificationCodeExpiresAt!: Date | null;
+
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  passwordResetCode!: string | null;
+
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
+  passwordResetCodeExpiresAt!: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

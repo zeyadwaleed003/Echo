@@ -1,7 +1,9 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { configuration } from '../config/configuration';
+import { Logger } from '@nestjs/common';
 
 const env = configuration();
+const logger = new Logger('DataSourse');
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -17,11 +19,11 @@ export const dataSourceOptions: DataSourceOptions = {
 const dataSource = new DataSource(dataSourceOptions);
 
 dataSource.initialize().then(() => {
-  console.log(
+  logger.log(
     'Loaded entities:',
     dataSource.entityMetadatas.map((e) => e.name)
   );
-  console.log(
+  logger.log(
     'Migrations:',
     dataSource.migrations.map((m) => m.name)
   );

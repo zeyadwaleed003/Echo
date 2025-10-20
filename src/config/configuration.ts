@@ -17,6 +17,11 @@ const validatedEnv = z
     DB_USERNAME: z.string().min(1),
     DB_PASSWORD: z.string().min(1),
     DB_NAME: z.string().min(1),
+
+    MT_HOST: z.string(),
+    MT_PORT: z.coerce.number(),
+    MT_USER: z.string(),
+    MT_PASS: z.string(),
   })
   .parse(process.env);
 

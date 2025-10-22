@@ -1,12 +1,9 @@
 import { randomInt } from 'crypto';
-import { hash } from 'bcrypt';
-import { lookup } from 'geoip-lite';
+import { hash, compare } from 'bcrypt';
 import {
   Injectable,
   ConflictException,
   ForbiddenException,
-  Scope,
-  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,17 +13,15 @@ import { SignupDto } from './dto/signup.dto';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { APIResponse } from 'src/common/types/api.types';
-import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
+import { VerifyAccountDto } from './dto/verify-account.dto';
 
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService,
-    @Inject(REQUEST) private readonly request: Request
+    private readonly configService: ConfigService
   ) {}
 
   private generateOTP(length = 6) {
@@ -38,6 +33,10 @@ export class AuthService {
   private async hashOTP(otp: string) {
     const saltRounds = 10;
     return await hash(otp, saltRounds);
+  }
+
+  private async compareHash(code: string, hash: string) {
+    return await compare(code, hash);
   }
 
   private async generateAndSendOTP(email: string, name: string) {
@@ -68,17 +67,6 @@ export class AuthService {
     );
   }
 
-  // This code is not working as I wanted
-  private getCountryFromIP() {
-    const ip =
-      this.request.ip ||
-      this.request.headers['x-forwarded-for'] ||
-      this.request.socket.remoteAddress;
-
-    const geo = lookup(ip as string);
-    return geo?.country || 'UNKNOWN';
-  }
-
   async signup(signupDto: SignupDto) {
     // Check if the email is in the database
     const account = await this.accountsRepository.findOneBy({
@@ -104,25 +92,22 @@ export class AuthService {
           'This account has been suspended. Please contact support'
         );
 
-      if (
-        status === AccountStatus.INACTIVATED ||
-        status === AccountStatus.PENDING
-      )
-        this.sendOTP(account.email, account.name);
+      if (status === AccountStatus.PENDING)
+        throw new ForbiddenException(
+          'You are already registered. Please complete your profile setup'
+        );
+
+      if (status === AccountStatus.INACTIVATED)
+        return await this.sendOTP(account.email, account.name);
     }
 
     // If NOT ...
-
-    // Get the country the user created his account from
-    const countryCreated = this.getCountryFromIP();
 
     // Create the account
     const user = this.accountsRepository.create({
       name: signupDto.name,
       email: signupDto.email,
       status: AccountStatus.INACTIVATED,
-      countryCreated, // Add this field to your Account entity
-      countryCurrent: countryCreated,
     });
 
     await this.accountsRepository.save(user);
@@ -130,7 +115,6 @@ export class AuthService {
     // OTP generation and send email
     await this.generateAndSendOTP(signupDto.email, signupDto.name);
 
-    // BE CAREFULL OF THE DIFFERENT STATUS CODES!!!!!
     const res: APIResponse = {
       message:
         'Account created successfully. Please check your email for the verification code.',
@@ -146,5 +130,77 @@ export class AuthService {
       message:
         'A verification code has been sent to your email address. Please check your inbox.',
     };
+  }
+
+  async verifyAccount(verifyAccountDto: VerifyAccountDto) {
+    // Find account using email
+    const account = await this.accountsRepository.findOneBy({
+      email: verifyAccountDto.email,
+    });
+
+    if (!account)
+      throw new ForbiddenException('No account found with this email address');
+
+    if (account.status === AccountStatus.ACTIVATED)
+      throw new ConflictException('An account with this email already exists');
+
+    if (account.status === AccountStatus.DEACTIVATED)
+      throw new ForbiddenException(
+        'This account has been deactivated. Please contact support'
+      );
+
+    if (account.status === AccountStatus.SUSPENDED)
+      throw new ForbiddenException(
+        'This account has been suspended. Please contact support'
+      );
+
+    if (account.status === AccountStatus.PENDING)
+      throw new ForbiddenException(
+        'You are already registered. Please complete your profile setup'
+      );
+
+    if (!account.verificationCode || !account.verificationCodeExpiresAt)
+      throw new ForbiddenException(
+        'No verification code found. Please request a new one'
+      );
+
+    // otp = stored otp
+    const isEqual = await this.compareHash(
+      verifyAccountDto.verificationCode,
+      account.verificationCode
+    );
+
+    if (!isEqual)
+      throw new ForbiddenException(
+        'Invalid verification code. Please check the code and try again'
+      );
+
+    // Date comparison
+    if (new Date() > account.verificationCodeExpiresAt)
+      throw new ForbiddenException(
+        'Verification code has expired. Please request a new one'
+      );
+
+    // Update the account
+    await this.accountsRepository.update(
+      { email: verifyAccountDto.email },
+      {
+        verificationCode: null,
+        verificationCodeExpiresAt: null,
+        status: AccountStatus.PENDING,
+      }
+    );
+
+    const res: APIResponse = {
+      message:
+        'Email verified successfully. Please complete your profile setup.',
+      data: {
+        id: account.id,
+        email: account.email,
+        name: account.name,
+      },
+    };
+
+    return res;
   }
 }

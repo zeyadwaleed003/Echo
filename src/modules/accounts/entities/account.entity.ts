@@ -101,14 +101,9 @@ export class Account {
   @Column({
     type: 'varchar',
     length: 50,
+    nullable: true,
   })
-  countryCreated!: string;
-
-  @Column({
-    type: 'varchar',
-    length: 50,
-  })
-  countryCurrent!: string;
+  currentCountry!: string | null;
 
   @Column({
     type: 'enum',

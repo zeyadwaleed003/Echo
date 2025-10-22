@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import {
   Injectable,
   ConflictException,
@@ -8,15 +9,33 @@ import { Repository } from 'typeorm';
 import { Account } from '../accounts/entities/account.entity';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { SignupDto } from './dto/signup.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(Account)
-    private readonly accountsRepository: Repository<Account>
+    private readonly accountsRepository: Repository<Account>,
+    private readonly emailService: EmailService
   ) {}
 
-  private async generateAndSendOTP(email: string) {}
+  private generateOTP(length = 6) {
+    const max = 10 ** length;
+    const num = randomInt(0, max);
+    return num.toString().padStart(length, '0');
+  }
+
+  private async generateAndSendOTP(email: string, name: string) {
+    // Generate the OTP
+    const otp = this.generateOTP();
+
+    // Sent the email with the otp
+    await this.emailService.sendOTPEmail(email, otp, name);
+
+    // Hash the otp
+
+    // Store the otp in the database with a ttl
+  }
 
   async signup(signupDto: SignupDto) {
     // Check if the email is in the database
@@ -53,16 +72,16 @@ export class AuthService {
     // If NOT ...
 
     // Create the account
-    const user = this.accountsRepository.create({
-      name: signupDto.name,
-      email: signupDto.email,
-      status: AccountStatus.INACTIVATED,
-    });
+    // const user = this.accountsRepository.create({
+    //   name: signupDto.name,
+    //   email: signupDto.email,
+    //   status: AccountStatus.INACTIVATED,
+    // });
 
-    await this.accountsRepository.save(user);
+    // await this.accountsRepository.save(user);
 
     // OTP generation and send email
-    await this.generateAndSendOTP(signupDto.email);
+    await this.generateAndSendOTP(signupDto.email, signupDto.name);
 
     // BE CAREFULL OF THE DIFFERENT STATUS CODES!!!!!
   }

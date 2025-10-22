@@ -9,7 +9,6 @@ export class HealthController {
   @Get()
   check() {
     const res: APIResponse = {
-      status: 'OK',
       message: 'ᗧ···ᗣ···ᗣ··',
       timestamp: new Date().toISOString(),
     };

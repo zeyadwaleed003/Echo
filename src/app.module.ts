@@ -11,8 +11,6 @@ import { PostsModule } from './modules/posts/posts.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
-import { MailerModule } from '@nestjs-modules/mailer';
-import mailerOptions from './config/mailer';
 
 @Module({
   imports: [
@@ -22,7 +20,6 @@ import mailerOptions from './config/mailer';
       load: [configuration],
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
-    MailerModule.forRoot(mailerOptions),
     HealthModule,
     AccountsModule,
     AuthModule,

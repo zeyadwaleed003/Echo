@@ -27,8 +27,9 @@ export class Account {
     type: 'varchar',
     length: 50,
     unique: true,
+    nullable: true,
   })
-  username!: string;
+  username!: string | null;
 
   @Column({
     type: 'varchar',
@@ -40,8 +41,9 @@ export class Account {
   @Column({
     type: 'varchar',
     length: 255,
+    nullable: true,
   })
-  password!: string;
+  password!: string | null;
 
   @Column({
     type: 'varchar',
@@ -85,8 +87,9 @@ export class Account {
 
   @Column({
     type: 'date',
+    nullable: true,
   })
-  birthDate!: Date;
+  birthDate!: Date | null;
 
   @Column({
     type: 'varchar',
@@ -110,8 +113,9 @@ export class Account {
   @Column({
     type: 'enum',
     enum: Gender,
+    nullable: true,
   })
-  gender!: Gender;
+  gender!: Gender | null;
 
   @Column({
     type: 'boolean',
@@ -140,6 +144,7 @@ export class Account {
   @Column({
     type: 'enum',
     enum: DirectMessagingStatus,
+    default: DirectMessagingStatus.NONE,
   })
   directMessaging!: DirectMessagingStatus;
 

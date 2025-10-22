@@ -24,6 +24,8 @@ const validatedEnv = z
     MT_PORT: z.coerce.number(),
     MT_USER: z.string().min(1),
     MT_PASS: z.string().min(1),
+
+    VERIFICATION_OTP_EXPIRES_IN: z.coerce.number(),
   })
   .parse(process.env);
 

@@ -1,11 +1,15 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    private readonly mailerService: MailerService,
+    private readonly configService: ConfigService
+  ) {}
 
   async sendOTPEmail(email: string, otp: string, name: string) {
     try {
@@ -16,12 +20,14 @@ export class EmailService {
         context: {
           name,
           otp,
-          expiryMinutes: 10,
+          expiryMinutes: this.configService.get<number>(
+            'VERIFICATION_OTP_EXPIRES_IN'
+          )!,
           year: new Date().getFullYear(),
         },
       });
 
-      this.logger.log(`OTP email sent successfully to: ${email}`);
+      this.logger.log(`Verification email sent successfully to: ${email}`);
     } catch (err: any) {
       this.logger.error(
         `Failed to send the OTP email to ${email}: ${err.message}`,

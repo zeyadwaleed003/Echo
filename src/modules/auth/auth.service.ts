@@ -1,15 +1,19 @@
-import { Injectable } from '@nestjs/common';
-import { SignupDto } from './dto/signup.dto';
+import {
+  Injectable,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Account } from '../accounts/entities/account.entity';
 import { Repository } from 'typeorm';
+import { Account } from '../accounts/entities/account.entity';
 import { AccountStatus } from '../accounts/accounts.enums';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { SignupDto } from './dto/signup.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(Account) private accountsRepository: Repository<Account>
+    @InjectRepository(Account)
+    private readonly accountsRepository: Repository<Account>
   ) {}
 
   private async generateAndSendOTP(email: string) {}
@@ -39,18 +43,23 @@ export class AuthService {
           'This account has been suspended. Please contact support'
         );
 
-      if (status === AccountStatus.INACTIVATED || AccountStatus.PENDING)
+      if (
+        status === AccountStatus.INACTIVATED ||
+        status === AccountStatus.PENDING
+      )
         this.sendOTP(account.email);
     }
 
     // If NOT ...
 
     // Create the account
-    await this.accountsRepository.create({
+    const user = this.accountsRepository.create({
       name: signupDto.name,
       email: signupDto.email,
       status: AccountStatus.INACTIVATED,
     });
+
+    await this.accountsRepository.save(user);
 
     // OTP generation and send email
     await this.generateAndSendOTP(signupDto.email);

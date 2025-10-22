@@ -26,6 +26,9 @@ const validatedEnv = z
     MT_PASS: z.string().min(1),
 
     VERIFICATION_OTP_EXPIRES_IN: z.coerce.number(),
+
+    GOOGLE_CLIENT_ID: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string(),
   })
   .parse(process.env);
 

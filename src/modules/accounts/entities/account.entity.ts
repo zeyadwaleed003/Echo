@@ -42,6 +42,7 @@ export class Account {
     type: 'varchar',
     length: 255,
     nullable: true,
+    select: false,
   })
   password!: string | null;
 
@@ -166,12 +167,14 @@ export class Account {
     type: 'varchar',
     length: 255,
     nullable: true,
+    select: false,
   })
   verificationCode!: string | null;
 
   @Column({
     type: 'timestamp',
     nullable: true,
+    select: false,
   })
   verificationCodeExpiresAt!: Date | null;
 
@@ -179,12 +182,14 @@ export class Account {
     type: 'varchar',
     length: 255,
     nullable: true,
+    select: false,
   })
   passwordResetCode!: string | null;
 
   @Column({
     type: 'timestamp',
     nullable: true,
+    select: false,
   })
   passwordResetCodeExpiresAt!: Date | null;
 

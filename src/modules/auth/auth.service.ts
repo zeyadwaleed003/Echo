@@ -1,9 +1,12 @@
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import {
   Injectable,
   ConflictException,
   ForbiddenException,
+  UnauthorizedException,
+  HttpStatus,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,15 +17,22 @@ import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { APIResponse } from 'src/common/types/api.types';
 import { VerifyAccountDto } from './dto/verify-account.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.configService.get<string>('GOOGLE_CLIENT_ID')
+    );
+  }
 
   private generateOTP(length = 6) {
     const max = 10 ** length;
@@ -134,8 +144,15 @@ export class AuthService {
 
   async verifyAccount(verifyAccountDto: VerifyAccountDto) {
     // Find account using email
-    const account = await this.accountsRepository.findOneBy({
-      email: verifyAccountDto.email,
+    const account = await this.accountsRepository.findOne({
+      where: { email: verifyAccountDto.email },
+      select: [
+        'id',
+        'name',
+        'email',
+        'verificationCode',
+        'verificationCodeExpiresAt',
+      ],
     });
 
     if (!account)
@@ -191,14 +208,97 @@ export class AuthService {
       }
     );
 
+    const { verificationCode, verificationCodeExpiresAt, ...data } = account;
+
     const res: APIResponse = {
       message:
         'Email verified successfully. Please complete your profile setup.',
-      data: {
-        id: account.id,
-        email: account.email,
-        name: account.name,
-      },
+      data,
+    };
+
+    return res;
+  }
+
+  async googleAuth(googleAuthDto: GoogleAuthDto) {
+    const { idToken } = googleAuthDto;
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload)
+      throw new UnauthorizedException('Invalid Google ID token Payload');
+
+    if (!payload.email_verified)
+      throw new UnauthorizedException('Your google account is not verified');
+
+    if (!payload.email)
+      throw new UnauthorizedException('Email not provided by Google');
+
+    const account = await this.accountsRepository.findOneBy({
+      email: payload.email,
+    });
+
+    if (account) {
+      if (account.status === AccountStatus.DEACTIVATED)
+        throw new ForbiddenException(
+          'This account has been deactivated. Please contact support'
+        );
+
+      if (account.status === AccountStatus.SUSPENDED)
+        throw new ForbiddenException(
+          'This account has been suspended. Please contact support'
+        );
+
+      // login
+      if (account.status === AccountStatus.ACTIVATED) {
+        const res: APIResponse = {
+          statusCode: HttpStatus.OK,
+          message: 'Logged in successfully',
+          data: account,
+        };
+
+        return res;
+      }
+
+      // signup
+      if (account.status === AccountStatus.PENDING)
+        throw new ForbiddenException(
+          'You are already registered. Please complete your profile setup'
+        );
+
+      if (account.status === AccountStatus.INACTIVATED) {
+        const updatedAccount = await this.accountsRepository.update(
+          { email: payload.email },
+          {
+            status: AccountStatus.PENDING,
+          }
+        );
+
+        const res: APIResponse = {
+          statusCode: HttpStatus.OK,
+          message:
+            'Email verified successfully. Please complete your profile setup',
+          data: updatedAccount,
+        };
+
+        return res;
+      }
+    }
+
+    const newAccount = this.accountsRepository.create({
+      name: payload.name!,
+      email: payload.email,
+      status: AccountStatus.PENDING,
+    });
+
+    await this.accountsRepository.save(newAccount);
+
+    const res: APIResponse = {
+      statusCode: HttpStatus.CREATED,
+      message:
+        'Account created and verified successfully. Please complete your profile setup',
+      data: newAccount,
     };
 
     return res;

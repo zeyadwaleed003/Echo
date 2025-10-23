@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { APIResponse } from '../types/api.types';
+import { compare, hash } from 'bcrypt';
 
 export const parseExpiresInMs = (expiresIn: string): number => {
   const match = expiresIn.match(/^(\d+)([smhd])$/);
@@ -28,4 +29,13 @@ export const sendResponse = (res: Response, result: APIResponse) => {
     timestamp: result.timestamp,
     accessToken: result.accessToken,
   });
+};
+
+export const hashPassword = async (password: string) => {
+  const hashed = await hash(password, 10);
+  return hashed;
+};
+
+export const comparePassword = async (password: string, hashed: string) => {
+  return await compare(password, hashed);
 };

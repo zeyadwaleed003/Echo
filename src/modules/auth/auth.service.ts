@@ -166,16 +166,14 @@ export class AuthService {
 
   async verifyAccount(verifyAccountDto: VerifyAccountDto) {
     // Find account using email
-    const account = await this.accountsRepository.findOne({
-      where: { email: verifyAccountDto.email },
-      select: [
-        'id',
-        'name',
-        'email',
-        'verificationCode',
-        'verificationCodeExpiresAt',
-      ],
-    });
+    const account = await this.accountsRepository
+      .createQueryBuilder('account')
+      .where('account.email = :email', { email: verifyAccountDto.email })
+      .addSelect([
+        'account.verificationCode',
+        'account.verificationCodeExpiresAt',
+      ])
+      .getOne();
 
     if (!account)
       throw new ForbiddenException('No account found with this email address');

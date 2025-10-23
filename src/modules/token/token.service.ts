@@ -7,6 +7,7 @@ import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { RefreshTokenPayload } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { parseExpiresInMs } from 'src/common/utils/functions';
+import { Account } from '../accounts/entities/account.entity';
 
 @Injectable()
 export class TokenService {
@@ -52,5 +53,11 @@ export class TokenService {
 
     await this.refreshTokenRepository.save(refreshToken);
     return token;
+  }
+
+  async verifyAccessToken(accessToken: string) {
+    return await this.jwtService.verifyAsync<Account>(accessToken, {
+      secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
+    } as any);
   }
 }

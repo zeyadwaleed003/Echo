@@ -26,7 +26,7 @@ export class AuthGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<Request>();
     const accessToken = this.extractTokenFromHeader(req);
 
     if (!accessToken)
@@ -39,7 +39,7 @@ export class AuthGuard implements CanActivate {
       // Verify if account available
       const account = await this.accountsRepository.findOne({
         where: { email: payload.email, id: payload.id },
-        select: ['id', 'email', 'status'],
+        select: ['id', 'email', 'status', 'role'],
       });
 
       if (!account)
@@ -62,7 +62,7 @@ export class AuthGuard implements CanActivate {
           'Please complete your profile setup to access this resource'
         );
 
-      req['account'] = payload;
+      req.account = payload;
     } catch (err) {
       if (err instanceof ForbiddenException) throw err;
       if (err instanceof UnauthorizedException) throw err;

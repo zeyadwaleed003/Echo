@@ -12,6 +12,7 @@ import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import type { Response } from 'express';
 import { sendResponse } from 'src/common/utils/functions';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -31,7 +32,7 @@ export class AuthController {
     const result = await this.authService.verifyAccount(verifyAccountDto);
     const { refreshToken, ...response } = result;
 
-    this.authService.sendCookie(res, 'refreshToken', refreshToken);
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
     return response;
   }
 
@@ -40,8 +41,21 @@ export class AuthController {
     const result = await this.authService.googleAuth(googleAuthDto);
 
     const { refreshToken, ...response } = result;
-    this.authService.sendCookie(res, 'refreshToken', refreshToken);
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
 
     sendResponse(res, response);
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.login(loginDto);
+    const { refreshToken, ...response } = result;
+
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
+    return response;
   }
 }

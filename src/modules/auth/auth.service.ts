@@ -21,7 +21,9 @@ import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { TokenService } from '../token/token.service';
 import { CookieOptions, Response } from 'express';
-import { parseExpiresInMs } from 'src/common/utils/functions';
+import { comparePassword, parseExpiresInMs } from 'src/common/utils/functions';
+import { LoginDto } from './dto/login.dto';
+import { ACCOUNT_SELECT_WITH_PASSWORD } from './auth.select';
 
 @Injectable()
 export class AuthService {
@@ -236,7 +238,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const res: APIResponse & { refreshToken: string } = {
+    const res: APIResponse = {
       message:
         'Email verified successfully. Please complete your profile setup.',
       data,
@@ -288,7 +290,7 @@ export class AuthService {
           sessionId: uuidv4(),
         });
 
-        const res: APIResponse & { refreshToken: string } = {
+        const res: APIResponse = {
           statusCode: HttpStatus.OK,
           message: 'Logged in successfully',
           data: account,
@@ -317,7 +319,7 @@ export class AuthService {
           sessionId: uuidv4(),
         });
 
-        const res: APIResponse & { refreshToken: string } = {
+        const res: APIResponse = {
           statusCode: HttpStatus.OK,
           message:
             'Email verified successfully. Please complete your profile setup',
@@ -345,7 +347,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const res: APIResponse & { refreshToken: string } = {
+    const res: APIResponse = {
       statusCode: HttpStatus.CREATED,
       message:
         'Account created and verified successfully. Please complete your profile setup',
@@ -355,5 +357,66 @@ export class AuthService {
     };
 
     return res;
+  }
+
+  private checkAccountActivation(status: AccountStatus) {
+    if (status === AccountStatus.INACTIVATED)
+      throw new ForbiddenException(
+        'Please verify your email address to activate your account'
+      );
+
+    if (status === AccountStatus.PENDING)
+      throw new ForbiddenException(
+        'Please complete your profile setup before logging in'
+      );
+
+    if (status === AccountStatus.DEACTIVATED)
+      throw new ForbiddenException(
+        'This account has been deactivated. Please contact support'
+      );
+
+    if (status === AccountStatus.SUSPENDED)
+      throw new ForbiddenException(
+        'This account has been suspended. Please contact support'
+      );
+  }
+
+  async login(loginDto: LoginDto) {
+    // check if the provided field is an email
+    const isEmail = loginDto.emailOrUsername.includes('@');
+
+    const account = await this.accountsRepository.findOne({
+      where: isEmail
+        ? { email: loginDto.emailOrUsername }
+        : { username: loginDto.emailOrUsername },
+      select: ACCOUNT_SELECT_WITH_PASSWORD,
+    });
+
+    if (
+      !account ||
+      !account.password ||
+      !(await comparePassword(loginDto.password, account.password))
+    )
+      throw new UnauthorizedException('Invalid email/username or password');
+
+    this.checkAccountActivation(account.status);
+
+    const { password, ...cleanAccount } = account;
+
+    const accessToken =
+      await this.tokenService.generateAccessToken(cleanAccount);
+
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      id: cleanAccount.id,
+      sessionId: uuidv4(),
+    });
+
+    const result: APIResponse = {
+      data: cleanAccount,
+      accessToken,
+      refreshToken,
+    };
+
+    return result;
   }
 }

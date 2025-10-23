@@ -21,9 +21,19 @@ export class AccountsService {
 
     await this.accountsRepository.save(account);
 
+    // Remove sensitive fields
+    const {
+      password,
+      verificationCode,
+      verificationCodeExpiresAt,
+      passwordResetCode,
+      passwordResetCodeExpiresAt,
+      ...sanitizedAccount
+    } = account;
+
     const result: APIResponse = {
       message: 'Account created successfully',
-      data: account,
+      data: sanitizedAccount,
     };
 
     return result;

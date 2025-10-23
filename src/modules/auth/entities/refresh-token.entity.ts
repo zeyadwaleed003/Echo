@@ -15,8 +15,11 @@ export class RefreshToken {
   id!: string;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE', nullable: false })
-  @JoinColumn()
+  @JoinColumn({ name: 'accountId' })
   account!: Account;
+
+  @Column({ type: 'bigint', nullable: false })
+  accountId!: number;
 
   @Column({ type: 'text' })
   token!: string;

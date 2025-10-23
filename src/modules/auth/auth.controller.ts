@@ -1,10 +1,17 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import type { Response } from 'express';
-import sendReponse from 'src/common/utils/sendReponse';
+import { sendResponse } from 'src/common/utils/functions';
 
 @Controller('auth')
 export class AuthController {
@@ -16,13 +23,25 @@ export class AuthController {
   }
 
   @Post('verify-account')
-  async verifyAccount(@Body() verifyAccountDto: VerifyAccountDto) {
-    return await this.authService.verifyAccount(verifyAccountDto);
+  @HttpCode(HttpStatus.OK)
+  async verifyAccount(
+    @Body() verifyAccountDto: VerifyAccountDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.verifyAccount(verifyAccountDto);
+    const { refreshToken, ...response } = result;
+
+    this.authService.sendCookie(res, 'refreshToken', refreshToken);
+    return response;
   }
 
   @Post('google')
   async googleAuth(@Body() googleAuthDto: GoogleAuthDto, @Res() res: Response) {
     const result = await this.authService.googleAuth(googleAuthDto);
-    sendReponse(res, result);
+
+    const { refreshToken, ...response } = result;
+    this.authService.sendCookie(res, 'refreshToken', refreshToken);
+
+    sendResponse(res, response);
   }
 }

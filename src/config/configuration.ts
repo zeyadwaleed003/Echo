@@ -3,6 +3,14 @@ import { config } from 'dotenv';
 
 config();
 
+const jwtExpiresInSchema = z
+  .string()
+  .min(1)
+  .regex(/^(\d+)([smhd])$/, {
+    message:
+      'Must be in format: number followed by s (seconds), m (minutes), h (hours), or d (days). Example: 15m, 7d, 1h',
+  });
+
 const validatedEnv = z
   .object({
     PORT: z.coerce.number().int().min(0).max(65535).default(3000),
@@ -18,7 +26,7 @@ const validatedEnv = z
     DB_PASSWORD: z.string().min(1),
     DB_NAME: z.string().min(1),
 
-    EMAIL_FROM: z.string(),
+    EMAIL_FROM: z.string().min(1),
 
     MT_HOST: z.string().min(1),
     MT_PORT: z.coerce.number(),
@@ -27,8 +35,13 @@ const validatedEnv = z
 
     VERIFICATION_OTP_EXPIRES_IN: z.coerce.number(),
 
-    GOOGLE_CLIENT_ID: z.string(),
-    GOOGLE_CLIENT_SECRET: z.string(),
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+    ACCESS_TOKEN_SECRET: z.string().min(1),
+    ACCESS_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
+    REFRESH_TOKEN_SECRET: z.string().min(1),
+    REFRESH_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
   })
   .parse(process.env);
 

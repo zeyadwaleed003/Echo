@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import { randomInt } from 'crypto';
 import { hash, compare } from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
@@ -18,6 +19,9 @@ import { ConfigService } from '@nestjs/config';
 import { APIResponse } from 'src/common/types/api.types';
 import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { TokenService } from '../token/token.service';
+import { CookieOptions, Response } from 'express';
+import { parseExpiresInMs } from 'src/common/utils/functions';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +31,8 @@ export class AuthService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly tokenService: TokenService
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID')
@@ -75,6 +80,23 @@ export class AuthService {
         verificationCodeExpiresAt: expiresAt,
       }
     );
+  }
+
+  sendCookie(res: Response, name: string, val: string) {
+    const options: CookieOptions = {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'strict',
+      secure: this.configService.get('NODE_ENV') === 'production', // In production cookie will be sent only via HTTPs - encrypted
+      maxAge: 7 * 24 * 60 * 60 * 100, // default max age of 7 days
+    };
+
+    if (name === 'refreshToken')
+      options.maxAge = parseExpiresInMs(
+        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN')!
+      );
+
+    res.cookie(name, val, options);
   }
 
   async signup(signupDto: SignupDto) {
@@ -210,10 +232,18 @@ export class AuthService {
 
     const { verificationCode, verificationCodeExpiresAt, ...data } = account;
 
-    const res: APIResponse = {
+    const accessToken = await this.tokenService.generateAccessToken(data);
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      id: account.id,
+      sessionId: uuidv4(),
+    });
+
+    const res: APIResponse & { refreshToken: string } = {
       message:
         'Email verified successfully. Please complete your profile setup.',
       data,
+      accessToken,
+      refreshToken,
     };
 
     return res;
@@ -252,10 +282,20 @@ export class AuthService {
 
       // login
       if (account.status === AccountStatus.ACTIVATED) {
-        const res: APIResponse = {
+        const accessToken =
+          await this.tokenService.generateAccessToken(account);
+
+        const refreshToken = await this.tokenService.generateRefreshToken({
+          id: account.id,
+          sessionId: uuidv4(),
+        });
+
+        const res: APIResponse & { refreshToken: string } = {
           statusCode: HttpStatus.OK,
           message: 'Logged in successfully',
           data: account,
+          accessToken,
+          refreshToken,
         };
 
         return res;
@@ -268,18 +308,24 @@ export class AuthService {
         );
 
       if (account.status === AccountStatus.INACTIVATED) {
-        const updatedAccount = await this.accountsRepository.update(
-          { email: payload.email },
-          {
-            status: AccountStatus.PENDING,
-          }
-        );
+        account.status = AccountStatus.PENDING;
+        const updatedAccount = await this.accountsRepository.save(account);
 
-        const res: APIResponse = {
+        const accessToken =
+          await this.tokenService.generateAccessToken(updatedAccount);
+
+        const refreshToken = await this.tokenService.generateRefreshToken({
+          id: updatedAccount.id,
+          sessionId: uuidv4(),
+        });
+
+        const res: APIResponse & { refreshToken: string } = {
           statusCode: HttpStatus.OK,
           message:
             'Email verified successfully. Please complete your profile setup',
           data: updatedAccount,
+          accessToken,
+          refreshToken,
         };
 
         return res;
@@ -294,11 +340,20 @@ export class AuthService {
 
     await this.accountsRepository.save(newAccount);
 
-    const res: APIResponse = {
+    const accessToken = await this.tokenService.generateAccessToken(newAccount);
+
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      id: newAccount.id,
+      sessionId: uuidv4(),
+    });
+
+    const res: APIResponse & { refreshToken: string } = {
       statusCode: HttpStatus.CREATED,
       message:
         'Account created and verified successfully. Please complete your profile setup',
       data: newAccount,
+      accessToken,
+      refreshToken,
     };
 
     return res;

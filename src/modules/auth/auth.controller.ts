@@ -20,6 +20,7 @@ import { AuthGuard } from './auth.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -103,12 +104,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
-    @Req() req: Request
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
   ) {
-    return await this.authService.changePassword(
+    const result = await this.authService.changePassword(
       changePasswordDto,
       req.account!
     );
+
+    res.clearCookie('refreshToken');
+    return result;
   }
 
   @Post('forgot-password')
@@ -125,7 +130,23 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() resetPassword: ResetPasswordDto) {
-    return await this.authService.resetPassword(resetPassword);
+  async resetPassword(
+    @Body() resetPassword: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.resetPassword(resetPassword);
+
+    res.clearCookie('refreshToken');
+    return result;
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerificationEmail(
+    @Body() resendVerificationDto: ResendVerificationDto
+  ) {
+    return await this.authService.resendVerificationEmail(
+      resendVerificationDto.email
+    );
   }
 }

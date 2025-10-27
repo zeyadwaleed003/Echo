@@ -11,7 +11,7 @@ export class EmailService {
     private readonly configService: ConfigService
   ) {}
 
-  async sendOTPEmail(email: string, otp: string, name: string) {
+  async sendVerificationEmail(email: string, otp: string, name: string) {
     try {
       await this.mailerService.sendMail({
         to: email,

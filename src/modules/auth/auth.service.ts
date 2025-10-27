@@ -59,12 +59,12 @@ export class AuthService {
     return num.toString().padStart(length, '0');
   }
 
-  private async generateAndSendOTP(email: string, name: string) {
+  private async generateAndSendVerificationEmail(email: string, name: string) {
     // Generate the OTP
     const otp = this.generateOTP();
 
     // Sent the email with the otp
-    await this.emailService.sendOTPEmail(email, otp, name);
+    await this.emailService.sendVerificationEmail(email, otp, name);
 
     // Hash the otp
     const hashedOTP = await hashCode(otp);
@@ -135,7 +135,7 @@ export class AuthService {
         );
 
       if (status === AccountStatus.INACTIVATED)
-        return await this.sendOTP(account.email, account.name);
+        return await this.resendVerificationEmail(account.email);
     }
 
     // If NOT ...
@@ -150,7 +150,10 @@ export class AuthService {
     await this.accountsRepository.save(user);
 
     // OTP generation and send email
-    await this.generateAndSendOTP(signupDto.email, signupDto.name);
+    await this.generateAndSendVerificationEmail(
+      signupDto.email,
+      signupDto.name
+    );
 
     const res: APIResponse = {
       message:
@@ -160,8 +163,19 @@ export class AuthService {
     return res;
   }
 
-  async sendOTP(email: string, name: string) {
-    await this.generateAndSendOTP(email, name);
+  async resendVerificationEmail(email: string) {
+    const account = await this.accountsRepository.findOneBy({ email });
+
+    if (!account)
+      throw new ForbiddenException('No account found with this email address');
+
+    if (account.status !== AccountStatus.INACTIVATED) {
+      throw new ForbiddenException(
+        'Cannot resend verification code for this account'
+      );
+    }
+
+    await this.generateAndSendVerificationEmail(email, account.name);
 
     return {
       message:

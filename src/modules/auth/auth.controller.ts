@@ -1,16 +1,19 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { sendResponse } from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
 
@@ -56,6 +59,24 @@ export class AuthController {
     const { refreshToken, ...response } = result;
 
     this.authService.sendCookie(res, 'refreshToken', refreshToken!);
+    return response;
+  }
+
+  @Get('refresh-token')
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    if (!('refreshToken' in req.cookies))
+      throw new UnauthorizedException('Refresh token not found in cookies');
+
+    const result = await this.authService.refreshToken(
+      req.cookies.refreshToken
+    );
+
+    const { refreshToken, ...response } = result;
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
+
     return response;
   }
 }

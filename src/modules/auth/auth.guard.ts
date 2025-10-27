@@ -9,15 +9,18 @@ import { Request } from 'express';
 import { TokenService } from '../token/token.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from '../accounts/entities/account.entity';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { AccountStatus } from '../accounts/accounts.enums';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private tokenService: TokenService,
     @InjectRepository(Account)
-    private readonly accountsRepository: Repository<Account>
+    private readonly accountsRepository: Repository<Account>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>
   ) {}
 
   private extractTokenFromHeader(req: Request): string | undefined {
@@ -43,9 +46,25 @@ export class AuthGuard implements CanActivate {
       });
 
       if (!account)
-        throw new UnauthorizedException(
-          'Account not found or has been deleted'
-        );
+        throw new UnauthorizedException('Access token is invalid or expired');
+
+      const { refreshToken } = req.cookies;
+      if (!refreshToken)
+        throw new UnauthorizedException('Refresh token is invalid or expired');
+
+      const verifiedRefreshToken =
+        await this.tokenService.verifyRefreshToken(refreshToken);
+
+      const storedRefreshToken = await this.refreshTokenRepository.findOne({
+        where: {
+          sessionId: verifiedRefreshToken.sessionId,
+          accountId: verifiedRefreshToken.id,
+          revokedAt: IsNull(),
+        },
+      });
+
+      if (!storedRefreshToken)
+        throw new UnauthorizedException('Refresh token is invalid or expired');
 
       if (account.status === AccountStatus.SUSPENDED)
         throw new ForbiddenException(

@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { RefreshTokenPayload } from 'src/common/types/api.types';
@@ -56,8 +56,25 @@ export class TokenService {
   }
 
   async verifyAccessToken(accessToken: string) {
-    return await this.jwtService.verifyAsync<Account>(accessToken, {
-      secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
-    } as any);
+    try {
+      return await this.jwtService.verifyAsync<Account>(accessToken, {
+        secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
+      } as JwtVerifyOptions);
+    } catch {
+      throw new UnauthorizedException('Access token is invalid or expired');
+    }
+  }
+
+  async verifyRefreshToken(refreshToken: string) {
+    try {
+      return await this.jwtService.verifyAsync<RefreshTokenPayload>(
+        refreshToken,
+        {
+          secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+        } as JwtVerifyOptions
+      );
+    } catch {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
   }
 }

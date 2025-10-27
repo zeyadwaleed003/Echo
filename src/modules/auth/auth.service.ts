@@ -8,6 +8,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -24,14 +25,19 @@ import { CookieOptions, Response } from 'express';
 import { comparePassword, parseExpiresInMs } from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
 import { ACCOUNT_SELECT_WITH_PASSWORD } from './auth.select';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { RevocationReason } from './auth.enums';
 
 @Injectable()
 export class AuthService {
   private googleClient: OAuth2Client;
+  private logger = new Logger('Auth Service');
 
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly tokenService: TokenService
@@ -415,6 +421,87 @@ export class AuthService {
       data: cleanAccount,
       accessToken,
       refreshToken,
+    };
+
+    return result;
+  }
+
+  async refreshToken(refreshTokenValue: string) {
+    // Verify Token
+    const verifiedToken =
+      await this.tokenService.verifyRefreshToken(refreshTokenValue);
+
+    // Find the Token's account
+    const account = await this.accountsRepository.findOneBy({
+      id: verifiedToken.id,
+    });
+    if (!account) {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+
+    // Find the token in the refresh token table by the token's session id
+    const storedRefreshToken = await this.refreshTokenRepository.findOneBy({
+      sessionId: verifiedToken.sessionId,
+    });
+    if (!storedRefreshToken || account.id !== storedRefreshToken.accountId)
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+
+    // Check if the token is revoked
+    if (storedRefreshToken.revokedAt) {
+      // Using a token that has been revoked - logout the user from all devices - security reseon
+      await this.refreshTokenRepository.update(
+        { accountId: account.id },
+        { revokedAt: new Date(), revocationReason: RevocationReason.REUSE }
+      );
+
+      this.logger.warn(
+        `Revoked refresh token reuse detected for account ${storedRefreshToken.accountId}`
+      );
+
+      throw new UnauthorizedException(
+        'Suspicious activity detected. Please sign in again.'
+      );
+    }
+
+    // Check account's status
+    if (account.status === AccountStatus.DEACTIVATED) {
+      throw new ForbiddenException(
+        'This account has been deactivated. Please contact support'
+      );
+    }
+
+    if (account.status === AccountStatus.SUSPENDED) {
+      throw new ForbiddenException(
+        'This account has been suspended. Please contact support'
+      );
+    }
+
+    // Generate new access token
+    const accessToken = await this.tokenService.generateAccessToken({
+      ...account,
+    });
+
+    // Generate new Refresh token
+    const newRefreshToken = await this.tokenService.generateRefreshToken({
+      id: account.id,
+      sessionId: uuidv4(),
+    });
+
+    // Revoke the old refresh token
+    await this.refreshTokenRepository.update(
+      {
+        id: storedRefreshToken.id,
+      },
+      {
+        revokedAt: new Date(),
+        revocationReason: RevocationReason.ROTATION,
+      }
+    );
+
+    const result: APIResponse = {
+      data: account,
+      accessToken,
+      refreshToken: newRefreshToken,
     };
 
     return result;

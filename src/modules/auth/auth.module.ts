@@ -5,9 +5,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from '../accounts/entities/account.entity';
 import { EmailModule } from '../email/email.module';
 import { TokenModule } from '../token/token.module';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Account]), EmailModule, TokenModule],
+  imports: [
+    TypeOrmModule.forFeature([Account, RefreshToken]),
+    EmailModule,
+    TokenModule,
+  ],
   controllers: [AuthController],
   providers: [AuthService],
 })

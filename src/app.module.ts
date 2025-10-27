@@ -11,6 +11,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module
     BookmarksModule,
     NotificationsModule,
     BlockedWordsModule,
+    TasksModule,
   ],
 })
 export class AppModule {}

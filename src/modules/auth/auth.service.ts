@@ -164,6 +164,7 @@ export class AuthService {
   }
 
   async resendVerificationEmail(email: string) {
+    this.logger.log(`Resend verification email requested for: ${email}`);
     const account = await this.accountsRepository.findOneBy({ email });
 
     const result: APIResponse = {
@@ -171,7 +172,12 @@ export class AuthService {
         'A verification code has been sent to your email address. Please check your inbox.',
     };
 
-    if (!account) return result;
+    if (!account) {
+      this.logger.warn(
+        `No account found for email: ${email} - Resend Verification Email Context`
+      );
+      return result;
+    }
 
     if (account.status !== AccountStatus.INACTIVATED) {
       throw new ForbiddenException(
@@ -247,6 +253,7 @@ export class AuthService {
         status: AccountStatus.PENDING,
       }
     );
+    this.logger.log(`Account verified for email: ${verifyAccountDto.email}`);
 
     const { verificationCode, verificationCodeExpiresAt, ...data } = account;
 
@@ -274,8 +281,10 @@ export class AuthService {
     });
 
     const payload = ticket.getPayload();
-    if (!payload)
+    if (!payload) {
+      this.logger.error('Invalid Google ID token Payload');
       throw new UnauthorizedException('Invalid Google ID token Payload');
+    }
 
     if (!payload.email_verified)
       throw new UnauthorizedException('Your google account is not verified');
@@ -348,6 +357,10 @@ export class AuthService {
 
         return res;
       }
+    } else {
+      this.logger.log(
+        `Creating new Google account for email: ${payload.email}`
+      );
     }
 
     const newAccount = this.accountsRepository.create({
@@ -400,6 +413,7 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
+    this.logger.log(`Login attempt for: ${loginDto.emailOrUsername}`);
     // check if the provided field is an email
     const isEmail = loginDto.emailOrUsername.includes('@');
 
@@ -414,8 +428,12 @@ export class AuthService {
       !account ||
       !account.password ||
       !(await compareHash(loginDto.password, account.password))
-    )
+    ) {
+      this.logger.warn(
+        `Invalid login credentials for: ${loginDto.emailOrUsername}`
+      );
       throw new UnauthorizedException('Invalid email/username or password');
+    }
 
     this.checkAccountActivation(account.status);
 
@@ -435,6 +453,7 @@ export class AuthService {
       refreshToken,
     };
 
+    this.logger.log(`Login successful for: ${loginDto.emailOrUsername}`);
     return result;
   }
 
@@ -460,14 +479,13 @@ export class AuthService {
 
     // Check if the token is revoked
     if (storedRefreshToken.revokedAt) {
+      this.logger.warn(
+        `Revoked refresh token reuse detected for account ${storedRefreshToken.accountId}`
+      );
       // Using a token that has been revoked - logout the user from all devices - security reseon
       await this.refreshTokenRepository.update(
         { accountId: account.id },
         { revokedAt: new Date(), revocationReason: RevocationReason.REUSE }
-      );
-
-      this.logger.warn(
-        `Revoked refresh token reuse detected for account ${storedRefreshToken.accountId}`
       );
 
       throw new UnauthorizedException(
@@ -559,6 +577,7 @@ export class AuthService {
       { id: account.id },
       { password: hashedPassword }
     );
+    this.logger.log(`Password updated for account: ${account.id}`);
 
     // logout the user from all his active sessions
     await this.refreshTokenRepository.update(
@@ -567,6 +586,9 @@ export class AuthService {
         revokedAt: new Date(),
         revocationReason: RevocationReason.PASSWORD_CHANGE,
       }
+    );
+    this.logger.log(
+      `All sessions revoked for account: ${account.id} after password change`
     );
 
     const result: APIResponse = {
@@ -587,7 +609,12 @@ export class AuthService {
         'A password reset code has been sent to your email address. Please check your inbox.',
     };
 
-    if (!account) return result;
+    if (!account) {
+      this.logger.warn(
+        `No account found for forgot password: ${forgotPasswordDto.email}`
+      );
+      return result;
+    }
 
     if (account.status === AccountStatus.INACTIVATED)
       throw new ForbiddenException(
@@ -650,6 +677,9 @@ export class AuthService {
       account.passwordResetCode
     );
     if (!isEqual) {
+      this.logger.warn(
+        `Password reset code mismatch for email: ${verifyOtpDto.email}`
+      );
       throw new ForbiddenException('Invalid or expired password reset code.');
     }
 
@@ -688,6 +718,9 @@ export class AuthService {
       { id: verifiedToken.id },
       { password: hashedPassword }
     );
+    this.logger.log(
+      `Password updated for account: ${verifiedToken.id} - Reset Password Context`
+    );
 
     // Logout the user from all his devices
     await this.refreshTokenRepository.update(
@@ -696,6 +729,9 @@ export class AuthService {
         revokedAt: new Date(),
         revocationReason: RevocationReason.PASSWORD_RESET,
       }
+    );
+    this.logger.log(
+      `All sessions revoked for account: ${verifiedToken.id} after password reset`
     );
 
     const result: APIResponse = {

@@ -542,7 +542,7 @@ export class AuthService {
     if (!password)
       throw new ForbiddenException('No password set for this account');
 
-    if (!comparePassword(changePasswordDto.password, password))
+    if (!(await comparePassword(changePasswordDto.oldPassword, password)))
       throw new UnauthorizedException('Old password is incorrect');
 
     // Update the account with the new password
@@ -553,8 +553,17 @@ export class AuthService {
       { password: hashedPassword }
     );
 
+    // logout the user from all his active sessions
+    await this.refreshTokenRepository.update(
+      { accountId: account.id },
+      {
+        revokedAt: new Date(),
+        revocationReason: RevocationReason.PASSWORD_CHANGE,
+      }
+    );
+
     const result: APIResponse = {
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. Please sign in again',
     };
 
     return result;

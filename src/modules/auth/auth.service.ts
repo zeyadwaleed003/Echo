@@ -11,7 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Account } from '../accounts/entities/account.entity';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { SignupDto } from './dto/signup.dto';
@@ -502,6 +502,25 @@ export class AuthService {
       data: account,
       accessToken,
       refreshToken: newRefreshToken,
+    };
+
+    return result;
+  }
+
+  async logout(refreshToken: string) {
+    const verifiedToken =
+      await this.tokenService.verifyRefreshToken(refreshToken);
+
+    await this.refreshTokenRepository.update(
+      { sessionId: verifiedToken.sessionId, revokedAt: IsNull() },
+      {
+        revokedAt: new Date(),
+        revocationReason: RevocationReason.LOGOUT,
+      }
+    );
+
+    const result: APIResponse = {
+      message: 'Logged out successfully',
     };
 
     return result;

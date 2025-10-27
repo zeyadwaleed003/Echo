@@ -21,16 +21,45 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ApiOperation({
+    summary: 'Register a new account',
+    description:
+      'Creates a new account and sends a verification code to the provided email.',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Account created successfully. Please check your email for the verification code.',
+  })
+  @ApiBody({ type: SignupDto })
   @Post('signup')
   async signup(@Body() signupDto: SignupDto) {
     return await this.authService.signup(signupDto);
   }
 
+  @ApiOperation({
+    summary: 'Verify account with OTP',
+    description: 'Verifies the account using the OTP sent to the email.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Email verified successfully. Please complete your profile setup.',
+  })
+  @ApiBody({ type: VerifyOtpDto })
   @Post('verify-account')
   @HttpCode(HttpStatus.OK)
   async verifyAccount(
@@ -44,6 +73,12 @@ export class AuthController {
     return response;
   }
 
+  @ApiOperation({
+    summary: 'Authenticate with Google',
+    description: 'Authenticate or register using Google OAuth.',
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: GoogleAuthDto })
   @Post('google')
   async googleAuth(@Body() googleAuthDto: GoogleAuthDto, @Res() res: Response) {
     const result = await this.authService.googleAuth(googleAuthDto);
@@ -54,6 +89,12 @@ export class AuthController {
     sendResponse(res, response);
   }
 
+  @ApiOperation({
+    summary: 'Login with email or username and password',
+    description: 'Logs in the user and sets a refresh token cookie.',
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: LoginDto })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -67,6 +108,12 @@ export class AuthController {
     return response;
   }
 
+  @ApiOperation({
+    summary: 'Refresh authentication token',
+    description:
+      'Refreshes the access token using the refresh token from cookies.',
+  })
+  @ApiResponse({ status: 200 })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(
@@ -86,6 +133,12 @@ export class AuthController {
     return response;
   }
 
+  @ApiOperation({
+    summary: 'Logout account and clear refresh token',
+    description: 'Logs out the user and clears the refresh token cookie.',
+  })
+  @ApiResponse({ status: 204 })
+  @ApiBearerAuth()
   @UseGuards(AuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -99,6 +152,12 @@ export class AuthController {
     return result;
   }
 
+  @ApiOperation({
+    summary: 'Change account password',
+    description: 'Allows authenticated users to change their password.',
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: ChangePasswordDto })
   @UseGuards(AuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
@@ -116,18 +175,36 @@ export class AuthController {
     return result;
   }
 
+  @ApiOperation({
+    summary: 'Send forgot password email',
+    description: "Sends a password reset code to the user's email.",
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: ForgotPasswordDto })
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return await this.authService.forgotPassword(forgotPasswordDto);
   }
 
+  @ApiOperation({
+    summary: 'Verify password reset token',
+    description: "Verifies the password reset code sent to the user's email.",
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: VerifyOtpDto })
   @Post('verify-reset-password')
   @HttpCode(HttpStatus.OK)
   async verifyPasswordResetToken(@Body() verifyOtpDto: VerifyOtpDto) {
     return await this.authService.verifyResetPasswordToken(verifyOtpDto);
   }
 
+  @ApiOperation({
+    summary: 'Reset account password',
+    description: "Resets the user's password using a valid reset token.",
+  })
+  @ApiResponse({ status: 200 })
+  @ApiBody({ type: ResetPasswordDto })
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(
@@ -140,6 +217,14 @@ export class AuthController {
     return result;
   }
 
+  @ApiOperation({
+    summary: 'Resend account verification email',
+    description: "Resends the verification code to the user's email.",
+  })
+  @ApiResponse({
+    status: 200,
+  })
+  @ApiBody({ type: ResendVerificationDto })
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
   async resendVerificationEmail(

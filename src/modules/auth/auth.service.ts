@@ -166,8 +166,12 @@ export class AuthService {
   async resendVerificationEmail(email: string) {
     const account = await this.accountsRepository.findOneBy({ email });
 
-    if (!account)
-      throw new ForbiddenException('No account found with this email address');
+    const result: APIResponse = {
+      message:
+        'A verification code has been sent to your email address. Please check your inbox.',
+    };
+
+    if (!account) return result;
 
     if (account.status !== AccountStatus.INACTIVATED) {
       throw new ForbiddenException(
@@ -177,10 +181,7 @@ export class AuthService {
 
     await this.generateAndSendVerificationEmail(email, account.name);
 
-    return {
-      message:
-        'A verification code has been sent to your email address. Please check your inbox.',
-    };
+    return result;
   }
 
   async verifyAccount(verifyAccountDto: VerifyOtpDto) {

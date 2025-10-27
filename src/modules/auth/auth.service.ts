@@ -22,11 +22,16 @@ import { VerifyAccountDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { TokenService } from '../token/token.service';
 import { CookieOptions, Response } from 'express';
-import { comparePassword, parseExpiresInMs } from 'src/common/utils/functions';
+import {
+  comparePassword,
+  hashPassword,
+  parseExpiresInMs,
+} from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
 import { ACCOUNT_SELECT_WITH_PASSWORD } from './auth.select';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RevocationReason } from './auth.enums';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -521,6 +526,35 @@ export class AuthService {
 
     const result: APIResponse = {
       message: 'Logged out successfully',
+    };
+
+    return result;
+  }
+
+  async changePassword(changePasswordDto: ChangePasswordDto, account: Account) {
+    // Get the account password
+    const { password } = (await this.accountsRepository.findOne({
+      where: { id: account.id },
+      select: ['password'],
+    }))!;
+
+    // Compare the given old password with the account actual password
+    if (!password)
+      throw new ForbiddenException('No password set for this account');
+
+    if (!comparePassword(changePasswordDto.password, password))
+      throw new UnauthorizedException('Old password is incorrect');
+
+    // Update the account with the new password
+    const hashedPassword = await hashPassword(changePasswordDto.password);
+
+    await this.accountsRepository.update(
+      { id: account.id },
+      { password: hashedPassword }
+    );
+
+    const result: APIResponse = {
+      message: 'Password changed successfully',
     };
 
     return result;

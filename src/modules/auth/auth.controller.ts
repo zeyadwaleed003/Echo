@@ -17,6 +17,7 @@ import type { Request, Response } from 'express';
 import { sendResponse } from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from './auth.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -93,5 +94,18 @@ export class AuthController {
     res.clearCookie('refreshToken');
 
     return result;
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Req() req: Request
+  ) {
+    return await this.authService.changePassword(
+      changePasswordDto,
+      req.account!
+    );
   }
 }

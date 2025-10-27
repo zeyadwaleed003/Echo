@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
 import { Repository } from 'typeorm';
 import { APIResponse } from 'src/common/types/api.types';
-import { hashPassword } from 'src/common/utils/functions';
+import { hashCode } from 'src/common/utils/functions';
 
 @Injectable()
 export class AccountsService {
@@ -15,7 +15,7 @@ export class AccountsService {
 
   async create(createAccountDto: CreateAccountDto) {
     if (createAccountDto.password)
-      createAccountDto.password = await hashPassword(createAccountDto.password);
+      createAccountDto.password = await hashCode(createAccountDto.password);
 
     const account = this.accountsRepository.create(createAccountDto);
 

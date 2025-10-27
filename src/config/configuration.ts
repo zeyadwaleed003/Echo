@@ -34,6 +34,7 @@ const validatedEnv = z
     MT_PASS: z.string().min(1),
 
     VERIFICATION_OTP_EXPIRES_IN: z.coerce.number(),
+    PASSWORD_RESET_OTP_EXPIRES_IN: z.coerce.number(),
 
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
@@ -42,6 +43,8 @@ const validatedEnv = z
     ACCESS_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
     REFRESH_TOKEN_SECRET: z.string().min(1),
     REFRESH_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
+    PASSWORD_RESET_TOKEN_SECRET: z.string().min(1),
+    PASSWORD_RESET_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
   })
   .parse(process.env);
 

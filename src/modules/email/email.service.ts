@@ -37,6 +37,32 @@ export class EmailService {
     }
   }
 
+  async sendPasswordResetEmail(email: string, otp: string, name: string) {
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Reset Your Password - Echo',
+        template: './password-reset',
+        context: {
+          name,
+          otp,
+          expiryMinutes: this.configService.get<number>(
+            'PASSWORD_RESET_OTP_EXPIRES_IN'
+          )!,
+          year: new Date().getFullYear(),
+        },
+      });
+
+      this.logger.log(`Password reset email sent successfully to: ${email}`);
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to send password reset email to ${email}: ${err.message}`,
+        err.stack
+      );
+      throw new Error('Failed to send password reset email');
+    }
+  }
+
   async sendWelcomeEmail(email: string, name: string) {
     try {
       await this.mailerService.sendMail({

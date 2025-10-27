@@ -11,13 +11,15 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
-import { VerifyAccountDto } from './dto/verify-account.dto';
+import { VerifyOtpDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import type { Request, Response } from 'express';
 import { sendResponse } from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from './auth.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -31,7 +33,7 @@ export class AuthController {
   @Post('verify-account')
   @HttpCode(HttpStatus.OK)
   async verifyAccount(
-    @Body() verifyAccountDto: VerifyAccountDto,
+    @Body() verifyAccountDto: VerifyOtpDto,
     @Res({ passthrough: true }) res: Response
   ) {
     const result = await this.authService.verifyAccount(verifyAccountDto);
@@ -107,5 +109,23 @@ export class AuthController {
       changePasswordDto,
       req.account!
     );
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('verify-reset-password')
+  @HttpCode(HttpStatus.OK)
+  async verifyPasswordResetToken(@Body() verifyOtpDto: VerifyOtpDto) {
+    return await this.authService.verifyResetPasswordToken(verifyOtpDto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPassword: ResetPasswordDto) {
+    return await this.authService.resetPassword(resetPassword);
   }
 }

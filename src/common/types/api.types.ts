@@ -6,6 +6,7 @@ export type APIResponse = {
   timestamp?: string;
   accessToken?: string;
   refreshToken?: string;
+  passwordResetToken?: string;
 };
 
 export type RefreshTokenPayload = {

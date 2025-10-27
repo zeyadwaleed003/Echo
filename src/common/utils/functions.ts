@@ -28,14 +28,15 @@ export const sendResponse = (res: Response, result: APIResponse) => {
     data: result.data,
     timestamp: result.timestamp,
     accessToken: result.accessToken,
+    passwordResetToken: result.passwordResetToken,
   });
 };
 
-export const hashPassword = async (password: string) => {
-  const hashed = await hash(password, 10);
-  return hashed;
+export const hashCode = async (code: string) => {
+  const saltRounds = 10;
+  return await hash(code, saltRounds);
 };
 
-export const comparePassword = async (password: string, hashed: string) => {
-  return await compare(password, hashed);
+export const compareHash = async (code: string, hash: string) => {
+  return await compare(code, hash);
 };

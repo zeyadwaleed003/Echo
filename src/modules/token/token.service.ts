@@ -55,9 +55,18 @@ export class TokenService {
     return token;
   }
 
-  async verifyAccessToken(accessToken: string) {
+  async generatePasswordResetToken(payload: object) {
+    return await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('PASSWORD_RESET_TOKEN_SECRET'),
+      expiresIn: this.configService.get<string>(
+        'PASSWORD_RESET_TOKEN_EXPIRES_IN'
+      ),
+    } as JwtSignOptions);
+  }
+
+  async verifyAccessToken(token: string) {
     try {
-      return await this.jwtService.verifyAsync<Account>(accessToken, {
+      return await this.jwtService.verifyAsync<Account>(token, {
         secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
       } as JwtVerifyOptions);
     } catch {
@@ -65,16 +74,25 @@ export class TokenService {
     }
   }
 
-  async verifyRefreshToken(refreshToken: string) {
+  async verifyRefreshToken(token: string) {
     try {
-      return await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        refreshToken,
-        {
-          secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
-        } as JwtVerifyOptions
-      );
+      return await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
+        secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
+      } as JwtVerifyOptions);
     } catch {
       throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+  }
+
+  async verifyPasswordResetToken(token: string) {
+    try {
+      return await this.jwtService.verifyAsync<{ id: number }>(token, {
+        secret: this.configService.get<string>('PASSWORD_RESET_TOKEN_SECRET'),
+      } as JwtVerifyOptions);
+    } catch {
+      throw new UnauthorizedException(
+        'Password Reset token is invalid or expired'
+      );
     }
   }
 }

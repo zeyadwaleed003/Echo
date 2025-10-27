@@ -3,6 +3,7 @@ export enum RevocationReason {
   REUSE = 'reuse',
   LOGOUT = 'logout',
   PASSWORD_CHANGE = 'password_change',
+  PASSWORD_RESET = 'password_reset',
   DEACTIVATION = 'deactivation',
   DELETION = 'deletion',
   SECURITY = 'security',

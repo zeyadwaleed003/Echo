@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { randomInt } from 'crypto';
-import { hash, compare } from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import {
   Injectable,
@@ -18,13 +17,13 @@ import { SignupDto } from './dto/signup.dto';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { APIResponse } from 'src/common/types/api.types';
-import { VerifyAccountDto } from './dto/verify-account.dto';
+import { VerifyOtpDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { TokenService } from '../token/token.service';
 import { CookieOptions, Response } from 'express';
 import {
-  comparePassword,
-  hashPassword,
+  compareHash,
+  hashCode,
   parseExpiresInMs,
 } from 'src/common/utils/functions';
 import { LoginDto } from './dto/login.dto';
@@ -32,6 +31,8 @@ import { ACCOUNT_SELECT_WITH_PASSWORD } from './auth.select';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RevocationReason } from './auth.enums';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -58,15 +59,6 @@ export class AuthService {
     return num.toString().padStart(length, '0');
   }
 
-  private async hashOTP(otp: string) {
-    const saltRounds = 10;
-    return await hash(otp, saltRounds);
-  }
-
-  private async compareHash(code: string, hash: string) {
-    return await compare(code, hash);
-  }
-
   private async generateAndSendOTP(email: string, name: string) {
     // Generate the OTP
     const otp = this.generateOTP();
@@ -75,7 +67,7 @@ export class AuthService {
     await this.emailService.sendOTPEmail(email, otp, name);
 
     // Hash the otp
-    const hashedOTP = await this.hashOTP(otp);
+    const hashedOTP = await hashCode(otp);
 
     // Store the otp in the database with a ttl
     const expiresAt = new Date();
@@ -177,7 +169,7 @@ export class AuthService {
     };
   }
 
-  async verifyAccount(verifyAccountDto: VerifyAccountDto) {
+  async verifyAccount(verifyAccountDto: VerifyOtpDto) {
     // Find account using email
     const account = await this.accountsRepository
       .createQueryBuilder('account')
@@ -215,7 +207,7 @@ export class AuthService {
       );
 
     // otp = stored otp
-    const isEqual = await this.compareHash(
+    const isEqual = await compareHash(
       verifyAccountDto.verificationCode,
       account.verificationCode
     );
@@ -406,7 +398,7 @@ export class AuthService {
     if (
       !account ||
       !account.password ||
-      !(await comparePassword(loginDto.password, account.password))
+      !(await compareHash(loginDto.password, account.password))
     )
       throw new UnauthorizedException('Invalid email/username or password');
 
@@ -542,11 +534,11 @@ export class AuthService {
     if (!password)
       throw new ForbiddenException('No password set for this account');
 
-    if (!(await comparePassword(changePasswordDto.oldPassword, password)))
+    if (!(await compareHash(changePasswordDto.oldPassword, password)))
       throw new UnauthorizedException('Old password is incorrect');
 
     // Update the account with the new password
-    const hashedPassword = await hashPassword(changePasswordDto.password);
+    const hashedPassword = await hashCode(changePasswordDto.password);
 
     await this.accountsRepository.update(
       { id: account.id },
@@ -563,7 +555,136 @@ export class AuthService {
     );
 
     const result: APIResponse = {
-      message: 'Password changed successfully. Please sign in again',
+      message: 'Password changed successfully. Please login again',
+    };
+
+    return result;
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    // find the account
+    const account = await this.accountsRepository.findOneBy({
+      email: forgotPasswordDto.email,
+    });
+
+    const result: APIResponse = {
+      message:
+        'A password reset code has been sent to your email address. Please check your inbox.',
+    };
+
+    if (!account) return result;
+
+    if (account.status === AccountStatus.INACTIVATED)
+      throw new ForbiddenException(
+        'Please verify your email address to activate your account'
+      );
+
+    if (account.status === AccountStatus.DEACTIVATED)
+      throw new ForbiddenException(
+        'This account has been deactivated. Please contact support'
+      );
+
+    if (account.status === AccountStatus.SUSPENDED)
+      throw new ForbiddenException(
+        'This account has been suspended. Please contact support'
+      );
+
+    const otp = this.generateOTP();
+
+    // send the email
+    await this.emailService.sendPasswordResetEmail(
+      forgotPasswordDto.email,
+      otp,
+      account.name
+    );
+
+    // update the account table
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() +
+        this.configService.get<number>('VERIFICATION_OTP_EXPIRES_IN')!
+    );
+
+    const hashedOTP = await hashCode(otp);
+
+    await this.accountsRepository.update(
+      { id: account.id },
+      { passwordResetCodeExpiresAt: expiresAt, passwordResetCode: hashedOTP }
+    );
+
+    return result;
+  }
+
+  async verifyResetPasswordToken(verifyOtpDto: VerifyOtpDto) {
+    const account = await this.accountsRepository.findOne({
+      where: { email: verifyOtpDto.email },
+      select: ['id', 'passwordResetCode', 'passwordResetCodeExpiresAt'],
+    });
+    if (!account)
+      throw new ForbiddenException('No account found with this email address');
+
+    if (
+      !account.passwordResetCode ||
+      !account.passwordResetCodeExpiresAt ||
+      new Date() > account.passwordResetCodeExpiresAt
+    )
+      throw new ForbiddenException('Invalid or expired password reset code.');
+
+    const isEqual = await compareHash(
+      verifyOtpDto.verificationCode,
+      account.passwordResetCode
+    );
+    if (!isEqual) {
+      throw new ForbiddenException('Invalid or expired password reset code.');
+    }
+
+    await this.accountsRepository.update(
+      { id: account.id },
+      { passwordResetCode: null, passwordResetCodeExpiresAt: null }
+    );
+
+    const token = await this.tokenService.generatePasswordResetToken({
+      id: account.id,
+    });
+
+    const result: APIResponse = {
+      passwordResetToken: token,
+    };
+
+    return result;
+  }
+
+  async resetPassword({ password, token }: ResetPasswordDto) {
+    // Validate the token
+    const verifiedToken =
+      await this.tokenService.verifyPasswordResetToken(token);
+
+    const accountExist = await this.accountsRepository.existsBy({
+      id: verifiedToken.id,
+    });
+    if (!accountExist)
+      throw new ForbiddenException(
+        'Password reset token is invalid or expired'
+      );
+
+    // Update the account with the new password
+    const hashedPassword = await hashCode(password);
+    await this.accountsRepository.update(
+      { id: verifiedToken.id },
+      { password: hashedPassword }
+    );
+
+    // Logout the user from all his devices
+    await this.refreshTokenRepository.update(
+      { accountId: verifiedToken.id },
+      {
+        revokedAt: new Date(),
+        revocationReason: RevocationReason.PASSWORD_RESET,
+      }
+    );
+
+    const result: APIResponse = {
+      message: 'Password reset successfully. Please login again',
     };
 
     return result;

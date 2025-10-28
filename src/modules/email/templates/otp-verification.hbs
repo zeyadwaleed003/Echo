@@ -1,0 +1,254 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Verify Your Email</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f5;
+        padding: 20px;
+      }
+      .email-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px 30px;
+        text-align: center;
+        color: #ffffff;
+      }
+      .header h1 {
+        font-size: 32px;
+        margin-bottom: 8px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .header p {
+        font-size: 16px;
+        opacity: 0.95;
+        font-weight: 300;
+      }
+      .content {
+        padding: 40px 35px;
+      }
+      .greeting {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: #1f2937;
+      }
+      .greeting strong {
+        color: #667eea;
+      }
+      .message {
+        font-size: 15px;
+        color: #4b5563;
+        margin-bottom: 25px;
+        line-height: 1.8;
+      }
+      .message p {
+        margin-bottom: 12px;
+      }
+      .otp-box {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+        border: 2px dashed #667eea;
+        border-radius: 12px;
+        padding: 35px 25px;
+        text-align: center;
+        margin: 35px 0;
+      }
+      .otp-label {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 600;
+      }
+      .otp-code {
+        font-size: 42px;
+        font-weight: 800;
+        color: #667eea;
+        letter-spacing: 12px;
+        margin: 15px 0;
+        font-family: 'Courier New', Courier, monospace;
+        text-shadow: 1px 1px 2px rgba(102, 126, 234, 0.1);
+      }
+      .expiry-notice {
+        font-size: 13px;
+        color: #9ca3af;
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .expiry-notice strong {
+        color: #667eea;
+      }
+      .warning-box {
+        background-color: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 16px 18px;
+        margin: 25px 0;
+        border-radius: 6px;
+      }
+      .warning-box p {
+        font-size: 14px;
+        color: #92400e;
+        margin: 0;
+        line-height: 1.6;
+      }
+      .warning-box strong {
+        font-weight: 600;
+      }
+      .info-box {
+        background-color: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 16px 18px;
+        margin: 25px 0;
+        border-radius: 6px;
+      }
+      .info-box p {
+        font-size: 14px;
+        color: #1e40af;
+        margin: 0;
+        line-height: 1.6;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 30px 35px;
+        text-align: center;
+        border-top: 1px solid #e5e7eb;
+      }
+      .footer-logo {
+        font-size: 20px;
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+      .footer p {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 6px 0;
+        line-height: 1.5;
+      }
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      .divider {
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #e5e7eb,
+          transparent
+        );
+        margin: 20px 0;
+      }
+      @media only screen and (max-width: 600px) {
+        body {
+          padding: 10px;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .header {
+          padding: 30px 20px;
+        }
+        .otp-code {
+          font-size: 32px;
+          letter-spacing: 8px;
+        }
+        .footer {
+          padding: 25px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class='email-wrapper'>
+      <!-- Header -->
+      <div class='header'>
+        <h1>🔐 Echo</h1>
+        <p>Email Verification Required</p>
+      </div>
+
+      <!-- Content -->
+      <div class='content'>
+        <div class='greeting'>
+          Hello
+          <strong>{{name}}</strong>,
+        </div>
+
+        <div class='message'>
+          <p>Welcome to
+            <strong>Echo</strong>! We're thrilled to have you join our
+            community.</p>
+          <p>To complete your registration and secure your account, please
+            verify your email address using the One-Time Password (OTP) below:</p>
+        </div>
+
+        <!-- OTP Box -->
+        <div class='otp-box'>
+          <div class='otp-label'>Your Verification Code</div>
+          <div class='otp-code'>{{otp}}</div>
+          <div class='expiry-notice'>
+            <span>⏱️</span>
+            <span>Valid for <strong>{{expiryMinutes}} minutes</strong></span>
+          </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class='info-box'>
+          <p><strong>How to use this code:</strong>
+            Enter this 6-digit code in the verification screen to activate your
+            account.</p>
+        </div>
+
+        <!-- Warning Box -->
+        <div class='warning-box'>
+          <p><strong>Security Notice:</strong>
+            If you didn't create an account with Echo, please ignore this email.
+            Your security is our priority.</p>
+        </div>
+
+        <div class='divider'></div>
+
+        <div class='message'>
+          <p>Thank you for choosing Echo. We can't wait to see what you'll
+            create!</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class='footer'>
+        <div class='footer-logo'>Echo</div>
+        <p><strong>&copy; {{year}} Echo.</strong> All rights reserved.</p>
+        <p style='margin-top: 15px;'>This is an automated message. Please do not
+          reply to this email.</p>
+        <p>Need assistance?
+          <a href='mailto:support@echo.app'>Contact Support</a></p>
+      </div>
+    </div>
+  </body>
+</html>

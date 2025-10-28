@@ -1,0 +1,355 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Welcome to Echo</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f5;
+        padding: 20px;
+      }
+      .email-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 50px 30px;
+        text-align: center;
+        color: #ffffff;
+      }
+      .header h1 {
+        font-size: 36px;
+        margin-bottom: 12px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+      .header .emoji {
+        font-size: 48px;
+        margin-bottom: 15px;
+        display: block;
+      }
+      .header p {
+        font-size: 18px;
+        opacity: 0.95;
+        font-weight: 300;
+      }
+      .content {
+        padding: 40px 35px;
+      }
+      .greeting {
+        font-size: 22px;
+        margin-bottom: 25px;
+        color: #1f2937;
+        text-align: center;
+      }
+      .greeting strong {
+        color: #667eea;
+      }
+      .message {
+        font-size: 15px;
+        color: #4b5563;
+        margin-bottom: 25px;
+        line-height: 1.8;
+      }
+      .message p {
+        margin-bottom: 12px;
+      }
+      .welcome-box {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+        border-radius: 12px;
+        padding: 30px 25px;
+        text-align: center;
+        margin: 30px 0;
+      }
+      .welcome-box h2 {
+        font-size: 24px;
+        color: #667eea;
+        margin-bottom: 15px;
+      }
+      .welcome-box p {
+        font-size: 15px;
+        color: #4b5563;
+        line-height: 1.7;
+      }
+      .features {
+        margin: 30px 0;
+      }
+      .feature-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f9fafb;
+        border-radius: 8px;
+        border-left: 3px solid #667eea;
+      }
+      .feature-icon {
+        font-size: 24px;
+        margin-right: 15px;
+        min-width: 30px;
+      }
+      .feature-content h3 {
+        font-size: 16px;
+        color: #1f2937;
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+      .feature-content p {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.6;
+      }
+      .cta-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        padding: 14px 32px;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 25px 0;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        transition: transform 0.2s;
+      }
+      .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 10px rgba(102, 126, 234, 0.4);
+      }
+      .cta-container {
+        text-align: center;
+        margin: 30px 0;
+      }
+      .tips-box {
+        background-color: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 6px;
+      }
+      .tips-box h3 {
+        font-size: 16px;
+        color: #1e40af;
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      .tips-box ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .tips-box li {
+        font-size: 14px;
+        color: #1e40af;
+        margin-bottom: 8px;
+        line-height: 1.6;
+      }
+      .footer {
+        background-color: #f9fafb;
+        padding: 30px 35px;
+        text-align: center;
+        border-top: 1px solid #e5e7eb;
+      }
+      .footer-logo {
+        font-size: 20px;
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+      .footer p {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 6px 0;
+        line-height: 1.5;
+      }
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .footer a:hover {
+        text-decoration: underline;
+      }
+      .social-links {
+        margin: 20px 0;
+      }
+      .social-links a {
+        display: inline-block;
+        margin: 0 8px;
+        color: #667eea;
+        text-decoration: none;
+        font-size: 14px;
+      }
+      .divider {
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #e5e7eb,
+          transparent
+        );
+        margin: 25px 0;
+      }
+      @media only screen and (max-width: 600px) {
+        body {
+          padding: 10px;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .header {
+          padding: 40px 20px;
+        }
+        .header h1 {
+          font-size: 28px;
+        }
+        .header .emoji {
+          font-size: 36px;
+        }
+        .feature-item {
+          flex-direction: column;
+        }
+        .feature-icon {
+          margin-bottom: 10px;
+        }
+        .footer {
+          padding: 25px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class='email-wrapper'>
+      <!-- Header -->
+      <div class='header'>
+        <span class='emoji'>🎉</span>
+        <h1>Welcome to Echo!</h1>
+        <p>Your account is now active</p>
+      </div>
+
+      <!-- Content -->
+      <div class='content'>
+        <div class='greeting'>
+          Hello
+          <strong>{{name}}</strong>!
+        </div>
+
+        <div class='welcome-box'>
+          <h2>You're All Set! 🚀</h2>
+          <p>Your email has been successfully verified and your account is ready
+            to go. We're excited to have you as part of the Echo community!</p>
+        </div>
+
+        <div class='message'>
+          <p>Echo is your platform to connect, share, and engage with a vibrant
+            community. Here's what you can do:</p>
+        </div>
+
+        <!-- Features Section -->
+        <div class='features'>
+          <div class='feature-item'>
+            <div class='feature-icon'>📝</div>
+            <div class='feature-content'>
+              <h3>Share Your Thoughts</h3>
+              <p>Create posts, share updates, and express yourself with our
+                easy-to-use posting tools.</p>
+            </div>
+          </div>
+
+          <div class='feature-item'>
+            <div class='feature-icon'>👥</div>
+            <div class='feature-content'>
+              <h3>Connect with Others</h3>
+              <p>Follow interesting people, build your network, and engage with
+                content that matters to you.</p>
+            </div>
+          </div>
+
+          <div class='feature-item'>
+            <div class='feature-icon'>💬</div>
+            <div class='feature-content'>
+              <h3>Engage & Interact</h3>
+              <p>Like, comment, and bookmark posts. Join conversations and be
+                part of the community.</p>
+            </div>
+          </div>
+
+          <div class='feature-item'>
+            <div class='feature-icon'>🔔</div>
+            <div class='feature-content'>
+              <h3>Stay Updated</h3>
+              <p>Get notifications about interactions, mentions, and activities
+                from your network.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Button -->
+        <div class='cta-container'>
+          <a href='https://echo.app' class='cta-button'>Start Exploring Echo</a>
+        </div>
+
+        <!-- Tips Box -->
+        <div class='tips-box'>
+          <h3>💡 Quick Tips to Get Started</h3>
+          <ul>
+            <li>Complete your profile to help others discover you</li>
+            <li>Follow topics and people you're interested in</li>
+            <li>Share your first post and introduce yourself</li>
+            <li>Explore trending content and join conversations</li>
+          </ul>
+        </div>
+
+        <div class='divider'></div>
+
+        <div class='message'>
+          <p>If you have any questions or need assistance, our support team is
+            here to help. Don't hesitate to reach out!</p>
+          <p style='margin-top: 20px;'><strong>Happy exploring!</strong></p>
+          <p>The Echo Team</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class='footer'>
+        <div class='footer-logo'>Echo</div>
+
+        <div class='social-links'>
+          <a href='https://twitter.com/echo'>Twitter</a>
+          |
+          <a href='https://facebook.com/echo'>Facebook</a>
+          |
+          <a href='https://instagram.com/echo'>Instagram</a>
+        </div>
+
+        <p><strong>&copy; {{year}} Echo.</strong> All rights reserved.</p>
+        <p style='margin-top: 15px;'>This is an automated message. Please do not
+          reply to this email.</p>
+        <p>Need assistance?
+          <a href='mailto:support@echo.app'>Contact Support</a></p>
+        <p style='margin-top: 10px; font-size: 12px;'>
+          <a href='https://echo.app/unsubscribe'>Unsubscribe</a>
+          |
+          <a href='https://echo.app/privacy'>Privacy Policy</a>
+          |
+          <a href='https://echo.app/terms'>Terms of Service</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

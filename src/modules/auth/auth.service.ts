@@ -507,9 +507,7 @@ export class AuthService {
     }
 
     // Generate new access token
-    const accessToken = await this.tokenService.generateAccessToken({
-      ...account,
-    });
+    const accessToken = await this.tokenService.generateAccessToken(account);
 
     // Generate new Refresh token
     const newRefreshToken = await this.tokenService.generateRefreshToken({
@@ -568,7 +566,7 @@ export class AuthService {
       throw new ForbiddenException('No password set for this account');
 
     if (!(await compareHash(changePasswordDto.oldPassword, password)))
-      throw new UnauthorizedException('Old password is incorrect');
+      throw new UnauthorizedException('Provided password is incorrect');
 
     // Update the account with the new password
     const hashedPassword = await hashCode(changePasswordDto.password);

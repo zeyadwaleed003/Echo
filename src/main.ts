@@ -10,9 +10,10 @@ import {
 import { ValidationError } from 'class-validator';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('ValidationPipe');
 
   app.setGlobalPrefix('api', {
@@ -60,6 +61,7 @@ async function bootstrap() {
     jsonDocumentUrl: 'docs/json',
   });
 
+  app.set('query parser', 'extended');
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

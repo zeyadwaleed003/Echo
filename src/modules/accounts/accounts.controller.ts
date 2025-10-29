@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
@@ -15,5 +15,11 @@ export class AccountsController {
   @Post()
   async create(@Body() createAccountDto: CreateAccountDto) {
     return await this.accountService.create(createAccountDto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Get()
+  async get(@Query() q: any) {
+    return await this.accountService.get(q);
   }
 }

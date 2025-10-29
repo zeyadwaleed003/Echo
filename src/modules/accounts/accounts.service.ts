@@ -3,8 +3,9 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
 import { Repository } from 'typeorm';
-import { APIResponse } from 'src/common/types/api.types';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
+import ApiFeatures from 'src/common/utils/ApiFeatures';
 
 @Injectable()
 export class AccountsService {
@@ -34,6 +35,22 @@ export class AccountsService {
     const result: APIResponse = {
       message: 'Account created successfully',
       data: sanitizedAccount,
+    };
+
+    return result;
+  }
+
+  async get(q: QueryString) {
+    const accounts = await new ApiFeatures<Account>(this.accountsRepository, q)
+      .filter()
+      .limitFields()
+      .sort()
+      .paginate()
+      .exec();
+
+    const result: APIResponse = {
+      size: accounts.length,
+      data: accounts,
     };
 
     return result;

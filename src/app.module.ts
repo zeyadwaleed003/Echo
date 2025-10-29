@@ -12,6 +12,7 @@ import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
     NotificationsModule,
     BlockedWordsModule,
     TasksModule,
+    CloudinaryModule,
   ],
 })
 export class AppModule {}

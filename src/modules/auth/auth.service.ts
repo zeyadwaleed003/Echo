@@ -507,7 +507,9 @@ export class AuthService {
     }
 
     // Generate new access token
-    const accessToken = await this.tokenService.generateAccessToken(account);
+    const accessToken = await this.tokenService.generateAccessToken({
+      ...account,
+    });
 
     // Generate new Refresh token
     const newRefreshToken = await this.tokenService.generateRefreshToken({

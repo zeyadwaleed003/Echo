@@ -1,6 +1,7 @@
 import {
+  Between,
   FindManyOptions,
-  FindOptionsOrder,
+  In,
   LessThan,
   LessThanOrEqual,
   MoreThan,
@@ -26,11 +27,6 @@ class ApiFeatures<T extends ObjectLiteral> {
     this.queryString = queryString;
   }
 
-  private parseValue(value: any) {
-    if (!isNaN(value as any) && value.trim() !== '') return Number(value);
-    return value;
-  }
-
   sort() {
     if (!this.queryString.sort) this.queryString.sort = '-createdAt';
 
@@ -53,53 +49,57 @@ class ApiFeatures<T extends ObjectLiteral> {
       else orderBy[field] = OrderBy.ASC;
     });
 
-    this.queryOptions.order = {
-      ...this.queryOptions.order,
-      ...orderBy,
-    } as FindOptionsOrder<T>;
+    this.queryOptions.order = orderBy as any;
     return this;
   }
 
-  // This function is not working yet
   filter() {
-    const { sort, fields, limit, page, ...filter } = this.queryString;
-    const where: Record<string, any> = {};
+    const { sort, fields, limit, page, ...filterParams } = this.queryString;
+    const whereOptions: Record<string, any> = {};
 
-    for (const [field, condition] of Object.entries(filter)) {
-      for (const [operator, rawValue] of Object.entries(condition)) {
-        const value = this.parseValue(rawValue as any);
+    Object.keys(filterParams).forEach((key) => {
+      const value = filterParams[key];
 
-        switch (operator) {
-          case 'gte':
-            where[field] = MoreThanOrEqual(value);
-            break;
-          case 'lte':
-            where[field] = LessThanOrEqual(value);
-            break;
-          case 'gt':
-            where[field] = MoreThan(value);
-            break;
-          case 'lt':
-            where[field] = LessThan(value);
-            break;
-          case 'ne':
-            where[field] = Not(value);
-            break;
-          default:
-            where[field] = this.parseValue(condition);
-            break;
-        }
+      if (typeof value === 'object' && value !== null) {
+        Object.keys(value).forEach((operation) => {
+          switch (operation) {
+            case 'gte':
+              whereOptions[key] = MoreThanOrEqual(value[operation]);
+              break;
+            case 'gt':
+              whereOptions[key] = MoreThan(value[operation]);
+              break;
+            case 'lte':
+              whereOptions[key] = LessThanOrEqual(value[operation]);
+              break;
+            case 'lt':
+              whereOptions[key] = LessThan(value[operation]);
+              break;
+            case 'ne':
+              whereOptions[key] = Not(value[operation]);
+              break;
+            case 'in':
+              whereOptions[key] = In((value[operation] as string).split(','));
+              break;
+            case 'between':
+              const [min, max] = (value[operation] as string).split(',');
+              whereOptions[key] = Between(min, max);
+              break;
+          }
+        });
+      } else {
+        whereOptions[key] = value;
       }
-    }
+    });
 
-    this.queryOptions.where = { ...this.queryOptions.where, ...where };
+    this.queryOptions.where = whereOptions;
     return this;
   }
 
   limitFields() {
     if (this.queryString.fields) {
       const fields = this.queryString.fields.split(',');
-      this.queryOptions.select = fields as any;
+      this.queryOptions.select = fields;
     }
 
     return this;

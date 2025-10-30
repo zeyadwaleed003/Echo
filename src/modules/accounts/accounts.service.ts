@@ -3,7 +3,7 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
 import { Repository } from 'typeorm';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { APIResponse } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 
@@ -40,7 +40,7 @@ export class AccountsService {
     return result;
   }
 
-  async get(q: QueryString) {
+  async get(q: any) {
     const accounts = await new ApiFeatures<Account>(this.accountsRepository, q)
       .filter()
       .limitFields()

@@ -8,6 +8,7 @@ import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { instanceToPlain } from 'class-transformer';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
 
 @Injectable()
 export class AccountsService {
@@ -84,6 +85,11 @@ export class AccountsService {
   }
 
   async update(id: number, updateAccountAdminDto: UpdateAccountAdminDto) {
+    if (updateAccountAdminDto.password)
+      updateAccountAdminDto.password = await hashCode(
+        updateAccountAdminDto.password
+      );
+
     await this.accountsRepository.update({ id }, updateAccountAdminDto);
 
     const account = await this.accountsRepository.findOneBy({ id });
@@ -93,6 +99,30 @@ export class AccountsService {
     const result: APIResponse = {
       message: 'Account updated successfully',
       data: account,
+    };
+
+    return result;
+  }
+
+  async findCurrentUserAccount(account: Account) {
+    const result: APIResponse = {
+      data: account,
+    };
+
+    return result;
+  }
+
+  async updateMe(account: Account, updateMeDto: UpdateMeDto) {
+    const { id } = account;
+    await this.accountsRepository.update({ id }, updateMeDto);
+
+    const updatedAccount = await this.accountsRepository.findOneBy({ id });
+    if (!account)
+      throw new NotFoundException('No account found with the provided id');
+
+    const result: APIResponse = {
+      message: 'Account updated successfully',
+      data: { ...updatedAccount },
     };
 
     return result;

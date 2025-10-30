@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { APIResponse } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class AccountsService {
@@ -48,9 +49,13 @@ export class AccountsService {
       .paginate()
       .exec();
 
+    // Add a Serialization step: convert a class instance (a complex object in memory) into a simple, plain format (like JSON) that can be easily sent over a network.
+    // This will add a security layer. I don't trust the client to select whatever field he wants (security vulnerability)!
+    const safeAccounts = instanceToPlain(accounts);
+
     const result: APIResponse = {
-      size: accounts.length,
-      data: accounts,
+      size: safeAccounts.length,
+      data: safeAccounts,
     };
 
     return result;

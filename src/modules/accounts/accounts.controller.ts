@@ -79,4 +79,10 @@ export class AccountsController {
     const { id } = params;
     return await this.accountService.update(id, updateAccountAdminDto);
   }
+
+  @UseGuards(AuthGuard)
+  @Post(':id/block')
+  async block(@Param() params: AccountIdDto, @Req() req: Request) {
+    return await this.accountService.block(req.account!.id, params.id);
+  }
 }

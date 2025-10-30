@@ -28,6 +28,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
+      transform: true,
       enableDebugMessages: true, // Extra warning messages in console
       whitelist: true, // Strip properties that don't have decorators
       forbidNonWhitelisted: true, // Throw an exception if non-whitelisted properties, can't work without the *whitelist* option is set to true

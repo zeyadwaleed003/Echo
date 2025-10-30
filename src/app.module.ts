@@ -12,7 +12,7 @@ import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
 import { TasksModule } from './modules/tasks/tasks.module';
-import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 
 @Module({
   imports: [

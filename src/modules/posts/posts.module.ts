@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { TokenModule } from '../token/token.module';
-import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+import { CloudinaryModule } from 'src/modules/cloudinary/cloudinary.module';
 import { PostFiles } from './entities/post-file.entity';
 import { Post } from './entities/post.entity';
 

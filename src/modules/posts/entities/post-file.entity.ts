@@ -17,8 +17,11 @@ export class PostFiles {
   url!: string;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'postId' })
   post!: Post;
+
+  @Column({ type: 'bigint', nullable: true })
+  postId?: number;
 
   @CreateDateColumn()
   createdAt!: Date;

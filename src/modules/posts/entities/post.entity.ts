@@ -16,8 +16,11 @@ export class Post {
   id!: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'accountId' })
   account!: Account;
+
+  @Column({ type: 'bigint', nullable: false })
+  accountId!: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn()

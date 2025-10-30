@@ -85,4 +85,10 @@ export class AccountsController {
   async block(@Param() params: AccountIdDto, @Req() req: Request) {
     return await this.accountService.block(req.account!.id, params.id);
   }
+
+  @UseGuards(AuthGuard)
+  @Post(':id/unblock')
+  async unblock(@Param() params: AccountIdDto, @Req() req: Request) {
+    return await this.accountService.unblock(req.account!.id, params.id);
+  }
 }

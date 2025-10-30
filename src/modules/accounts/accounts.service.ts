@@ -194,4 +194,40 @@ export class AccountsService {
 
     return result;
   }
+
+  async unblock(accountId: number, targetAccountId: number) {
+    if (accountId === targetAccountId)
+      throw new BadRequestException('You cannot unblock yourself');
+
+    // Check if the account we want to unblock existed
+    const targetAccount = await this.accountsRepository.findOne({
+      where: {
+        id: targetAccountId,
+      },
+      select: ['username'],
+    });
+    if (!targetAccount)
+      throw new NotFoundException('No account found with the provided id');
+
+    const relationship = await this.accountRelationshipsRepository.existsBy({
+      actorId: accountId,
+      targetId: targetAccountId,
+      relationshipType: RelationshipType.BLOCK,
+    });
+    if (!relationship)
+      throw new BadRequestException(
+        `Account @${targetAccount.username} is not blocked`
+      );
+
+    await this.accountRelationshipsRepository.delete({
+      actorId: accountId,
+      targetId: targetAccountId,
+    });
+
+    const result: APIResponse = {
+      message: `User @${targetAccount.username} has been unblocked successfully`,
+    };
+
+    return result;
+  }
 }

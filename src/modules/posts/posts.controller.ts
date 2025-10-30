@@ -17,6 +17,9 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from '../accounts/accounts.enums';
 
 @Controller('posts')
 export class PostsController {
@@ -34,6 +37,8 @@ export class PostsController {
     return this.postsService.create(createPostDto, account!, files);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Get()
   findAll() {
     return this.postsService.findAll();

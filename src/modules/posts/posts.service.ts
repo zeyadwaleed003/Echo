@@ -7,11 +7,14 @@ import { PostFiles } from './entities/post-file.entity';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
 import { PostType } from './posts.enums';
 import { Account } from '../accounts/entities/account.entity';
+// import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class PostsService {
   constructor(
     private readonly dataSource: DataSource,
+    // @InjectRepository(Post)
+    // private readonly postRepository: Repository<Post>,
     private readonly cloudinaryService: CloudinaryService
   ) {}
 
@@ -27,29 +30,38 @@ export class PostsService {
         accountId: account.id,
       });
       await manager.save(Post, post);
-      let urls: string[] = [];
+
+      let postFiles: PostFiles[] = [];
 
       if (files?.length) {
         const uploadedFiles =
           await this.cloudinaryService.uploadMultipleFiles(files);
-        const postFiles = uploadedFiles.map((file) =>
+        postFiles = uploadedFiles.map((file) =>
           manager.create(PostFiles, {
             url: file.secure_url,
-            post,
+            postId: post.id,
           })
         );
         await manager.save(PostFiles, postFiles);
-        urls = postFiles.map((file) => file.url);
       }
-      return {
-        ...post,
-        files: urls,
-      };
+      return { ...post, postFiles };
     });
   }
 
-  findAll() {
-    return `This action returns all posts`;
+  async findAll() {
+    const posts = await this.dataSource
+      .getRepository(Post)
+      .createQueryBuilder('post')
+      .leftJoinAndMapMany(
+        'post.files',
+        PostFiles,
+        'postFiles',
+        'postFiles.postId = post.id'
+      )
+      .addSelect(['postFiles.url'])
+      .getMany();
+
+    return posts;
   }
 
   findOne(id: number) {

@@ -23,7 +23,11 @@ import { instanceToPlain } from 'class-transformer';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { AccountRelationships } from './entities/account-relationship.entity';
-import { RelationshipDirection, RelationshipType } from './accounts.enums';
+import {
+  AccountStatus,
+  RelationshipDirection,
+  RelationshipType,
+} from './accounts.enums';
 
 @Injectable()
 export class AccountsService {
@@ -509,5 +513,17 @@ export class AccountsService {
       q,
       RelationshipDirection.TARGET
     );
+  }
+
+  async deactivate(account: Account) {
+    account.status = AccountStatus.DEACTIVATED;
+    await this.accountsRepository.save(account);
+
+    const result: APIResponse = {
+      message:
+        'Your account has been deactivated successfully. You can reactivate it anytime by logging in again.',
+    };
+
+    return result;
   }
 }

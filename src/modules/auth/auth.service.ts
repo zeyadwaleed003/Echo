@@ -403,7 +403,7 @@ export class AuthService {
 
     if (status === AccountStatus.DEACTIVATED)
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        'This account has been deactivated. Please contact support to reactivate'
       );
 
     if (status === AccountStatus.SUSPENDED)
@@ -496,7 +496,7 @@ export class AuthService {
     // Check account's status
     if (account.status === AccountStatus.DEACTIVATED) {
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        'This account has been deactivated. Please contact support to reactivate'
       );
     }
 
@@ -623,7 +623,7 @@ export class AuthService {
 
     if (account.status === AccountStatus.DEACTIVATED)
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        'This account has been deactivated. Please contact support to reactivate'
       );
 
     if (account.status === AccountStatus.SUSPENDED)

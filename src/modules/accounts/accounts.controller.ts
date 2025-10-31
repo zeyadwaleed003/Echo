@@ -157,4 +157,11 @@ export class AccountsController {
       q
     );
   }
+
+  @UseGuards(AuthGuard)
+  @Post('deactivate')
+  @HttpCode(HttpStatus.OK)
+  async deactivate(@Req() req: Request) {
+    return await this.accountService.deactivate(req.account!);
+  }
 }

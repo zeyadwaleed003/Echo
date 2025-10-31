@@ -34,7 +34,7 @@ export class TasksService {
     );
   }
 
-  @Cron(CronExpression.EVERY_SECOND, {
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
     name: 'accounts.cleanup.deactivated-accounts',
     timeZone: 'Africa/Cairo',
   })

@@ -87,8 +87,22 @@ export class AccountsController {
   }
 
   @UseGuards(AuthGuard)
-  @Post(':id/unblock')
+  @Delete(':id/block')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async unblock(@Param() params: AccountIdDto, @Req() req: Request) {
     return await this.accountService.unblock(req.account!.id, params.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post(':id/follow')
+  async follow(@Param() params: AccountIdDto, @Req() req: Request) {
+    return await this.accountService.follow(req.account!.id, params.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete(':id/follow')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unfollow(@Param() params: AccountIdDto, @Req() req: Request) {
+    return await this.accountService.unfollow(req.account!.id, params.id);
   }
 }

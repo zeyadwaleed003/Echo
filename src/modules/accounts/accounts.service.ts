@@ -7,7 +7,7 @@ import {
 import { CreateAccountDto } from './dto/create-account.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, In, Not, Repository } from 'typeorm';
 import { APIResponse } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
@@ -138,19 +138,33 @@ export class AccountsService {
     return result;
   }
 
-  async block(accountId: number, targetAccountId: number) {
+  private async validateAndGetTargetAccount(
+    accountId: number,
+    targetAccountId: number,
+    type: string
+  ) {
     if (accountId === targetAccountId)
-      throw new BadRequestException('You cannot block yourself');
+      throw new BadRequestException(`You cannot ${type} yourself`);
 
     // Check if the account we want to block existed
     const targetAccount = await this.accountsRepository.findOne({
       where: {
         id: targetAccountId,
       },
-      select: ['username'],
+      select: ['username', 'isPrivate'],
     });
     if (!targetAccount)
       throw new NotFoundException('No account found with the provided id');
+
+    return targetAccount;
+  }
+
+  async block(accountId: number, targetAccountId: number) {
+    const targetAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      targetAccountId,
+      'block'
+    );
 
     const relationship = await this.accountRelationshipsRepository.findOne({
       where: {
@@ -160,7 +174,7 @@ export class AccountsService {
     });
     if (relationship?.relationshipType === RelationshipType.BLOCK)
       throw new ConflictException(
-        `User @${targetAccount.username} is already blocked`
+        `Account @${targetAccount.username} is already blocked`
       );
 
     await this.dataSource.transaction(async (manager) => {
@@ -189,25 +203,18 @@ export class AccountsService {
     });
 
     const result: APIResponse = {
-      message: `User @${targetAccount.username} has been blocked successfully`,
+      message: `Account @${targetAccount.username} has been blocked successfully`,
     };
 
     return result;
   }
 
   async unblock(accountId: number, targetAccountId: number) {
-    if (accountId === targetAccountId)
-      throw new BadRequestException('You cannot unblock yourself');
-
-    // Check if the account we want to unblock existed
-    const targetAccount = await this.accountsRepository.findOne({
-      where: {
-        id: targetAccountId,
-      },
-      select: ['username'],
-    });
-    if (!targetAccount)
-      throw new NotFoundException('No account found with the provided id');
+    const targetAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      targetAccountId,
+      'unblock'
+    );
 
     const relationship = await this.accountRelationshipsRepository.existsBy({
       actorId: accountId,
@@ -225,7 +232,116 @@ export class AccountsService {
     });
 
     const result: APIResponse = {
-      message: `User @${targetAccount.username} has been unblocked successfully`,
+      message: `Account @${targetAccount.username} has been unblocked successfully`,
+    };
+
+    return result;
+  }
+
+  private validateRelationshipType(relationship: AccountRelationships) {
+    if (relationship.relationshipType === RelationshipType.BLOCK) {
+      throw new BadRequestException(
+        'You cannot follow an account you have blocked. Unblock them first'
+      );
+    }
+
+    if (relationship.relationshipType === RelationshipType.FOLLOW) {
+      throw new BadRequestException('You are already following this account');
+    }
+
+    if (relationship.relationshipType === RelationshipType.FOLLOW_REQUEST) {
+      throw new BadRequestException(
+        'You have already sent a follow request to this account'
+      );
+    }
+  }
+
+  async follow(accountId: number, targetAccountId: number) {
+    const targetAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      targetAccountId,
+      'follow'
+    );
+
+    // Check if the actor was blocked
+    const isBlocked = await this.accountRelationshipsRepository.exists({
+      where: {
+        actorId: targetAccountId,
+        targetId: accountId,
+        relationshipType: RelationshipType.BLOCK,
+      },
+    });
+    if (isBlocked)
+      throw new BadRequestException(
+        'You cannot follow an account that has blocked you'
+      );
+
+    const relationship = await this.accountRelationshipsRepository.findOneBy({
+      actorId: accountId,
+      targetId: targetAccountId,
+    });
+    if (relationship) {
+      this.validateRelationshipType(relationship);
+
+      relationship.relationshipType = targetAccount.isPrivate
+        ? RelationshipType.FOLLOW_REQUEST
+        : RelationshipType.FOLLOW;
+
+      await this.accountRelationshipsRepository.save(relationship);
+    } else {
+      const newRelationship = this.accountRelationshipsRepository.create({
+        actorId: accountId,
+        targetId: targetAccountId,
+        relationshipType: targetAccount.isPrivate
+          ? RelationshipType.FOLLOW_REQUEST
+          : RelationshipType.FOLLOW,
+      });
+
+      await this.accountRelationshipsRepository.save(newRelationship);
+    }
+
+    const result: APIResponse = {
+      message: targetAccount.isPrivate
+        ? `Follow request sent to ${targetAccount.username} successfully`
+        : `Account ${targetAccount.username} followed successfully`,
+    };
+
+    return result;
+  }
+
+  async unfollow(accountId: number, targetAccountId: number) {
+    const targetAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      targetAccountId,
+      'unfollow'
+    );
+
+    // Check if I have followed this account or not
+    const relationship = await this.accountRelationshipsRepository.findOne({
+      where: {
+        actorId: accountId,
+        targetId: targetAccountId,
+        relationshipType: In([
+          RelationshipType.FOLLOW,
+          RelationshipType.FOLLOW_REQUEST,
+        ]),
+      },
+    });
+    if (!relationship)
+      throw new BadRequestException(
+        'You are not following or requesting to follow this account'
+      );
+
+    await this.accountRelationshipsRepository.delete({
+      actorId: accountId,
+      targetId: targetAccountId,
+    });
+
+    const result: APIResponse = {
+      message:
+        relationship.relationshipType === RelationshipType.FOLLOW_REQUEST
+          ? `Follow request to ${targetAccount.username} has been cancelled successfully`
+          : `Account ${targetAccount.username} has been unfollowed successfully`,
     };
 
     return result;

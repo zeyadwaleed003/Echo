@@ -20,11 +20,16 @@ enum OrderBy {
 class ApiFeatures<T extends ObjectLiteral> {
   private repository: Repository<T>;
   private queryString: QueryString;
-  private queryOptions: FindManyOptions<T> = {};
+  private queryOptions: FindManyOptions<T>;
 
-  constructor(repository: Repository<T>, queryString: QueryString) {
+  constructor(
+    repository: Repository<T>,
+    queryString: QueryString,
+    queryOptions: FindManyOptions<T> = {}
+  ) {
     this.repository = repository;
     this.queryString = queryString;
+    this.queryOptions = queryOptions;
   }
 
   sort() {

@@ -54,6 +54,12 @@ export class AccountsController {
     return await this.accountService.updateMe(req.account!, updateMeDto);
   }
 
+  @UseGuards(AuthGuard)
+  @Get('me/blocked')
+  async findBlockedAccounts(@Req() req: Request, @Query() q: any) {
+    return await this.accountService.findBlockedAccounts(req.account!.id, q);
+  }
+
   @Get(':id')
   async findById(@Param() params: AccountIdDto) {
     const { id } = params;

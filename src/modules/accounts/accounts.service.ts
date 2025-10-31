@@ -7,8 +7,8 @@ import {
 import { CreateAccountDto } from './dto/create-account.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
-import { DataSource, In, Not, Repository } from 'typeorm';
-import { APIResponse } from 'src/common/types/api.types';
+import { DataSource, FindManyOptions, In, Not, Repository } from 'typeorm';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { instanceToPlain } from 'class-transformer';
@@ -233,6 +233,37 @@ export class AccountsService {
 
     const result: APIResponse = {
       message: `Account @${targetAccount.username} has been unblocked successfully`,
+    };
+
+    return result;
+  }
+
+  async findBlockedAccounts(id: number, q: QueryString) {
+    const blockedAccountsIds = await this.accountRelationshipsRepository.find({
+      where: { actorId: id, relationshipType: RelationshipType.BLOCK },
+      select: ['targetId'],
+    });
+
+    const targetIds = blockedAccountsIds.map((bc) => bc.targetId);
+    const queryOptions: FindManyOptions<Account> = {
+      where: targetIds.map((id) => ({
+        id,
+      })),
+    };
+
+    const blockedAccounts = await new ApiFeatures(
+      this.accountsRepository,
+      q,
+      queryOptions
+    )
+      .sort()
+      .limitFields()
+      .paginate()
+      .exec();
+
+    const result: APIResponse = {
+      size: blockedAccounts.length,
+      data: blockedAccounts,
     };
 
     return result;

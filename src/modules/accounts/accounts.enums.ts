@@ -28,3 +28,8 @@ export enum RelationshipType {
   MUTE = 'mute',
   FOLLOW_REQUEST = 'follow_request',
 }
+
+export enum RelationshipDirection {
+  ACTOR = 'actor',
+  TARGET = 'target',
+}

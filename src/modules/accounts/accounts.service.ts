@@ -7,7 +7,14 @@ import {
 import { CreateAccountDto } from './dto/create-account.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
-import { DataSource, FindManyOptions, In, Not, Repository } from 'typeorm';
+import {
+  DataSource,
+  FindManyOptions,
+  FindOptionsWhere,
+  In,
+  Not,
+  Repository,
+} from 'typeorm';
 import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
@@ -15,7 +22,7 @@ import { instanceToPlain } from 'class-transformer';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { AccountRelationships } from './entities/account-relationship.entity';
-import { RelationshipType } from './accounts.enums';
+import { RelationshipDirection, RelationshipType } from './accounts.enums';
 
 @Injectable()
 export class AccountsService {
@@ -238,37 +245,6 @@ export class AccountsService {
     return result;
   }
 
-  async findBlockedAccounts(id: number, q: QueryString) {
-    const blockedAccountsIds = await this.accountRelationshipsRepository.find({
-      where: { actorId: id, relationshipType: RelationshipType.BLOCK },
-      select: ['targetId'],
-    });
-
-    const targetIds = blockedAccountsIds.map((bc) => bc.targetId);
-    const queryOptions: FindManyOptions<Account> = {
-      where: targetIds.map((id) => ({
-        id,
-      })),
-    };
-
-    const blockedAccounts = await new ApiFeatures(
-      this.accountsRepository,
-      q,
-      queryOptions
-    )
-      .sort()
-      .limitFields()
-      .paginate()
-      .exec();
-
-    const result: APIResponse = {
-      size: blockedAccounts.length,
-      data: blockedAccounts,
-    };
-
-    return result;
-  }
-
   private validateRelationshipType(relationship: AccountRelationships) {
     if (relationship.relationshipType === RelationshipType.BLOCK) {
       throw new BadRequestException(
@@ -376,5 +352,77 @@ export class AccountsService {
     };
 
     return result;
+  }
+
+  private async findRelatedAccounts(
+    accountId: number,
+    q: any,
+    direction: RelationshipDirection,
+    relationshipType: RelationshipType
+  ) {
+    const whereOption: FindOptionsWhere<AccountRelationships> =
+      direction === RelationshipDirection.ACTOR
+        ? { actorId: accountId, relationshipType }
+        : { targetId: accountId, relationshipType };
+
+    const relationships =
+      await this.accountRelationshipsRepository.findBy(whereOption);
+
+    let result: APIResponse = {
+      size: 0,
+      data: [],
+    };
+    if (!relationships.length) return result;
+
+    const ids = relationships.map((id) =>
+      direction === RelationshipDirection.ACTOR ? id.targetId : id.actorId
+    );
+    const queryOptions: FindManyOptions<Account> = {
+      where: ids.map((id) => ({ id })),
+    };
+
+    const accounts = await new ApiFeatures(
+      this.accountsRepository,
+      q,
+      queryOptions
+    )
+      .sort()
+      .limitFields()
+      .paginate()
+      .exec();
+
+    result = {
+      size: accounts.length,
+      data: accounts,
+    };
+
+    return result;
+  }
+
+  async findBlockedAccounts(accountId: number, q: QueryString) {
+    return await this.findRelatedAccounts(
+      accountId,
+      q,
+      RelationshipDirection.ACTOR,
+      RelationshipType.BLOCK
+    );
+  }
+
+  async findCurrentUserFollowers(accountId: number, q: any) {
+    return await this.findRelatedAccounts(
+      accountId,
+      q,
+      RelationshipDirection.TARGET,
+      RelationshipType.FOLLOW
+    );
+  }
+
+  async findCurrentUserFollowings(accountId: number, q: any) {
+    return await this.findRelatedAccounts(
+      accountId,
+      q,
+      RelationshipDirection.ACTOR,
+      RelationshipType.FOLLOW
+    );
   }
 }

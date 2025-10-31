@@ -55,6 +55,24 @@ export class AccountsController {
   }
 
   @UseGuards(AuthGuard)
+  @Get('me/followers')
+  async findCurrentUserFollowers(@Req() req: Request, @Query() q: any) {
+    return await this.accountService.findCurrentUserFollowers(
+      req.account!.id,
+      q
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('me/followings')
+  async findCurrentUserFollowings(@Req() req: Request, @Query() q: any) {
+    return await this.accountService.findCurrentUserFollowings(
+      req.account!.id,
+      q
+    );
+  }
+
+  @UseGuards(AuthGuard)
   @Get('me/blocked')
   async findBlockedAccounts(@Req() req: Request, @Query() q: any) {
     return await this.accountService.findBlockedAccounts(req.account!.id, q);

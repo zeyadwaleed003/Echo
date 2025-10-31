@@ -129,4 +129,32 @@ export class AccountsController {
   async unfollow(@Param() params: AccountIdDto, @Req() req: Request) {
     return await this.accountService.unfollow(req.account!.id, params.id);
   }
+
+  @UseGuards(AuthGuard)
+  @Get(':id/followings')
+  async findAccountFollowingsById(
+    @Req() req: Request,
+    @Param() params: AccountIdDto,
+    @Query() q: any
+  ) {
+    return await this.accountService.findAccountFollowingsById(
+      req.account!.id,
+      params.id,
+      q
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get(':id/followers')
+  async findAccountFollowersById(
+    @Req() req: Request,
+    @Param() params: AccountIdDto,
+    @Query() q: any
+  ) {
+    return await this.accountService.findAccountFollowersById(
+      req.account!.id,
+      params.id,
+      q
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -423,6 +424,90 @@ export class AccountsService {
       q,
       RelationshipDirection.ACTOR,
       RelationshipType.FOLLOW
+    );
+  }
+
+  private async findRelatedAccountsById(
+    accountId: number,
+    targetAccountId: number,
+    q: any,
+    direction: RelationshipDirection,
+    relationshipType: RelationshipType = RelationshipType.FOLLOW
+  ) {
+    if (accountId === targetAccountId)
+      return await this.findRelatedAccounts(
+        accountId,
+        q,
+        direction,
+        relationshipType
+      );
+
+    const targetAccount = await this.accountsRepository.findOne({
+      where: {
+        id: targetAccountId,
+      },
+      select: ['isPrivate'],
+    });
+    if (!targetAccount)
+      throw new NotFoundException('No account found with the provided id');
+
+    // Check if the current account is blocked
+    const isBlocked = await this.accountRelationshipsRepository.exists({
+      where: {
+        actorId: targetAccountId,
+        targetId: accountId,
+        relationshipType: RelationshipType.BLOCK,
+      },
+    });
+    if (isBlocked)
+      throw new ForbiddenException(
+        "You do not have permission to view this account's information"
+      );
+
+    if (targetAccount.isPrivate) {
+      const relationship = await this.accountRelationshipsRepository.findOneBy({
+        actorId: accountId,
+        targetId: targetAccountId,
+        relationshipType: RelationshipType.FOLLOW,
+      });
+
+      if (!relationship)
+        throw new ForbiddenException(
+          'This account is private. You must follow this account to view their information'
+        );
+    }
+
+    return await this.findRelatedAccounts(
+      targetAccountId,
+      q,
+      direction,
+      relationshipType
+    );
+  }
+
+  async findAccountFollowingsById(
+    accountId: number,
+    targetAccountId: number,
+    q: any
+  ) {
+    return await this.findRelatedAccountsById(
+      accountId,
+      targetAccountId,
+      q,
+      RelationshipDirection.ACTOR
+    );
+  }
+
+  async findAccountFollowersById(
+    accountId: number,
+    targetAccountId: number,
+    q: any
+  ) {
+    return await this.findRelatedAccountsById(
+      accountId,
+      targetAccountId,
+      q,
+      RelationshipDirection.TARGET
     );
   }
 }

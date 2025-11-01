@@ -18,7 +18,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from './accounts.enums';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
-import { AccountIdDto } from './dto/account-id.dto';
+import { IdDto } from '../../common/dtos/id.dto';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
 import type { Request } from 'express';
 import { UpdateMeDto } from './dto/update-me.dto';
@@ -78,8 +78,39 @@ export class AccountsController {
     return await this.accountService.findBlockedAccounts(req.account!.id, q);
   }
 
+  @UseGuards(AuthGuard)
+  @Post('deactivate')
+  @HttpCode(HttpStatus.OK)
+  async deactivate(@Req() req: Request) {
+    return await this.accountService.deactivate(req.account!);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('me/follow-requests')
+  async findFollowRequests(@Req() req: Request, @Query() q: any) {
+    return await this.accountService.findFollowRequests(req.account!.id, q);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('follow-requests/:id')
+  async acceptFollowRequest(@Req() req: Request, @Param() params: IdDto) {
+    return await this.accountService.acceptFollowRequest(
+      req.account!.id,
+      params.id
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('follow-requests/:id')
+  async refuseFollowRequest(@Req() req: Request, @Param() params: IdDto) {
+    return await this.accountService.refuseFollowRequest(
+      req.account!.id,
+      params.id
+    );
+  }
+
   @Get(':id')
-  async findById(@Param() params: AccountIdDto) {
+  async findById(@Param() params: IdDto) {
     const { id } = params;
     return await this.accountService.findById(id);
   }
@@ -88,7 +119,7 @@ export class AccountsController {
   @Roles(Role.ADMIN)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async delete(@Param() params: AccountIdDto) {
+  async delete(@Param() params: IdDto) {
     const { id } = params;
     return await this.accountService.delete(id);
   }
@@ -97,7 +128,7 @@ export class AccountsController {
   @Roles(Role.ADMIN)
   @Patch(':id')
   async update(
-    @Param() params: AccountIdDto,
+    @Param() params: IdDto,
     @Body() updateAccountAdminDto: UpdateAccountAdminDto
   ) {
     const { id } = params;
@@ -106,27 +137,27 @@ export class AccountsController {
 
   @UseGuards(AuthGuard)
   @Post(':id/block')
-  async block(@Param() params: AccountIdDto, @Req() req: Request) {
+  async block(@Param() params: IdDto, @Req() req: Request) {
     return await this.accountService.block(req.account!.id, params.id);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id/block')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async unblock(@Param() params: AccountIdDto, @Req() req: Request) {
+  async unblock(@Param() params: IdDto, @Req() req: Request) {
     return await this.accountService.unblock(req.account!.id, params.id);
   }
 
   @UseGuards(AuthGuard)
   @Post(':id/follow')
-  async follow(@Param() params: AccountIdDto, @Req() req: Request) {
+  async follow(@Param() params: IdDto, @Req() req: Request) {
     return await this.accountService.follow(req.account!.id, params.id);
   }
 
   @UseGuards(AuthGuard)
   @Delete(':id/follow')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async unfollow(@Param() params: AccountIdDto, @Req() req: Request) {
+  async unfollow(@Param() params: IdDto, @Req() req: Request) {
     return await this.accountService.unfollow(req.account!.id, params.id);
   }
 
@@ -134,7 +165,7 @@ export class AccountsController {
   @Get(':id/followings')
   async findAccountFollowingsById(
     @Req() req: Request,
-    @Param() params: AccountIdDto,
+    @Param() params: IdDto,
     @Query() q: any
   ) {
     return await this.accountService.findAccountFollowingsById(
@@ -148,7 +179,7 @@ export class AccountsController {
   @Get(':id/followers')
   async findAccountFollowersById(
     @Req() req: Request,
-    @Param() params: AccountIdDto,
+    @Param() params: IdDto,
     @Query() q: any
   ) {
     return await this.accountService.findAccountFollowersById(
@@ -156,12 +187,5 @@ export class AccountsController {
       params.id,
       q
     );
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('deactivate')
-  @HttpCode(HttpStatus.OK)
-  async deactivate(@Req() req: Request) {
-    return await this.accountService.deactivate(req.account!);
   }
 }

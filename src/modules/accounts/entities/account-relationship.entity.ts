@@ -1,21 +1,26 @@
 import {
   Entity,
-  PrimaryColumn,
   Column,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Account } from './account.entity';
 import { RelationshipType } from '../accounts.enums';
 
 @Entity('account_relationships')
+@Index(['actorId', 'targetId'], { unique: true })
 export class AccountRelationships {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
+  id!: number;
+
+  @Column()
   actorId!: number;
 
-  @PrimaryColumn()
+  @Column()
   targetId!: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })

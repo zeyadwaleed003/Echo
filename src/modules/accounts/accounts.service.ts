@@ -526,4 +526,68 @@ export class AccountsService {
 
     return result;
   }
+
+  async acceptFollowRequest(accountId: number, requestId: number) {
+    const relationship = await this.accountRelationshipsRepository.findOneBy({
+      id: requestId,
+      targetId: accountId,
+      relationshipType: RelationshipType.FOLLOW_REQUEST,
+    });
+    if (!relationship) throw new NotFoundException('Follow request not found');
+
+    relationship.relationshipType = RelationshipType.FOLLOW;
+    await this.accountRelationshipsRepository.save(relationship);
+
+    const result: APIResponse = {
+      message: 'Follow request accepted successfully',
+    };
+
+    return result;
+  }
+
+  async refuseFollowRequest(accountId: number, requestId: number) {
+    const relationship = await this.accountRelationshipsRepository.findOneBy({
+      id: requestId,
+      targetId: accountId,
+      relationshipType: RelationshipType.FOLLOW_REQUEST,
+    });
+    if (!relationship) throw new NotFoundException('Follow request not found');
+
+    await this.accountRelationshipsRepository.remove(relationship);
+
+    const result: APIResponse = {
+      message: 'Follow request refused successfully',
+    };
+
+    return result;
+  }
+
+  async findFollowRequests(accountId: number, q: any) {
+    const whereClause: FindOptionsWhere<AccountRelationships> = {
+      targetId: accountId,
+      relationshipType: RelationshipType.FOLLOW_REQUEST,
+    };
+
+    const queryOptions: FindManyOptions<AccountRelationships> = {
+      where: whereClause,
+      relations: ['actor'],
+      select: ['id', 'actor', 'createdAt'],
+    };
+
+    const relationships = await new ApiFeatures(
+      this.accountRelationshipsRepository,
+      q,
+      queryOptions
+    )
+      .sort()
+      .paginate()
+      .exec();
+
+    const result: APIResponse = {
+      size: relationships.length,
+      data: relationships,
+    };
+
+    return result;
+  }
 }

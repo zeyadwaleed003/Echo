@@ -590,4 +590,13 @@ export class AccountsService {
 
     return result;
   }
+
+  async deleteMe(accountId: number) {
+    await this.accountsRepository.delete({ id: accountId });
+
+    const result: APIResponse = {
+      message: 'Your account has been deleted successfully',
+    };
+    return result;
+  }
 }

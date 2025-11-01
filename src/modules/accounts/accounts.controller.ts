@@ -55,6 +55,13 @@ export class AccountsController {
   }
 
   @UseGuards(AuthGuard)
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMe(@Req() req: Request) {
+    return await this.accountService.deleteMe(req.account!.id);
+  }
+
+  @UseGuards(AuthGuard)
   @Get('me/followers')
   async findCurrentUserFollowers(@Req() req: Request, @Query() q: any) {
     return await this.accountService.findCurrentUserFollowers(

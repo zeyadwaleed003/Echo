@@ -49,6 +49,9 @@ const validatedEnv = z
     CLOUDINARY_CLOUD_NAME: z.string().min(1),
     CLOUDINARY_API_KEY: z.string().min(1),
     CLOUDINARY_API_SECRET: z.string().min(1),
+
+    REACTIVATION_TOKEN_SECRET: z.string().min(1),
+    REACTIVATION_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
   })
   .parse(process.env);
 

@@ -64,6 +64,27 @@ export class TokenService {
     } as JwtSignOptions);
   }
 
+  async generateReactivationToken(payload: object) {
+    return await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('REACTIVATION_TOKEN_SECRET'),
+      expiresIn: this.configService.get<string>(
+        'REACTIVATION_TOKEN_EXPIRES_IN'
+      ),
+    } as JwtSignOptions);
+  }
+
+  async verifyReactivationToken(token: string) {
+    try {
+      return await this.jwtService.verifyAsync<{ id: number }>(token, {
+        secret: this.configService.get<string>('REACTIVATION_TOKEN_SECRET'),
+      } as JwtVerifyOptions);
+    } catch {
+      throw new UnauthorizedException(
+        'Reactivation token is invalid or expired'
+      );
+    }
+  }
+
   async verifyAccessToken(token: string) {
     try {
       return await this.jwtService.verifyAsync<Account>(token, {

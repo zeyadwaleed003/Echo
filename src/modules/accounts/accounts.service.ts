@@ -28,6 +28,7 @@ import {
   RelationshipDirection,
   RelationshipType,
 } from './accounts.enums';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class AccountsService {
@@ -36,7 +37,8 @@ export class AccountsService {
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly authService: AuthService
   ) {}
 
   async create(createAccountDto: CreateAccountDto) {
@@ -518,6 +520,9 @@ export class AccountsService {
   async deactivate(account: Account) {
     account.status = AccountStatus.DEACTIVATED;
     await this.accountsRepository.save(account);
+
+    // Logout the user from all devices
+    await this.authService.logoutFromAllDevices(account.id);
 
     const result: APIResponse = {
       message:

@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
@@ -20,7 +21,7 @@ import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { IdDto } from '../../common/dtos/id.dto';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { UpdateMeDto } from './dto/update-me.dto';
 
 @Controller('accounts')
@@ -86,10 +87,16 @@ export class AccountsController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('deactivate')
+  @Post('me/deactivate')
   @HttpCode(HttpStatus.OK)
-  async deactivate(@Req() req: Request) {
-    return await this.accountService.deactivate(req.account!);
+  async deactivate(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.accountService.deactivate(req.account!);
+
+    res.clearCookie('refreshToken');
+    return result;
   }
 
   @UseGuards(AuthGuard)

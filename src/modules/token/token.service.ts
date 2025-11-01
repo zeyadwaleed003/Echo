@@ -73,6 +73,23 @@ export class TokenService {
     } as JwtSignOptions);
   }
 
+  async generateSetupToken(payload: object) {
+    return await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('SETUP_TOKEN_SECRET'),
+      expiresIn: this.configService.get<string>('SETUP_TOKEN_EXPIRES_IN'),
+    } as JwtSignOptions);
+  }
+
+  async verifySetupToken(token: string) {
+    try {
+      return await this.jwtService.verifyAsync<{ id: number }>(token, {
+        secret: this.configService.get<string>('SETUP_TOKEN_SECRET'),
+      } as JwtVerifyOptions);
+    } catch {
+      throw new UnauthorizedException('Setup token is invalid or expired');
+    }
+  }
+
   async verifyReactivationToken(token: string) {
     try {
       return await this.jwtService.verifyAsync<{ id: number }>(token, {

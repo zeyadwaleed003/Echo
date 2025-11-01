@@ -113,6 +113,12 @@ export class PostsService {
     return res;
   }
 
+  async findUserPosts(account: Account, q: any) {
+    const queryString = { ...q, accountId: account.id };
+
+    return await this.findAll(queryString);
+  }
+
   findOne(id: number) {
     return `This action returns a #${id} post`;
   }

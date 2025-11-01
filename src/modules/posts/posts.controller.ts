@@ -45,6 +45,13 @@ export class PostsController {
     return this.postsService.findAll(q);
   }
 
+  @UseGuards(AuthGuard)
+  @Get('me')
+  findUserPosts(@Req() req: Request, @Query() q: any) {
+    const { account } = req;
+    return this.postsService.findUserPosts(account!, q);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.postsService.findOne(+id);

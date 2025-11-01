@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   Req,
+  Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -40,8 +41,8 @@ export class PostsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
-  findAll() {
-    return this.postsService.findAll();
+  findAll(@Query() q: any) {
+    return this.postsService.findAll(q);
   }
 
   @Get(':id')

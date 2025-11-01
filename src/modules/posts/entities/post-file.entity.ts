@@ -21,7 +21,7 @@ export class PostFiles {
   post!: Post;
 
   @Column({ type: 'bigint', nullable: true })
-  postId?: number;
+  postId!: number | null;
 
   @CreateDateColumn()
   createdAt!: Date;

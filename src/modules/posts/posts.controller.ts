@@ -75,8 +75,10 @@ export class PostsController {
     return this.postsService.update(params.id, account!, updatePostDto, files);
   }
 
+  @UseGuards(AuthGuard)
   @Delete(':id')
-  remove(@Param() params: IdDto) {
-    return this.postsService.remove(params.id);
+  remove(@Param() params: IdDto, @Req() req: Request) {
+    const { account } = req;
+    return this.postsService.remove(params.id, account!);
   }
 }

@@ -255,7 +255,34 @@ export class PostsService {
     });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async remove(id: number, account: Account) {
+    const post = await this.postRepository.findOneBy({ id });
+    if (!post) throw new NotFoundException('No post found with this id');
+
+    if (account.id !== post.accountId)
+      throw new ForbiddenException(
+        'You do not have permission to delete this post'
+      );
+
+    return await this.dataSource.transaction(async (manager) => {
+      const postRepository = manager.getRepository(Post);
+      const postFilesRepository = manager.getRepository(PostFiles);
+
+      const postFiles = await manager.find(PostFiles, {
+        where: { postId: id },
+      });
+      if (postFiles.length)
+        await this.cloudinaryService.deleteMultipleFiles(
+          postFiles.map((f) => f.url)
+        );
+
+      await postFilesRepository.delete({ postId: id });
+      await postRepository.delete({ id });
+
+      const res: APIResponse = {
+        message: 'Post deleted successfully',
+      };
+      return res;
+    });
   }
 }

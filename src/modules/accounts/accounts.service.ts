@@ -625,4 +625,37 @@ export class AccountsService {
     };
     return result;
   }
+
+  async removeFollower(accountId: number, followerId: number) {
+    const followerAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      followerId,
+      'do this action to'
+    );
+
+    const relationship = await this.accountRelationshipsRepository.findOne({
+      where: {
+        actorId: followerId,
+        targetId: accountId,
+        relationshipType: RelationshipType.FOLLOW,
+      },
+    });
+
+    if (!relationship)
+      throw new BadRequestException(
+        `Account @${followerAccount.username} is not following you`
+      );
+
+    await this.accountRelationshipsRepository.remove(relationship);
+
+    this.logger.log(
+      `Follower removed: account=${accountId}, follower=${followerId}`
+    );
+
+    const result: APIResponse = {
+      message: `Account @${followerAccount.username} has been removed from your followers`,
+    };
+
+    return result;
+  }
 }

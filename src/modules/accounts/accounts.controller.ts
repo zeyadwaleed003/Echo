@@ -168,6 +168,23 @@ export class AccountsController {
     return await this.accountService.findBlockedAccounts(req.account!.id, q);
   }
 
+  @ApiOperation({ summary: 'Remove a follower from your account' })
+  @ApiResponse({
+    status: 204,
+    description: 'Follower removed successfully',
+  })
+  @ApiResponse({ status: 400, description: 'This account is not following you' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Account not found' })
+  @ApiParam({ name: 'id', description: 'Follower account ID to remove' })
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard)
+  @Delete('me/followers/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeFollower(@Req() req: Request, @Param() params: IdDto) {
+    return await this.accountService.removeFollower(req.account!.id, params.id);
+  }
+
   @ApiOperation({ summary: 'Deactivate current user account' })
   @ApiResponse({
     status: 200,

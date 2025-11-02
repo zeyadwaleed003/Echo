@@ -63,17 +63,11 @@ export class AccountsController {
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'sort', required: false })
   @ApiQuery({ name: 'fields', required: false })
-  @ApiQuery({
-    name: 'fields',
-    required: false,
-    description: 'Fields to return',
-  })
   @ApiBearerAuth()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
   async find(@Query() q: any) {
-    console.log(q);
     return await this.accountService.find(q);
   }
 

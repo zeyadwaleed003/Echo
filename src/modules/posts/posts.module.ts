@@ -8,10 +8,17 @@ import { TokenModule } from '../token/token.module';
 import { CloudinaryModule } from 'src/modules/cloudinary/cloudinary.module';
 import { PostFiles } from './entities/post-file.entity';
 import { Post } from './entities/post.entity';
+import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, PostFiles, Account, RefreshToken]),
+    TypeOrmModule.forFeature([
+      Post,
+      PostFiles,
+      Account,
+      RefreshToken,
+      AccountRelationships,
+    ]),
     TokenModule,
     CloudinaryModule,
   ],

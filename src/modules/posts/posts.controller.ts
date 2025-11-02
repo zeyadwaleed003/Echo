@@ -21,6 +21,7 @@ import type { Request } from 'express';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from '../accounts/accounts.enums';
+import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 
 @Controller('posts')
 export class PostsController {
@@ -52,9 +53,12 @@ export class PostsController {
     return this.postsService.findUserPosts(account!, q);
   }
 
+  @UseGuards(AuthGuard)
+  @OptionalAuth()
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.postsService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req: Request) {
+    const { account } = req;
+    return this.postsService.findOne(+id, account);
   }
 
   @Patch(':id')

@@ -12,10 +12,14 @@ import { Account } from '../accounts/entities/account.entity';
 import { IsNull, Repository } from 'typeorm';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { Reflector } from '@nestjs/core';
+
+export const IS_OPTIONAL_AUTH = 'isOptionalAuth';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
+    private reflector: Reflector,
     private tokenService: TokenService,
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
@@ -30,11 +34,21 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
+
+    const isOptional = this.reflector.getAllAndOverride<boolean>(
+      IS_OPTIONAL_AUTH,
+      [context.getHandler(), context.getClass()]
+    );
+
     const accessToken = this.extractTokenFromHeader(req);
 
-    if (!accessToken)
+    if (!accessToken) {
+      if (isOptional) {
+        delete req.account;
+        return true;
+      }
       throw new UnauthorizedException('Access token is missing or invalid');
-
+    }
     try {
       // Verify the access token
       const payload = await this.tokenService.verifyAccessToken(accessToken);
@@ -44,12 +58,22 @@ export class AuthGuard implements CanActivate {
         where: { email: payload.email, id: payload.id },
       });
 
-      if (!account)
-        throw new UnauthorizedException('Access token is invalid or expired');
+      if (!account) {
+        if (isOptional) {
+          delete req.account;
+          return true;
+        }
+        throw new UnauthorizedException('Access token is missing or invalid');
+      }
 
       const { refreshToken } = req.cookies;
-      if (!refreshToken)
+      if (!refreshToken) {
+        if (isOptional) {
+          delete req.account;
+          return true;
+        }
         throw new UnauthorizedException('Refresh token is invalid or expired');
+      }
 
       const verifiedRefreshToken =
         await this.tokenService.verifyRefreshToken(refreshToken);
@@ -62,26 +86,34 @@ export class AuthGuard implements CanActivate {
         },
       });
 
-      if (!storedRefreshToken)
+      if (!storedRefreshToken) {
+        if (isOptional) {
+          delete req.account;
+          return true;
+        }
         throw new UnauthorizedException('Refresh token is invalid or expired');
-
-      if (account.status === AccountStatus.SUSPENDED)
+      }
+      if (account?.status === AccountStatus.SUSPENDED)
         throw new ForbiddenException(
           'Your account has been suspended. Please contact support for assistance'
         );
 
-      if (account.status === AccountStatus.DEACTIVATED)
+      if (account?.status === AccountStatus.DEACTIVATED)
         throw new ForbiddenException(
           'Your account has been deactivated. Please contact support to reactivate'
         );
 
-      if (account.status === AccountStatus.PENDING)
+      if (account?.status === AccountStatus.PENDING)
         throw new ForbiddenException(
           'Please complete your profile setup to access this resource'
         );
 
-      req.account = account;
+      req.account = account!;
     } catch (err) {
+      if (isOptional) {
+        delete req.account;
+        return true;
+      }
       if (err instanceof ForbiddenException) throw err;
       if (err instanceof UnauthorizedException) throw err;
 

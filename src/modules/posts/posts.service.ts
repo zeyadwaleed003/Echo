@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Post } from './entities/post.entity';
@@ -10,6 +15,8 @@ import { Account } from '../accounts/entities/account.entity';
 import { APIResponse } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { RelationshipType } from '../accounts/accounts.enums';
 
 @Injectable()
 export class PostsService {
@@ -19,7 +26,11 @@ export class PostsService {
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(PostFiles)
-    private readonly postFilesRepository: Repository<PostFiles>
+    private readonly postFilesRepository: Repository<PostFiles>,
+    @InjectRepository(Account)
+    private readonly accountsRepository: Repository<Account>,
+    @InjectRepository(AccountRelationships)
+    private readonly accountRelationshipsRepository: Repository<AccountRelationships>
   ) {}
 
   private containFiles(q: any) {
@@ -119,8 +130,44 @@ export class PostsService {
     return await this.findAll(queryString);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
+  async findOne(id: number, account?: Account) {
+    const post = await this.postRepository.findOneBy({ id });
+    if (!post) throw new BadRequestException('No post found with this id');
+
+    const [author, files] = await Promise.all([
+      this.accountsRepository.findOneBy({ id: post.accountId }),
+      this.postFilesRepository.findBy({ postId: post.id }),
+    ]);
+
+    if (!author) throw new NotFoundException('Post author not found');
+    if (!author.isPrivate)
+      return {
+        data: { ...post, files },
+      };
+
+    if (!account)
+      throw new UnauthorizedException(
+        'This post is from a private account. Please log in to view it.'
+      );
+
+    const isFollowing =
+      (
+        await this.accountRelationshipsRepository.findOneBy({
+          actorId: account!.id,
+          targetId: author.id,
+        })
+      )?.relationshipType === RelationshipType.FOLLOW;
+
+    if (account.role !== 'admin' && account.id !== author.id && !isFollowing)
+      throw new UnauthorizedException(
+        `Follow @${author.username} to see the post`
+      );
+
+    const res: APIResponse = {
+      data: { ...post, files },
+    };
+
+    return res;
   }
 
   update(id: number, updatePostDto: UpdatePostDto) {

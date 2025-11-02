@@ -22,6 +22,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from '../accounts/accounts.enums';
 import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
+import { IdDto } from 'src/common/dtos/id.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -56,18 +57,18 @@ export class PostsController {
   @UseGuards(AuthGuard)
   @OptionalAuth()
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: Request) {
+  findOne(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
-    return this.postsService.findOne(+id, account);
+    return this.postsService.findOne(params.id, account);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
-    return this.postsService.update(+id, updatePostDto);
+  update(@Param() params: IdDto, @Body() updatePostDto: UpdatePostDto) {
+    return this.postsService.update(params.id, updatePostDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.postsService.remove(+id);
+  remove(@Param() params: IdDto) {
+    return this.postsService.remove(params.id);
   }
 }

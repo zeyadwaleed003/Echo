@@ -62,9 +62,17 @@ export class PostsController {
     return this.postsService.findOne(params.id, account);
   }
 
+  @UseGuards(AuthGuard)
   @Patch(':id')
-  update(@Param() params: IdDto, @Body() updatePostDto: UpdatePostDto) {
-    return this.postsService.update(params.id, updatePostDto);
+  @UseInterceptors(FilesInterceptor('files', 4))
+  update(
+    @Param() params: IdDto,
+    @Req() req: Request,
+    @Body() updatePostDto: UpdatePostDto,
+    @UploadedFiles() files?: Express.Multer.File[]
+  ) {
+    const { account } = req;
+    return this.postsService.update(params.id, account!, updatePostDto, files);
   }
 
   @Delete(':id')

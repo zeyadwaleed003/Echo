@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -7,7 +7,7 @@ import {
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { Post } from './entities/post.entity';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { PostFiles } from './entities/post-file.entity';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
 import { PostType } from './posts.enums';
@@ -47,6 +47,24 @@ export class PostsService {
     return { ...queryString, fields: validFields.join(',') };
   }
 
+  private async uploadFiles(
+    manager: EntityManager,
+    files: Express.Multer.File[],
+    postId: number
+  ) {
+    let postFiles = [];
+    const uploadedFiles =
+      await this.cloudinaryService.uploadMultipleFiles(files);
+    postFiles = uploadedFiles.map((file) =>
+      manager.create(PostFiles, {
+        url: file.secure_url,
+        postId,
+      })
+    );
+    await manager.save(PostFiles, postFiles);
+    return postFiles;
+  }
+
   async create(
     createPostDto: CreatePostDto,
     account: Account,
@@ -62,17 +80,8 @@ export class PostsService {
 
       let postFiles: PostFiles[] = [];
 
-      if (files?.length) {
-        const uploadedFiles =
-          await this.cloudinaryService.uploadMultipleFiles(files);
-        postFiles = uploadedFiles.map((file) =>
-          manager.create(PostFiles, {
-            url: file.secure_url,
-            postId: post.id,
-          })
-        );
-        await manager.save(PostFiles, postFiles);
-      }
+      if (files?.length)
+        postFiles = await this.uploadFiles(manager, files, post.id);
 
       const res: APIResponse = {
         message: 'Post created successfully',
@@ -132,7 +141,7 @@ export class PostsService {
 
   async findOne(id: number, account?: Account) {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new BadRequestException('No post found with this id');
+    if (!post) throw new NotFoundException('No post found with this id');
 
     const [author, files] = await Promise.all([
       this.accountsRepository.findOneBy({ id: post.accountId }),
@@ -170,8 +179,80 @@ export class PostsService {
     return res;
   }
 
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action updates a #${id} post`;
+  async update(
+    id: number,
+    account: Account,
+    updatePostDto: UpdatePostDto,
+    files?: Express.Multer.File[]
+  ) {
+    const post = await this.postRepository.findOneBy({ id });
+    if (!post) throw new NotFoundException('No post found with this id');
+
+    if (account.id !== post.accountId)
+      throw new ForbiddenException(
+        'You do not have permission to update this post'
+      );
+
+    return await this.dataSource.transaction(async (manager) => {
+      const postRepository = manager.getRepository(Post);
+      const postFilesRepository = manager.getRepository(PostFiles);
+
+      const { deleteFileIds, content } = updatePostDto;
+
+      // update content
+      if (content) await postRepository.update(id, { content });
+
+      let remainingFilesCount = (
+        await postFilesRepository.find({
+          where: { postId: post.id },
+        })
+      ).length;
+
+      // handle file deletion
+      if (deleteFileIds) {
+        const filesToDelete = await postFilesRepository.find({
+          where: { id: In(deleteFileIds) },
+        });
+
+        const invalidFiles = filesToDelete.filter(
+          (file) => file.postId !== post.id
+        );
+        if (
+          invalidFiles.length ||
+          filesToDelete.length !== deleteFileIds.length
+        )
+          throw new ForbiddenException('Some files do not belong to this post');
+
+        await this.cloudinaryService.deleteMultipleFiles(
+          filesToDelete.map((f) => f.url)
+        );
+        await postFilesRepository.remove(filesToDelete);
+        remainingFilesCount -= filesToDelete.length;
+      }
+
+      // handle file uploads
+      if (files?.length) {
+        if (files.length + remainingFilesCount > 4)
+          throw new ForbiddenException('Maximum of 4 files allowed per post');
+
+        await this.uploadFiles(manager, files, post.id);
+      }
+
+      const updatedPost = await postRepository.findOneBy({ id });
+      const postFiles = await postFilesRepository.find({
+        where: { postId: id },
+      });
+
+      const res: APIResponse = {
+        message: 'Post updated successfully',
+        data: {
+          ...updatedPost,
+          ...(postFiles.length > 0 && { files: postFiles }),
+        },
+      };
+
+      return res;
+    });
   }
 
   remove(id: number) {

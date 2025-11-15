@@ -173,7 +173,10 @@ export class AccountsController {
     status: 204,
     description: 'Follower removed successfully',
   })
-  @ApiResponse({ status: 400, description: 'This account is not following you' })
+  @ApiResponse({
+    status: 400,
+    description: 'This account is not following you',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Account not found' })
   @ApiParam({ name: 'id', description: 'Follower account ID to remove' })

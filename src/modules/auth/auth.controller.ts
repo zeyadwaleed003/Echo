@@ -28,6 +28,8 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { ReactivationTokenDto } from './dto/reactivation-token.dto';
+import { CompleteSetupDtp } from './dto/complete-setup.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -67,10 +69,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response
   ) {
     const result = await this.authService.verifyAccount(verifyAccountDto);
-    const { refreshToken, ...response } = result;
-
-    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
-    return response;
+    return result;
   }
 
   @ApiOperation({
@@ -233,5 +232,39 @@ export class AuthController {
     return await this.authService.resendVerificationEmail(
       resendVerificationDto.email
     );
+  }
+
+  @ApiOperation({
+    summary: 'Reactivate a deactivated account',
+    description:
+      'Reactivates a deactivated account using the reactivation token and logs the user in.',
+  })
+  @ApiResponse({ status: 200 })
+  @Post('reactivate')
+  @HttpCode(HttpStatus.OK)
+  async reactivateAndLogin(
+    @Body() reactivationTokenDto: ReactivationTokenDto,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.reactivateAndLogin(
+      reactivationTokenDto.reactivationToken
+    );
+    const { refreshToken, ...response } = result;
+
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
+    return response;
+  }
+
+  @Post('complete-setup')
+  @HttpCode(HttpStatus.OK)
+  async completeProfileSetup(
+    @Body() completeSetupDtp: CompleteSetupDtp,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.authService.completeSetup(completeSetupDtp);
+    const { refreshToken, ...response } = result;
+
+    this.authService.sendCookie(res, 'refreshToken', refreshToken!);
+    return response;
   }
 }

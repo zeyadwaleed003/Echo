@@ -1,13 +1,15 @@
 import {
+  IsAlphanumeric,
   IsBoolean,
   IsDate,
   IsEmail,
   IsEnum,
-  IsNotEmpty,
+  IsMobilePhone,
   IsOptional,
   IsString,
+  IsUrl,
+  Length,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 import {
   AccountStatus,
@@ -25,8 +27,7 @@ export class CreateAccountDto {
     example: 'John Doe',
   })
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
+  @Length(1, 100)
   name!: string;
 
   @ApiProperty({
@@ -35,8 +36,8 @@ export class CreateAccountDto {
     example: 'johndoe123',
   })
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
+  @Length(3, 50)
+  @IsAlphanumeric()
   username!: string;
 
   @ApiProperty({
@@ -45,8 +46,7 @@ export class CreateAccountDto {
     example: 'john.doe@example.com',
   })
   @IsEmail()
-  @IsNotEmpty()
-  @MaxLength(255)
+  @Length(1, 255)
   email!: string;
 
   @ApiPropertyOptional({
@@ -56,10 +56,8 @@ export class CreateAccountDto {
     example: 'SecurePass123!',
   })
   @IsString()
-  @MinLength(8)
-  @IsNotEmpty()
   @IsOptional()
-  @MaxLength(255)
+  @Length(8, 255)
   password!: string;
 
   @ApiPropertyOptional({
@@ -79,7 +77,7 @@ export class CreateAccountDto {
   })
   @IsString()
   @IsOptional()
-  @MaxLength(30)
+  @Length(1, 30)
   location!: string;
 
   @ApiPropertyOptional({
@@ -87,9 +85,9 @@ export class CreateAccountDto {
     maxLength: 25,
     example: '+1234567890',
   })
-  @IsString()
   @IsOptional()
-  @MaxLength(25)
+  @IsMobilePhone()
+  @Length(1, 25)
   phone!: string;
 
   @ApiPropertyOptional({
@@ -123,8 +121,8 @@ export class CreateAccountDto {
     type: Date,
     example: '1990-01-01T00:00:00.000Z',
   })
-  @IsDate()
   @IsOptional()
+  @IsDate()
   @Type(() => Date)
   birthDate!: Date;
 
@@ -203,7 +201,7 @@ export class CreateAccountDto {
     description: 'Profile picture URL',
     example: 'https://example.com/profile.jpg',
   })
-  @IsString()
+  @IsUrl()
   @IsOptional()
   profilePicture!: string;
 
@@ -211,7 +209,7 @@ export class CreateAccountDto {
     description: 'Header image URL',
     example: 'https://example.com/header.jpg',
   })
-  @IsString()
+  @IsUrl()
   @IsOptional()
   header!: string;
 

@@ -10,9 +10,10 @@ import {
 import { ValidationError } from 'class-validator';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('ValidationPipe');
 
   app.setGlobalPrefix('api', {
@@ -27,6 +28,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
+      transform: true,
       enableDebugMessages: true, // Extra warning messages in console
       whitelist: true, // Strip properties that don't have decorators
       forbidNonWhitelisted: true, // Throw an exception if non-whitelisted properties, can't work without the *whitelist* option is set to true
@@ -60,6 +62,7 @@ async function bootstrap() {
     jsonDocumentUrl: 'docs/json',
   });
 
+  app.set('query parser', 'extended');
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

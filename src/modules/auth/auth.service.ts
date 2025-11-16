@@ -8,9 +8,11 @@ import {
   UnauthorizedException,
   HttpStatus,
   Logger,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Account } from '../accounts/entities/account.entity';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { SignupDto } from './dto/signup.dto';
@@ -33,6 +35,7 @@ import { RevocationReason } from './auth.enums';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { CompleteSetupDtp } from './dto/complete-setup.dto';
 
 @Injectable()
 export class AuthService {
@@ -114,28 +117,10 @@ export class AuthService {
     if (account) {
       const { status } = account;
 
-      if (status === AccountStatus.ACTIVATED)
-        throw new ConflictException(
-          'An account with this email already exists'
-        );
-
-      if (status === AccountStatus.DEACTIVATED)
-        throw new ForbiddenException(
-          'This account has been deactivated. Please contact support'
-        );
-
-      if (status === AccountStatus.SUSPENDED)
-        throw new ForbiddenException(
-          'This account has been suspended. Please contact support'
-        );
-
-      if (status === AccountStatus.PENDING)
-        throw new ForbiddenException(
-          'You are already registered. Please complete your profile setup'
-        );
-
       if (status === AccountStatus.INACTIVATED)
         return await this.resendVerificationEmail(account.email);
+
+      throw new ConflictException('An account with this email already exists');
     }
 
     // If NOT ...
@@ -190,6 +175,30 @@ export class AuthService {
     return result;
   }
 
+  async sendCompleteProfileSetupResponse(
+    id: number,
+    error: boolean = false,
+    message: string = 'Email verified successfully. Please complete your profile setup'
+  ) {
+    const setupToken = await this.tokenService.generateSetupToken({
+      id,
+    });
+
+    if (error)
+      throw new ForbiddenException({
+        message: message,
+        error: 'ProfileSetupRequered',
+        setupToken,
+      });
+
+    const result: APIResponse = {
+      message: message,
+      setupToken,
+    };
+
+    return result;
+  }
+
   async verifyAccount(verifyAccountDto: VerifyOtpDto) {
     // Find account using email
     const account = await this.accountsRepository
@@ -218,8 +227,10 @@ export class AuthService {
       );
 
     if (account.status === AccountStatus.PENDING)
-      throw new ForbiddenException(
-        'You are already registered. Please complete your profile setup'
+      await this.sendCompleteProfileSetupResponse(
+        account.id,
+        true,
+        'Please complete your profile setup'
       );
 
     if (!account.verificationCode || !account.verificationCodeExpiresAt)
@@ -255,23 +266,7 @@ export class AuthService {
     );
     this.logger.log(`Account verified for email: ${verifyAccountDto.email}`);
 
-    const { verificationCode, verificationCodeExpiresAt, ...data } = account;
-
-    const accessToken = await this.tokenService.generateAccessToken(data);
-    const refreshToken = await this.tokenService.generateRefreshToken({
-      id: account.id,
-      sessionId: uuidv4(),
-    });
-
-    const res: APIResponse = {
-      message:
-        'Email verified successfully. Please complete your profile setup.',
-      data,
-      accessToken,
-      refreshToken,
-    };
-
-    return res;
+    return await this.sendCompleteProfileSetupResponse(account.id);
   }
 
   async googleAuth(googleAuthDto: GoogleAuthDto) {
@@ -298,9 +293,7 @@ export class AuthService {
 
     if (account) {
       if (account.status === AccountStatus.DEACTIVATED)
-        throw new ForbiddenException(
-          'This account has been deactivated. Please contact support'
-        );
+        await this.sendReactivationToken(account.id);
 
       if (account.status === AccountStatus.SUSPENDED)
         throw new ForbiddenException(
@@ -330,7 +323,9 @@ export class AuthService {
 
       // signup
       if (account.status === AccountStatus.PENDING)
-        throw new ForbiddenException(
+        await this.sendCompleteProfileSetupResponse(
+          account.id,
+          true,
           'You are already registered. Please complete your profile setup'
         );
 
@@ -371,40 +366,40 @@ export class AuthService {
 
     await this.accountsRepository.save(newAccount);
 
-    const accessToken = await this.tokenService.generateAccessToken(newAccount);
-
-    const refreshToken = await this.tokenService.generateRefreshToken({
-      id: newAccount.id,
-      sessionId: uuidv4(),
-    });
-
-    const res: APIResponse = {
-      statusCode: HttpStatus.CREATED,
-      message:
-        'Account created and verified successfully. Please complete your profile setup',
-      data: newAccount,
-      accessToken,
-      refreshToken,
-    };
-
-    return res;
+    return await this.sendCompleteProfileSetupResponse(
+      newAccount.id,
+      false,
+      'Account created and verified successfully. Please complete your profile setup'
+    );
   }
 
-  private checkAccountActivation(status: AccountStatus) {
+  private async sendReactivationToken(id: number) {
+    const reactivationToken = await this.tokenService.generateReactivationToken(
+      { id }
+    );
+
+    throw new ForbiddenException({
+      message: 'Your account is deactivated',
+      error: 'AccountDeactivated',
+      reactivationToken,
+    });
+  }
+
+  private async checkAccountActivation(status: AccountStatus, id: number) {
     if (status === AccountStatus.INACTIVATED)
       throw new ForbiddenException(
         'Please verify your email address to activate your account'
       );
 
     if (status === AccountStatus.PENDING)
-      throw new ForbiddenException(
+      await this.sendCompleteProfileSetupResponse(
+        id,
+        true,
         'Please complete your profile setup before logging in'
       );
 
     if (status === AccountStatus.DEACTIVATED)
-      throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
-      );
+      await this.sendReactivationToken(id);
 
     if (status === AccountStatus.SUSPENDED)
       throw new ForbiddenException(
@@ -435,7 +430,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email/username or password');
     }
 
-    this.checkAccountActivation(account.status);
+    await this.checkAccountActivation(account.status, account.id);
 
     const { password, ...cleanAccount } = account;
 
@@ -457,6 +452,13 @@ export class AuthService {
     return result;
   }
 
+  async logoutFromAllDevices(accountId: number) {
+    await this.refreshTokenRepository.update(
+      { accountId },
+      { revokedAt: new Date(), revocationReason: RevocationReason.REUSE }
+    );
+  }
+
   async refreshToken(refreshTokenValue: string) {
     // Verify Token
     const verifiedToken =
@@ -465,10 +467,14 @@ export class AuthService {
     // Find the Token's account
     const account = await this.accountsRepository.findOneBy({
       id: verifiedToken.id,
+      status: In([
+        AccountStatus.ACTIVATED,
+        AccountStatus.DEACTIVATED,
+        AccountStatus.SUSPENDED,
+      ]),
     });
-    if (!account) {
+    if (!account)
       throw new UnauthorizedException('Refresh token is invalid or expired');
-    }
 
     // Find the token in the refresh token table by the token's session id
     const storedRefreshToken = await this.refreshTokenRepository.findOneBy({
@@ -482,11 +488,9 @@ export class AuthService {
       this.logger.warn(
         `Revoked refresh token reuse detected for account ${storedRefreshToken.accountId}`
       );
+
       // Using a token that has been revoked - logout the user from all devices - security reseon
-      await this.refreshTokenRepository.update(
-        { accountId: account.id },
-        { revokedAt: new Date(), revocationReason: RevocationReason.REUSE }
-      );
+      await this.logoutFromAllDevices(account.id);
 
       throw new UnauthorizedException(
         'Suspicious activity detected. Please sign in again.'
@@ -496,7 +500,7 @@ export class AuthService {
     // Check account's status
     if (account.status === AccountStatus.DEACTIVATED) {
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        'This account has been deactivated. Please contact support to reactivate'
       );
     }
 
@@ -507,7 +511,9 @@ export class AuthService {
     }
 
     // Generate new access token
-    const accessToken = await this.tokenService.generateAccessToken(account);
+    const accessToken = await this.tokenService.generateAccessToken({
+      ...account,
+    });
 
     // Generate new Refresh token
     const newRefreshToken = await this.tokenService.generateRefreshToken({
@@ -614,6 +620,13 @@ export class AuthService {
       return result;
     }
 
+    if (account.status === AccountStatus.PENDING)
+      await this.sendCompleteProfileSetupResponse(
+        account.id,
+        true,
+        'Please complete your profile setup'
+      );
+
     if (account.status === AccountStatus.INACTIVATED)
       throw new ForbiddenException(
         'Please verify your email address to activate your account'
@@ -621,7 +634,7 @@ export class AuthService {
 
     if (account.status === AccountStatus.DEACTIVATED)
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        'This account has been deactivated. Please contact support to reactivate'
       );
 
     if (account.status === AccountStatus.SUSPENDED)
@@ -737,5 +750,89 @@ export class AuthService {
     };
 
     return result;
+  }
+
+  async reactivateAndLogin(reactivationToken: string) {
+    const verifiedToken =
+      await this.tokenService.verifyReactivationToken(reactivationToken);
+
+    const account = await this.accountsRepository.findOneBy({
+      id: verifiedToken.id,
+    });
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+
+    if (account.status !== AccountStatus.DEACTIVATED) {
+      throw new BadRequestException(
+        'This account is not deactivated and cannot be reactivated'
+      );
+    }
+
+    account.status = AccountStatus.ACTIVATED;
+    await this.accountsRepository.save(account);
+
+    const accessToken = await this.tokenService.generateAccessToken({
+      ...account,
+    });
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      id: account.id,
+      sessionId: uuidv4(),
+    });
+
+    const result: APIResponse = {
+      message: 'Account reactivated successfully',
+      data: account,
+      accessToken,
+      refreshToken,
+    };
+
+    return result;
+  }
+
+  async completeSetup(
+    completeSetupDto: CompleteSetupDtp
+  ): Promise<APIResponse> {
+    const verifiedSetupToken = await this.tokenService.verifySetupToken(
+      completeSetupDto.setupToken
+    );
+
+    const { id } = verifiedSetupToken;
+
+    const account = await this.accountsRepository.findOneBy({ id });
+    if (!account) throw new NotFoundException('Account not found');
+
+    if (account.status !== AccountStatus.PENDING)
+      throw new BadRequestException(
+        'Profile setup has already been completed or account is not eligible for setup'
+      );
+
+    const { confirmPassword, setupToken, ...updateObject } = completeSetupDto;
+    updateObject.password = await hashCode(updateObject.password);
+
+    await this.accountsRepository.update(
+      { id },
+      {
+        ...updateObject,
+        status: AccountStatus.ACTIVATED,
+      }
+    );
+
+    const updateAccount = await this.accountsRepository.findOneBy({ id });
+
+    const accessToken = await this.tokenService.generateAccessToken({
+      ...updateAccount,
+    });
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      id,
+      sessionId: uuidv4(),
+    });
+
+    return {
+      message: `Profile setup completed successfully`,
+      data: updateAccount!,
+      accessToken,
+      refreshToken,
+    };
   }
 }

@@ -21,3 +21,15 @@ export enum Role {
   ADMIN = 'admin',
   USER = 'user',
 }
+
+export enum RelationshipType {
+  FOLLOW = 'follow',
+  BLOCK = 'block',
+  MUTE = 'mute',
+  FOLLOW_REQUEST = 'follow_request',
+}
+
+export enum RelationshipDirection {
+  ACTOR = 'actor',
+  TARGET = 'target',
+}

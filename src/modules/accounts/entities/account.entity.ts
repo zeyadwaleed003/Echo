@@ -1,3 +1,4 @@
+import { Exclude, Expose } from 'class-transformer';
 import {
   AccountStatus,
   DirectMessagingStatus,
@@ -12,17 +13,21 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+@Exclude()
 @Entity('accounts')
 export class Account {
+  @Expose()
   @PrimaryGeneratedColumn('increment') // Bigserial
   id!: number;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 100,
   })
   name!: string;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 50,
@@ -31,6 +36,7 @@ export class Account {
   })
   username!: string | null;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 255,
@@ -46,6 +52,7 @@ export class Account {
   })
   password!: string | null;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 160,
@@ -53,6 +60,7 @@ export class Account {
   })
   bio!: string | null;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 30,
@@ -60,6 +68,7 @@ export class Account {
   })
   location!: string | null;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 25,
@@ -68,30 +77,35 @@ export class Account {
   })
   phone!: string | null;
 
+  @Expose()
   @Column({
     type: 'boolean',
     default: true,
   })
   getNotifications!: boolean;
 
+  @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
   isVerified!: boolean;
 
+  @Expose()
   @Column({
     type: 'timestamp',
     nullable: true,
   })
   verifiedAt!: Date | null;
 
+  @Expose()
   @Column({
     type: 'date',
     nullable: true,
   })
   birthDate!: Date | null;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 50,
@@ -99,6 +113,7 @@ export class Account {
   })
   appLanguage!: string;
 
+  @Expose()
   @Column({
     type: 'varchar',
     length: 50,
@@ -106,6 +121,7 @@ export class Account {
   })
   currentCountry!: string | null;
 
+  @Expose()
   @Column({
     type: 'enum',
     enum: Gender,
@@ -113,30 +129,35 @@ export class Account {
   })
   gender!: Gender | null;
 
+  @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
   isPrivate!: boolean;
 
+  @Expose()
   @Column({
     type: 'enum',
     enum: AccountStatus,
   })
   status!: AccountStatus;
 
+  @Expose()
   @Column({
     type: 'boolean',
     default: true,
   })
   taggable!: boolean;
 
+  @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
   displaySensitiveContent!: boolean;
 
+  @Expose()
   @Column({
     type: 'enum',
     enum: DirectMessagingStatus,
@@ -144,18 +165,21 @@ export class Account {
   })
   directMessaging!: DirectMessagingStatus;
 
+  @Expose()
   @Column({
     type: 'text',
     nullable: true,
   })
   profilePicture!: string | null;
 
+  @Expose()
   @Column({
     type: 'text',
     nullable: true,
   })
   header!: string | null;
 
+  @Expose()
   @Column({
     type: 'enum',
     enum: Role,
@@ -193,9 +217,11 @@ export class Account {
   })
   passwordResetCodeExpiresAt!: Date | null;
 
+  @Expose()
   @CreateDateColumn()
   createdAt!: Date;
 
+  @Expose()
   @UpdateDateColumn()
   updatedAt!: Date;
 }

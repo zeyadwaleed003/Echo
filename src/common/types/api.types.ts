@@ -7,9 +7,17 @@ export type APIResponse = {
   accessToken?: string;
   refreshToken?: string;
   passwordResetToken?: string;
+  setupToken?: string;
 };
 
 export type RefreshTokenPayload = {
   id: number;
   sessionId: string;
 };
+
+export type QueryString = {
+  page?: string;
+  sort?: string;
+  limit?: string;
+  fields?: string;
+} & Record<string, any>;

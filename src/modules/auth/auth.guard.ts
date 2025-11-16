@@ -12,6 +12,7 @@ import { Account } from '../accounts/entities/account.entity';
 import { IsNull, Repository } from 'typeorm';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -20,7 +21,8 @@ export class AuthGuard implements CanActivate {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
+    private readonly authService: AuthService
   ) {}
 
   private extractTokenFromHeader(req: Request): string | undefined {
@@ -42,7 +44,6 @@ export class AuthGuard implements CanActivate {
       // Verify if account available
       const account = await this.accountsRepository.findOne({
         where: { email: payload.email, id: payload.id },
-        select: ['id', 'email', 'status', 'role'],
       });
 
       if (!account)
@@ -77,11 +78,13 @@ export class AuthGuard implements CanActivate {
         );
 
       if (account.status === AccountStatus.PENDING)
-        throw new ForbiddenException(
+        this.authService.sendCompleteProfileSetupResponse(
+          account.id,
+          true,
           'Please complete your profile setup to access this resource'
         );
 
-      req.account = payload;
+      req.account = account;
     } catch (err) {
       if (err instanceof ForbiddenException) throw err;
       if (err instanceof UnauthorizedException) throw err;

@@ -146,8 +146,6 @@ export class AccountsService {
     await this.accountsRepository.update({ id }, updateMeDto);
 
     const updatedAccount = await this.accountsRepository.findOneBy({ id });
-    if (!account)
-      throw new NotFoundException('No account found with the provided id');
 
     const result: APIResponse = {
       message: 'Account updated successfully',

@@ -323,4 +323,33 @@ export class PostsService {
 
     return await this.findAll(queryString);
   }
+
+  async pinPost(account: Account, id: number) {
+    const post = await this.postRepository.findOne({ where: { id } });
+    if (!post) throw new NotFoundException('No post found with this id');
+
+    if (post.accountId !== account.id)
+      throw new ForbiddenException(
+        'You do not have permission to pin this post'
+      );
+
+    if (post.pinned)
+      throw new ForbiddenException('This post is already pinned');
+
+    return await this.dataSource.transaction(async (manager) => {
+      const postRepository = manager.getRepository(Post);
+
+      await postRepository.update(
+        { accountId: account.id, pinned: true },
+        { pinned: false }
+      );
+
+      await postRepository.update({ id }, { pinned: true });
+
+      const res: APIResponse = {
+        message: 'Post pinned successfully',
+      };
+      return res;
+    });
+  }
 }

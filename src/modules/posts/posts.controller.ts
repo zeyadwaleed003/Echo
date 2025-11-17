@@ -93,4 +93,11 @@ export class PostsController {
     const { account } = req;
     return this.postsService.findAccountPosts(params.id, q, account);
   }
+
+  @UseGuards(AuthGuard)
+  @Post('/pin/:id')
+  pinPost(@Param() params: IdDto, @Req() req: Request) {
+    const { account } = req;
+    return this.postsService.pinPost(account!, params.id);
+  }
 }

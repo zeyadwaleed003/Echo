@@ -23,6 +23,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { Role } from '../accounts/accounts.enums';
 import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 import { IdDto } from 'src/common/dtos/id.dto';
+import { CreateReplyDto } from './dto/create-reply.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -31,7 +32,7 @@ export class PostsController {
   @UseGuards(AuthGuard)
   @Post()
   @UseInterceptors(FilesInterceptor('file', 4))
-  async create(
+  create(
     @Req() req: Request,
     @Body() createPostDto: CreatePostDto,
     @UploadedFiles() files?: Express.Multer.File[]
@@ -95,9 +96,27 @@ export class PostsController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('/pin/:id')
+  @Post('/:id/pin')
   pinPost(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
     return this.postsService.pinPost(account!, params.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/:id/reply')
+  @UseInterceptors(FilesInterceptor('file', 4))
+  createReply(
+    @Req() req: Request,
+    @Param() params: IdDto,
+    @Body() createReplyDto: CreateReplyDto,
+    @UploadedFiles() files?: Express.Multer.File[]
+  ) {
+    const { account } = req;
+    return this.postsService.createReply(
+      account!,
+      params.id,
+      createReplyDto,
+      files
+    );
   }
 }

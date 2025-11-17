@@ -17,6 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { RelationshipType } from '../accounts/accounts.enums';
+import { CreateReplyDto } from './dto/create-reply.dto';
 
 @Injectable()
 export class PostsService {
@@ -348,6 +349,62 @@ export class PostsService {
 
       const res: APIResponse = {
         message: 'Post pinned successfully',
+      };
+      return res;
+    });
+  }
+
+  async createReply(
+    account: Account,
+    actionPostId: number,
+    createReplyDto: CreateReplyDto,
+    files?: Express.Multer.File[]
+  ) {
+    const actionPost = await this.postRepository.findOne({
+      where: { id: actionPostId },
+    });
+    if (!actionPost) {
+      throw new NotFoundException('No post found with this id');
+    }
+
+    const targetAccount = await this.accountsRepository.findOne({
+      where: { id: actionPost.accountId },
+    });
+    if (!targetAccount) {
+      throw new NotFoundException('Post author account not found');
+    }
+
+    if (targetAccount.isPrivate && targetAccount.id !== account.id) {
+      const relation = await this.accountRelationshipsRepository.findOne({
+        where: { actorId: account.id, targetId: targetAccount.id },
+      });
+
+      if (relation?.relationshipType !== RelationshipType.FOLLOW) {
+        throw new ForbiddenException(
+          `You must follow @${targetAccount.username} to reply to their posts`
+        );
+      }
+    }
+
+    return await this.dataSource.transaction(async (manager) => {
+      const postRepository = manager.getRepository(Post);
+
+      const reply = postRepository.create({
+        ...createReplyDto,
+        type: PostType.REPLY,
+        accountId: account.id,
+        actionPostId,
+      });
+
+      await postRepository.save(reply);
+
+      let postFiles: PostFiles[] = [];
+      if (files?.length)
+        postFiles = await this.uploadFiles(manager, files, reply.id);
+
+      const res: APIResponse = {
+        message: 'Reply created successfully',
+        data: { ...reply, ...(postFiles.length > 0 && { files: postFiles }) },
       };
       return res;
     });

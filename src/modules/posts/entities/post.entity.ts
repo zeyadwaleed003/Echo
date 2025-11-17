@@ -22,9 +22,12 @@ export class Post {
   @Column({ type: 'bigint', nullable: false })
   accountId!: number;
 
+  @Column()
+  actionPostId?: number | null;
+
   @ManyToOne(() => Post, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn()
-  actionPost!: Post | null;
+  @JoinColumn({ name: 'actionPostId' })
+  actionPost?: Post | null;
 
   @Column({
     type: 'text',

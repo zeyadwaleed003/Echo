@@ -81,4 +81,16 @@ export class PostsController {
     const { account } = req;
     return this.postsService.remove(params.id, account!);
   }
+
+  @UseGuards(AuthGuard)
+  @OptionalAuth()
+  @Get('account/:id')
+  findAccountPosts(
+    @Req() req: Request,
+    @Param() params: IdDto,
+    @Query() q: any
+  ) {
+    const { account } = req;
+    return this.postsService.findAccountPosts(params.id, q, account);
+  }
 }

@@ -285,4 +285,42 @@ export class PostsService {
       return res;
     });
   }
+
+  async findAccountPosts(accountId: number, q: any, account?: Account) {
+    const targetAccount = await this.accountsRepository.findOne({
+      where: { id: accountId },
+    });
+    if (!targetAccount)
+      throw new NotFoundException('No account found with this id');
+
+    if (account?.id === accountId) {
+      const queryString = { ...q, accountId };
+      return await this.findAll(queryString);
+    }
+
+    // account is private
+    if (targetAccount.isPrivate) {
+      // user not logged in
+      if (!account)
+        throw new UnauthorizedException(
+          'This account is private. Please log in to view their posts.'
+        );
+
+      // user logged in, find the relation
+      const relation = (
+        await this.accountRelationshipsRepository.findOne({
+          where: { actorId: account.id, targetId: accountId },
+        })
+      )?.relationshipType;
+
+      // user does not follow them
+      if (relation !== RelationshipType.FOLLOW)
+        throw new ForbiddenException(
+          `This account is private. Follow @${targetAccount.username} to view their posts.`
+        );
+    }
+    const queryString = { ...q, accountId };
+
+    return await this.findAll(queryString);
+  }
 }

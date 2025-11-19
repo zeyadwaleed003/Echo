@@ -1,34 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { BlockedWordsService } from './blocked-words.service';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { CreateBlockedWordDto } from './dto/create-blocked-word.dto';
-import { UpdateBlockedWordDto } from './dto/update-blocked-word.dto';
+import { BlockedWordsService } from './blocked-words.service';
+import { AuthGuard } from '../auth/auth.guard';
+import type { Request } from 'express';
 
 @Controller('blocked-words')
 export class BlockedWordsController {
-  constructor(private readonly blockedWordsService: BlockedWordsService) {}
+  constructor(private blockedWordsService: BlockedWordsService) {}
 
   @Post()
-  create(@Body() createBlockedWordDto: CreateBlockedWordDto) {
-    return this.blockedWordsService.create(createBlockedWordDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.blockedWordsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.blockedWordsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBlockedWordDto: UpdateBlockedWordDto) {
-    return this.blockedWordsService.update(+id, updateBlockedWordDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.blockedWordsService.remove(+id);
+  @UseGuards(AuthGuard)
+  async blockWord(@Body() dto: CreateBlockedWordDto, @Req() req: Request) {
+    return await this.blockedWordsService.blockWord(req.account!.id, dto.word);
   }
 }

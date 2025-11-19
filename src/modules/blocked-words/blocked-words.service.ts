@@ -1,26 +1,57 @@
 import { Injectable } from '@nestjs/common';
-import { CreateBlockedWordDto } from './dto/create-blocked-word.dto';
-import { UpdateBlockedWordDto } from './dto/update-blocked-word.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { BlockedWord } from './entities/blocked-word.entity';
+import { Repository, DataSource } from 'typeorm';
+import { WordRelationships } from './entities/word-relationship.entity';
+import { APIResponse } from 'src/common/types/api.types';
 
 @Injectable()
 export class BlockedWordsService {
-  create(createBlockedWordDto: CreateBlockedWordDto) {
-    return 'This action adds a new blockedWord';
-  }
+  constructor(
+    @InjectRepository(BlockedWord)
+    private readonly blockedWordRepository: Repository<BlockedWord>,
+    @InjectRepository(WordRelationships)
+    private readonly wordRelationshipsRepository: Repository<WordRelationships>,
+    private readonly dataSource: DataSource
+  ) {}
 
-  findAll() {
-    return `This action returns all blockedWords`;
-  }
+  async blockWord(accountId: number, word: string): Promise<APIResponse> {
+    // Check if the word already existed
+    const existedWord = await this.blockedWordRepository.findOneBy({
+      text: word,
+    });
+    if (existedWord) {
+      // Check if the user already blocked it
+      const relationship = await this.wordRelationshipsRepository.findOneBy({
+        accountId,
+        blockedWordId: existedWord.id,
+      });
 
-  findOne(id: number) {
-    return `This action returns a #${id} blockedWord`;
-  }
+      // If the user haven't blocked the word ... create the relationship
+      if (!relationship) {
+        const r = this.wordRelationshipsRepository.create({
+          accountId,
+          blockedWordId: existedWord.id,
+        });
 
-  update(id: number, updateBlockedWordDto: UpdateBlockedWordDto) {
-    return `This action updates a #${id} blockedWord`;
-  }
+        await this.wordRelationshipsRepository.save(r);
+      }
+    } else {
+      // Word doesn't exist ... Need to create the word and the relationship
+      await this.dataSource.transaction(async (manager) => {
+        const rRepo = manager.getRepository(WordRelationships);
+        const wRepo = manager.getRepository(BlockedWord);
 
-  remove(id: number) {
-    return `This action removes a #${id} blockedWord`;
+        const bw = wRepo.create({ text: word });
+        await wRepo.save(bw);
+
+        const relationship = rRepo.create({ blockedWordId: bw.id, accountId });
+        await rRepo.save(relationship);
+      });
+    }
+
+    return {
+      message: `${word} has been blocked successfully`,
+    };
   }
 }

@@ -52,6 +52,8 @@ const validatedEnv = z
 
     REACTIVATION_TOKEN_SECRET: z.string().min(1),
     REACTIVATION_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
+    SETUP_TOKEN_SECRET: z.string().min(1),
+    SETUP_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
   })
   .parse(process.env);
 

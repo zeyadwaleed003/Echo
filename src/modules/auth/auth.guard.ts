@@ -13,6 +13,7 @@ import { IsNull, Repository } from 'typeorm';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { Reflector } from '@nestjs/core';
+import { AuthService } from './auth.service';
 
 export const IS_OPTIONAL_AUTH = 'isOptionalAuth';
 
@@ -24,7 +25,8 @@ export class AuthGuard implements CanActivate {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(RefreshToken)
-    private readonly refreshTokenRepository: Repository<RefreshToken>
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
+    private readonly authService: AuthService
   ) {}
 
   private extractTokenFromHeader(req: Request): string | undefined {
@@ -104,7 +106,9 @@ export class AuthGuard implements CanActivate {
         );
 
       if (account?.status === AccountStatus.PENDING)
-        throw new ForbiddenException(
+        this.authService.sendCompleteProfileSetupResponse(
+          account.id,
+          true,
           'Please complete your profile setup to access this resource'
         );
 

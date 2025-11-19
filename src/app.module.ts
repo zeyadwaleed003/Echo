@@ -13,6 +13,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -32,6 +34,12 @@ import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
     BlockedWordsModule,
     TasksModule,
     CloudinaryModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
   ],
 })
 export class AppModule {}

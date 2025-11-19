@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateAccountDto } from './dto/create-account.dto';
@@ -32,6 +33,8 @@ import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class AccountsService {
+  private readonly logger = new Logger(AccountsService.name);
+
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
@@ -102,6 +105,8 @@ export class AccountsService {
   async delete(id: number) {
     await this.accountsRepository.delete({ id });
 
+    this.logger.log(`Account deleted: id=${id}`);
+
     const result: APIResponse = {
       message: 'Account deleted successfully',
     };
@@ -141,8 +146,6 @@ export class AccountsService {
     await this.accountsRepository.update({ id }, updateMeDto);
 
     const updatedAccount = await this.accountsRepository.findOneBy({ id });
-    if (!account)
-      throw new NotFoundException('No account found with the provided id');
 
     const result: APIResponse = {
       message: 'Account updated successfully',
@@ -215,6 +218,10 @@ export class AccountsService {
         relationshipType: Not(RelationshipType.BLOCK),
       });
     });
+
+    this.logger.log(
+      `Account blocked: actor=${accountId}, target=${targetAccountId}`
+    );
 
     const result: APIResponse = {
       message: `Account @${targetAccount.username} has been blocked successfully`,
@@ -465,10 +472,14 @@ export class AccountsService {
         relationshipType: RelationshipType.BLOCK,
       },
     });
-    if (isBlocked)
+    if (isBlocked) {
+      this.logger.warn(
+        `Access denied - blocked: viewer=${accountId}, target=${targetAccountId}`
+      );
       throw new ForbiddenException(
         "You do not have permission to view this account's information"
       );
+    }
 
     if (targetAccount.isPrivate) {
       const relationship = await this.accountRelationshipsRepository.findOneBy({
@@ -477,10 +488,14 @@ export class AccountsService {
         relationshipType: RelationshipType.FOLLOW,
       });
 
-      if (!relationship)
+      if (!relationship) {
+        this.logger.warn(
+          `Access denied - private account: viewer=${accountId}, target=${targetAccountId}`
+        );
         throw new ForbiddenException(
           'This account is private. You must follow this account to view their information'
         );
+      }
     }
 
     return await this.findRelatedAccounts(
@@ -523,6 +538,8 @@ export class AccountsService {
 
     // Logout the user from all devices
     await this.authService.logoutFromAllDevices(account.id);
+
+    this.logger.log(`Account deactivated: id=${account.id}`);
 
     const result: APIResponse = {
       message:
@@ -599,9 +616,44 @@ export class AccountsService {
   async deleteMe(accountId: number) {
     await this.accountsRepository.delete({ id: accountId });
 
+    this.logger.log(`Account self-deleted: id=${accountId}`);
+
     const result: APIResponse = {
       message: 'Your account has been deleted successfully',
     };
+    return result;
+  }
+
+  async removeFollower(accountId: number, followerId: number) {
+    const followerAccount = await this.validateAndGetTargetAccount(
+      accountId,
+      followerId,
+      'do this action to'
+    );
+
+    const relationship = await this.accountRelationshipsRepository.findOne({
+      where: {
+        actorId: followerId,
+        targetId: accountId,
+        relationshipType: RelationshipType.FOLLOW,
+      },
+    });
+
+    if (!relationship)
+      throw new BadRequestException(
+        `Account @${followerAccount.username} is not following you`
+      );
+
+    await this.accountRelationshipsRepository.remove(relationship);
+
+    this.logger.log(
+      `Follower removed: account=${accountId}, follower=${followerId}`
+    );
+
+    const result: APIResponse = {
+      message: `Account @${followerAccount.username} has been removed from your followers`,
+    };
+
     return result;
   }
 }

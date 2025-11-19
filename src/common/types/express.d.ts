@@ -1,4 +1,4 @@
-import { Account } from 'src/modules/accounts/entities/account.entity';
+import { Account } from '../../modules/accounts/entities/account.entity';
 
 declare global {
   namespace Express {

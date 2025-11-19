@@ -12,6 +12,7 @@ import { BookmarksModule } from './modules/bookmarks/bookmarks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
@@ -32,6 +33,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     NotificationsModule,
     BlockedWordsModule,
     TasksModule,
+    CloudinaryModule,
   ],
   providers: [
     {

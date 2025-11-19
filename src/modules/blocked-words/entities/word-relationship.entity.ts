@@ -16,7 +16,7 @@ export class WordRelationships {
   @PrimaryColumn()
   blockedWordId!: number;
 
-  @ManyToOne(() => Account)
+  @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn()
   account!: Account;
 

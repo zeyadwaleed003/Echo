@@ -103,7 +103,7 @@ export class PostsController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('/:id/reply')
+  @Post('/:id/replies')
   @UseInterceptors(FilesInterceptor('file', 4))
   createReply(
     @Req() req: Request,
@@ -118,5 +118,14 @@ export class PostsController {
       createReplyDto,
       files
     );
+  }
+
+  @UseGuards(AuthGuard)
+  @OptionalAuth()
+  @Get('/:id/replies')
+  getPostReplies(@Req() req: Request, @Param() params: IdDto, @Query() q: any) {
+    const { id } = params;
+    const { account } = req;
+    return this.postsService.getPostReplies(id, q, account);
   }
 }

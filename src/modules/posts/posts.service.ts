@@ -105,7 +105,7 @@ export class PostsService {
       .paginate()
       .exec();
 
-    if (q.fields && !containFiles) return { data: posts };
+    // if (q.fields && !containFiles) return { data: posts };
 
     const postsIds = posts.map((post) => post.id);
 
@@ -124,11 +124,18 @@ export class PostsService {
       {} as Record<number, PostFiles[]>
     );
 
+    const data = posts.map((post) => ({
+      ...post,
+      files: (!q.fields || containFiles) && (files[post.id] || []),
+    }));
+
+    return data;
+  }
+
+  async findAllPosts(q: any) {
+    const data = await this.findAll(q);
     const res: APIResponse = {
-      data: posts.map((post) => ({
-        ...post,
-        files: (!q.fields || containFiles) && (files[post.id] || []),
-      })),
+      data,
     };
 
     return res;
@@ -390,7 +397,7 @@ export class PostsService {
       const postRepository = manager.getRepository(Post);
 
       const reply = postRepository.create({
-        ...createReplyDto,
+        content: createReplyDto.content,
         type: PostType.REPLY,
         accountId: account.id,
         actionPostId,
@@ -408,5 +415,109 @@ export class PostsService {
       };
       return res;
     });
+  }
+
+  async getPostReplies(actionPostId: number, q: any, account?: Account) {
+    let queryString = {
+      ...q,
+      type: PostType.REPLY,
+      actionPostId,
+    };
+
+    const allReplies = await this.findAll(queryString);
+    if (!allReplies.length) {
+      const res: APIResponse = {
+        size: 0,
+        data: [],
+      };
+      return res;
+    }
+
+    const accountsIds = [
+      ...new Set(allReplies.map((reply) => reply.accountId)),
+    ];
+
+    const privateAccounts = await this.accountsRepository.find({
+      where: { id: In(accountsIds), isPrivate: true },
+      select: ['id'],
+    });
+    const privateAccountsIds = new Set(privateAccounts.map((acc) => acc.id));
+
+    // not logged in , only show the public replies
+    if (!account) {
+      const data = allReplies.filter(
+        (reply) => !privateAccountsIds.has(reply.accountId)
+      );
+      const res: APIResponse = {
+        size: data.length,
+        data,
+      };
+      return res;
+    }
+
+    const [privateFollowedAccounts, mutedOrBlockedAccounts, blockedByAccounts] =
+      await Promise.all([
+        // Only query if there are private accounts
+        privateAccountsIds.size > 0
+          ? this.accountRelationshipsRepository.find({
+              select: ['targetId'],
+              where: {
+                actorId: account.id,
+                targetId: In([...privateAccountsIds]),
+                relationshipType: RelationshipType.FOLLOW,
+              },
+            })
+          : [],
+        this.accountRelationshipsRepository.find({
+          select: ['targetId'],
+          where: {
+            targetId: In(accountsIds),
+            actorId: account.id,
+            relationshipType: In([
+              RelationshipType.MUTE,
+              RelationshipType.BLOCK,
+            ]),
+          },
+        }),
+        this.accountRelationshipsRepository.find({
+          select: ['actorId'],
+          where: {
+            actorId: In(accountsIds),
+            targetId: account.id,
+            relationshipType: RelationshipType.BLOCK,
+          },
+        }),
+      ]);
+
+    const privateFollowedAccountsIds = new Set(
+      privateFollowedAccounts.map((rel) => rel.targetId)
+    );
+    const mutedOrBlockedAccountsIds = new Set(
+      mutedOrBlockedAccounts.map((rel) => rel.targetId)
+    );
+    const blockedByAccountsIds = new Set(
+      blockedByAccounts.map((rel) => rel.actorId)
+    );
+
+    const visibleReplies = allReplies.filter((reply) => {
+      const accountId = reply.accountId;
+
+      if (
+        mutedOrBlockedAccountsIds.has(accountId) ||
+        blockedByAccountsIds.has(accountId)
+      )
+        return false;
+
+      if (accountId === account.id || !privateAccountsIds.has(accountId))
+        return true;
+
+      return privateFollowedAccountsIds.has(accountId);
+    });
+
+    const res: APIResponse = {
+      size: visibleReplies.length,
+      data: visibleReplies,
+    };
+    return res;
   }
 }

@@ -20,7 +20,7 @@ export class WordRelationships {
   @JoinColumn()
   account!: Account;
 
-  @ManyToOne(() => BlockedWord)
+  @ManyToOne(() => BlockedWord, { onDelete: 'CASCADE' })
   @JoinColumn()
   blockedWord!: BlockedWord;
 

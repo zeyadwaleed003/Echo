@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BlockedWord } from './entities/blocked-word.entity';
 import { Repository, DataSource } from 'typeorm';
@@ -15,7 +15,7 @@ export class BlockedWordsService {
     private readonly dataSource: DataSource
   ) {}
 
-  async blockWord(accountId: number, word: string): Promise<APIResponse> {
+  async block(accountId: number, word: string): Promise<APIResponse> {
     // Check if the word already existed
     const existedWord = await this.blockedWordRepository.findOneBy({
       text: word,
@@ -52,6 +52,23 @@ export class BlockedWordsService {
 
     return {
       message: `${word} has been blocked successfully`,
+    };
+  }
+
+  async unblock(
+    accountId: number,
+    blockedWordId: number
+  ): Promise<APIResponse> {
+    const relationship = await this.wordRelationshipsRepository.findOne({
+      where: { blockedWordId, accountId },
+      relations: ['blockedWord'],
+    });
+    if (!relationship) throw new NotFoundException('This word is not blocked');
+
+    await this.wordRelationshipsRepository.remove(relationship);
+
+    return {
+      message: `${relationship.blockedWord.text} has been unblocked successfully`,
     };
   }
 }

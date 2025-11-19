@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { BlockedWord } from './entities/blocked-word.entity';
 import { Repository, DataSource } from 'typeorm';
 import { WordRelationships } from './entities/word-relationship.entity';
-import { APIResponse } from 'src/common/types/api.types';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
+import ApiFeatures from 'src/common/utils/ApiFeatures';
 
 @Injectable()
 export class BlockedWordsService {
@@ -16,6 +17,8 @@ export class BlockedWordsService {
   ) {}
 
   async block(accountId: number, word: string): Promise<APIResponse> {
+    let blockedWord: BlockedWord;
+
     // Check if the word already existed
     const existedWord = await this.blockedWordRepository.findOneBy({
       text: word,
@@ -36,9 +39,11 @@ export class BlockedWordsService {
 
         await this.wordRelationshipsRepository.save(r);
       }
+
+      blockedWord = existedWord;
     } else {
       // Word doesn't exist ... Need to create the word and the relationship
-      await this.dataSource.transaction(async (manager) => {
+      const bw = await this.dataSource.transaction(async (manager) => {
         const rRepo = manager.getRepository(WordRelationships);
         const wRepo = manager.getRepository(BlockedWord);
 
@@ -47,11 +52,16 @@ export class BlockedWordsService {
 
         const relationship = rRepo.create({ blockedWordId: bw.id, accountId });
         await rRepo.save(relationship);
+
+        return bw;
       });
+
+      blockedWord = bw;
     }
 
     return {
       message: `${word} has been blocked successfully`,
+      data: blockedWord,
     };
   }
 
@@ -69,6 +79,28 @@ export class BlockedWordsService {
 
     return {
       message: `${relationship.blockedWord.text} has been unblocked successfully`,
+    };
+  }
+
+  async getCurrentAccountBlockedWords(
+    accountId: number,
+    q: QueryString
+  ): Promise<APIResponse> {
+    const relationships = await new ApiFeatures(
+      this.wordRelationshipsRepository,
+      q,
+      {
+        where: { accountId },
+        relations: ['blockedWord'],
+      }
+    )
+      .paginate()
+      .exec();
+
+    const blockedWords = relationships.map((r) => r.blockedWord);
+    return {
+      size: blockedWords.length,
+      data: blockedWords,
     };
   }
 }

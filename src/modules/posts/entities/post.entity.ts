@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Account } from '../../accounts/entities/account.entity';
 import { PostType } from '../posts.enums';
+import { MaxLength } from 'class-validator';
 
 @Entity('posts')
 export class Post {
@@ -16,17 +17,24 @@ export class Post {
   id!: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'accountId' })
   account!: Account;
 
+  @Column({ type: 'bigint', nullable: false })
+  accountId!: number;
+
+  @Column()
+  actionPostId?: number | null;
+
   @ManyToOne(() => Post, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn()
-  actionPost!: Post | null;
+  @JoinColumn({ name: 'actionPostId' })
+  actionPost?: Post | null;
 
   @Column({
     type: 'text',
     nullable: true,
   })
+  @MaxLength(353)
   content!: string | null;
 
   @Column({

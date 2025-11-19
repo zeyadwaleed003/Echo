@@ -9,6 +9,7 @@ import { CloudinaryModule } from 'src/modules/cloudinary/cloudinary.module';
 import { PostFiles } from './entities/post-file.entity';
 import { Post } from './entities/post.entity';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AccountRelationships } from '../accounts/entities/account-relationship.
       RefreshToken,
       AccountRelationships,
     ]),
+    AuthModule,
     TokenModule,
     CloudinaryModule,
   ],

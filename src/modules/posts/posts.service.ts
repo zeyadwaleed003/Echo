@@ -12,7 +12,7 @@ import { PostFiles } from './entities/post-file.entity';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
 import { PostType } from './posts.enums';
 import { Account } from '../accounts/entities/account.entity';
-import { APIResponse } from 'src/common/types/api.types';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
@@ -34,17 +34,17 @@ export class PostsService {
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>
   ) {}
 
-  private containFiles(q: any) {
+  private containFiles(q: QueryString) {
     const queryString = { ...q };
     const fields = queryString.fields?.split(',');
     return fields?.includes('files');
   }
 
-  private cleanFields(q: any) {
+  private cleanFields(q: QueryString) {
     const queryString = { ...q };
     const fields = queryString.fields?.split(',');
 
-    const validFields = fields.filter((field: string) => field !== 'files');
+    const validFields = fields!.filter((field: string) => field !== 'files');
     return { ...queryString, fields: validFields.join(',') };
   }
 
@@ -135,6 +135,7 @@ export class PostsService {
   async findAllPosts(q: any) {
     const data = await this.findAll(q);
     const res: APIResponse = {
+      size: data.length,
       data,
     };
 
@@ -294,7 +295,7 @@ export class PostsService {
     });
   }
 
-  async findAccountPosts(accountId: number, q: any, account?: Account) {
+  async findAccountPosts(accountId: number, q: QueryString, account?: Account) {
     const targetAccount = await this.accountsRepository.findOne({
       where: { id: accountId },
     });
@@ -417,7 +418,11 @@ export class PostsService {
     });
   }
 
-  async getPostReplies(actionPostId: number, q: any, account?: Account) {
+  async getPostReplies(
+    actionPostId: number,
+    q: QueryString,
+    account?: Account
+  ) {
     let queryString = {
       ...q,
       type: PostType.REPLY,

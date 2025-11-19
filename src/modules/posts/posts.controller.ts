@@ -11,11 +11,12 @@ import {
   UploadedFiles,
   Req,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiConsumes,
   ApiBearerAuth,
   ApiQuery,
@@ -34,6 +35,7 @@ import { Role } from '../accounts/accounts.enums';
 import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 import { IdDto } from 'src/common/dtos/id.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import type { QueryString } from 'src/common/types/api.types';
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -68,35 +70,6 @@ export class PostsController {
       },
       required: ['content'],
     },
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Post created successfully',
-    schema: {
-      example: {
-        message: 'Post created successfully',
-        data: {
-          id: 1,
-          content: 'Just setting up my Echo account! 🚀',
-          type: 'POST',
-          accountId: 123,
-          pinned: false,
-          createdAt: '2025-11-19T10:30:00.000Z',
-          updatedAt: '2025-11-19T10:30:00.000Z',
-          postFiles: [
-            {
-              id: 1,
-              url: 'https://res.cloudinary.com/example/image.jpg',
-              postId: 1,
-            },
-          ],
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - Authentication required',
   })
   @UseGuards(AuthGuard)
   @Post()
@@ -140,30 +113,10 @@ export class PostsController {
     description: 'Fields to include (comma-separated)',
     example: 'id,content,createdAt',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Posts retrieved successfully',
-    schema: {
-      example: {
-        data: [
-          {
-            id: 1,
-            content: 'Hello world!',
-            type: 'POST',
-            accountId: 123,
-            pinned: false,
-            createdAt: '2025-11-19T10:30:00.000Z',
-            files: [],
-          },
-        ],
-      },
-    },
-  })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
-  findAll(@Query() q: any) {
+  findAll(@Query() q: QueryString) {
     return this.postsService.findAll(q);
   }
 
@@ -173,26 +126,9 @@ export class PostsController {
       'Retrieve all posts created by the authenticated user, with filtering, sorting, and pagination',
   })
   @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: 'User posts retrieved successfully',
-    schema: {
-      example: [
-        {
-          id: 1,
-          content: 'My first post!',
-          type: 'POST',
-          accountId: 123,
-          pinned: true,
-          createdAt: '2025-11-19T10:30:00.000Z',
-          files: [],
-        },
-      ],
-    },
-  })
   @UseGuards(AuthGuard)
-  @Get('me')
-  findUserPosts(@Req() req: Request, @Query() q: any) {
+  @Get('/me')
+  findUserPosts(@Req() req: Request, @Query() q: QueryString) {
     const { account } = req;
     return this.postsService.findUserPosts(account!, q);
   }
@@ -203,37 +139,9 @@ export class PostsController {
       'Retrieve a single post by its ID. Authentication is optional. Private posts require authentication and following the author.',
   })
   @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Post retrieved successfully',
-    schema: {
-      example: {
-        data: {
-          id: 1,
-          content: 'Hello world!',
-          type: 'POST',
-          accountId: 123,
-          pinned: false,
-          createdAt: '2025-11-19T10:30:00.000Z',
-          updatedAt: '2025-11-19T10:30:00.000Z',
-          files: [
-            {
-              id: 1,
-              url: 'https://res.cloudinary.com/example/image.jpg',
-              postId: 1,
-            },
-          ],
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - Private post requires authentication',
-  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
-  @Get(':id')
+  @Get('/:id')
   findOne(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
     return this.postsService.findOne(params.id, account);
@@ -273,24 +181,8 @@ export class PostsController {
       },
     },
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Post updated successfully',
-    schema: {
-      example: {
-        message: 'Post updated successfully',
-        data: {
-          id: 1,
-          content: 'Updated my post content!',
-          type: 'POST',
-          accountId: 123,
-          files: [],
-        },
-      },
-    },
-  })
   @UseGuards(AuthGuard)
-  @Patch(':id')
+  @Patch('/:id')
   @UseInterceptors(FilesInterceptor('files', 4))
   update(
     @Param() params: IdDto,
@@ -309,52 +201,26 @@ export class PostsController {
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Post deleted successfully',
-    schema: {
-      example: {
-        message: 'Post deleted successfully',
-      },
-    },
-  })
   @UseGuards(AuthGuard)
-  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('/:id')
   remove(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
     return this.postsService.remove(params.id, account!);
   }
-
   @ApiOperation({
     summary: 'Get posts by account',
     description:
       'Retrieve posts from a specific account, with filtering, sorting, and pagination. Authentication is optional. Private accounts require following or authentication.',
   })
   @ApiParam({ name: 'id', description: 'Account ID', example: 123 })
-  @ApiResponse({
-    status: 200,
-    description: 'Account posts retrieved successfully',
-    schema: {
-      example: [
-        {
-          id: 5,
-          content: 'Another great post!',
-          type: 'POST',
-          accountId: 123,
-          pinned: false,
-          createdAt: '2025-11-19T11:00:00.000Z',
-          files: [],
-        },
-      ],
-    },
-  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
-  @Get('account/:id')
+  @Get('/account/:id')
   findAccountPosts(
     @Req() req: Request,
     @Param() params: IdDto,
-    @Query() q: any
+    @Query() q: QueryString
   ) {
     const { account } = req;
     return this.postsService.findAccountPosts(params.id, q, account);
@@ -367,17 +233,8 @@ export class PostsController {
   })
   @ApiBearerAuth()
   @ApiParam({ name: 'id', description: 'Post ID to pin', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Post pinned successfully',
-    schema: {
-      example: {
-        message: 'Post pinned successfully',
-      },
-    },
-  })
-  @ApiResponse({ status: 400, description: 'Post already pinned' })
   @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
   @Post('/:id/pin')
   pinPost(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
@@ -414,24 +271,6 @@ export class PostsController {
       required: ['content'],
     },
   })
-  @ApiResponse({
-    status: 201,
-    description: 'Reply created successfully',
-    schema: {
-      example: {
-        message: 'Reply created successfully',
-        data: {
-          id: 10,
-          content: 'Great post! Thanks for sharing.',
-          type: 'REPLY',
-          accountId: 456,
-          actionPostId: 1,
-          createdAt: '2025-11-19T10:35:00.000Z',
-          files: [],
-        },
-      },
-    },
-  })
   @UseGuards(AuthGuard)
   @Post('/:id/replies')
   @UseInterceptors(FilesInterceptor('file', 4))
@@ -456,29 +295,14 @@ export class PostsController {
       'Retrieve all replies to a specific post, with filtering, sorting, and pagination. Authentication is optional. Filters out replies from private accounts (unless following), muted, or blocked users.',
   })
   @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
-  @ApiResponse({
-    status: 200,
-    description: 'Replies retrieved successfully',
-    schema: {
-      example: {
-        data: [
-          {
-            id: 10,
-            content: 'Great post! Thanks for sharing.',
-            type: 'REPLY',
-            accountId: 456,
-            actionPostId: 1,
-            createdAt: '2025-11-19T10:35:00.000Z',
-            files: [],
-          },
-        ],
-      },
-    },
-  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
   @Get('/:id/replies')
-  getPostReplies(@Req() req: Request, @Param() params: IdDto, @Query() q: any) {
+  getPostReplies(
+    @Req() req: Request,
+    @Param() params: IdDto,
+    @Query() q: QueryString
+  ) {
     const { id } = params;
     const { account } = req;
     return this.postsService.getPostReplies(id, q, account);

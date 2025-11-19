@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Account } from '../../accounts/entities/account.entity';
 import { PostType } from '../posts.enums';
+import { MaxLength } from 'class-validator';
 
 @Entity('posts')
 export class Post {
@@ -33,6 +34,7 @@ export class Post {
     type: 'text',
     nullable: true,
   })
+  @MaxLength(353)
   content!: string | null;
 
   @Column({

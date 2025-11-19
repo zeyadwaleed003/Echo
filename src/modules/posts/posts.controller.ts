@@ -12,6 +12,16 @@ import {
   Req,
   Query,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
@@ -25,10 +35,69 @@ import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 import { IdDto } from 'src/common/dtos/id.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 
+@ApiTags('Posts')
 @Controller('posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
+  @ApiOperation({
+    summary: 'Create a new post',
+    description:
+      'Create a new post with optional file attachments (max 4 files)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'Post content (max 280 characters)',
+          example: 'Just setting up my Echo account! 🚀',
+          maxLength: 280,
+        },
+        file: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Optional file attachments (max 4 files)',
+        },
+      },
+      required: ['content'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Post created successfully',
+    schema: {
+      example: {
+        message: 'Post created successfully',
+        data: {
+          id: 1,
+          content: 'Just setting up my Echo account! 🚀',
+          type: 'POST',
+          accountId: 123,
+          pinned: false,
+          createdAt: '2025-11-19T10:30:00.000Z',
+          updatedAt: '2025-11-19T10:30:00.000Z',
+          postFiles: [
+            {
+              id: 1,
+              url: 'https://res.cloudinary.com/example/image.jpg',
+              postId: 1,
+            },
+          ],
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
   @UseGuards(AuthGuard)
   @Post()
   @UseInterceptors(FilesInterceptor('file', 4))
@@ -41,6 +110,56 @@ export class PostsController {
     return this.postsService.create(createPostDto, account!, files);
   }
 
+  @ApiOperation({
+    summary: 'Get all posts (Admin only)',
+    description:
+      'Retrieve all posts with filtering, sorting, and pagination. Admin access required.',
+  })
+  @ApiBearerAuth()
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number for pagination',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    description: 'Sort field (e.g., -createdAt for descending)',
+    example: '-createdAt',
+  })
+  @ApiQuery({
+    name: 'fields',
+    required: false,
+    description: 'Fields to include (comma-separated)',
+    example: 'id,content,createdAt',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Posts retrieved successfully',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            content: 'Hello world!',
+            type: 'POST',
+            accountId: 123,
+            pinned: false,
+            createdAt: '2025-11-19T10:30:00.000Z',
+            files: [],
+          },
+        ],
+      },
+    },
+  })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
@@ -48,6 +167,29 @@ export class PostsController {
     return this.postsService.findAll(q);
   }
 
+  @ApiOperation({
+    summary: 'Get current user posts',
+    description:
+      'Retrieve all posts created by the authenticated user, with filtering, sorting, and pagination',
+  })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: 200,
+    description: 'User posts retrieved successfully',
+    schema: {
+      example: [
+        {
+          id: 1,
+          content: 'My first post!',
+          type: 'POST',
+          accountId: 123,
+          pinned: true,
+          createdAt: '2025-11-19T10:30:00.000Z',
+          files: [],
+        },
+      ],
+    },
+  })
   @UseGuards(AuthGuard)
   @Get('me')
   findUserPosts(@Req() req: Request, @Query() q: any) {
@@ -55,6 +197,40 @@ export class PostsController {
     return this.postsService.findUserPosts(account!, q);
   }
 
+  @ApiOperation({
+    summary: 'Get post by ID',
+    description:
+      'Retrieve a single post by its ID. Authentication is optional. Private posts require authentication and following the author.',
+  })
+  @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
+  @ApiResponse({
+    status: 200,
+    description: 'Post retrieved successfully',
+    schema: {
+      example: {
+        data: {
+          id: 1,
+          content: 'Hello world!',
+          type: 'POST',
+          accountId: 123,
+          pinned: false,
+          createdAt: '2025-11-19T10:30:00.000Z',
+          updatedAt: '2025-11-19T10:30:00.000Z',
+          files: [
+            {
+              id: 1,
+              url: 'https://res.cloudinary.com/example/image.jpg',
+              postId: 1,
+            },
+          ],
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Private post requires authentication',
+  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
   @Get(':id')
@@ -63,6 +239,56 @@ export class PostsController {
     return this.postsService.findOne(params.id, account);
   }
 
+  @ApiOperation({
+    summary: 'Update a post',
+    description:
+      'Update post content, add new files (max 4 total), or delete existing files. Only post owner can update.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'Updated post content',
+          example: 'Updated my post content!',
+        },
+        deleteFileIds: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Array of file IDs to delete',
+          example: [1, 2],
+        },
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'New files to upload',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Post updated successfully',
+    schema: {
+      example: {
+        message: 'Post updated successfully',
+        data: {
+          id: 1,
+          content: 'Updated my post content!',
+          type: 'POST',
+          accountId: 123,
+          files: [],
+        },
+      },
+    },
+  })
   @UseGuards(AuthGuard)
   @Patch(':id')
   @UseInterceptors(FilesInterceptor('files', 4))
@@ -76,6 +302,22 @@ export class PostsController {
     return this.postsService.update(params.id, account!, updatePostDto, files);
   }
 
+  @ApiOperation({
+    summary: 'Delete a post',
+    description:
+      'Permanently delete a post and all its files. Only post owner can delete.',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
+  @ApiResponse({
+    status: 200,
+    description: 'Post deleted successfully',
+    schema: {
+      example: {
+        message: 'Post deleted successfully',
+      },
+    },
+  })
   @UseGuards(AuthGuard)
   @Delete(':id')
   remove(@Param() params: IdDto, @Req() req: Request) {
@@ -83,6 +325,29 @@ export class PostsController {
     return this.postsService.remove(params.id, account!);
   }
 
+  @ApiOperation({
+    summary: 'Get posts by account',
+    description:
+      'Retrieve posts from a specific account, with filtering, sorting, and pagination. Authentication is optional. Private accounts require following or authentication.',
+  })
+  @ApiParam({ name: 'id', description: 'Account ID', example: 123 })
+  @ApiResponse({
+    status: 200,
+    description: 'Account posts retrieved successfully',
+    schema: {
+      example: [
+        {
+          id: 5,
+          content: 'Another great post!',
+          type: 'POST',
+          accountId: 123,
+          pinned: false,
+          createdAt: '2025-11-19T11:00:00.000Z',
+          files: [],
+        },
+      ],
+    },
+  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
   @Get('account/:id')
@@ -95,6 +360,23 @@ export class PostsController {
     return this.postsService.findAccountPosts(params.id, q, account);
   }
 
+  @ApiOperation({
+    summary: 'Pin your post',
+    description:
+      'Pin your post to your profile. Automatically unpins your previously pinned post. Only one post can be pinned at a time. You can only pin posts that you created.',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Post ID to pin', example: 1 })
+  @ApiResponse({
+    status: 200,
+    description: 'Post pinned successfully',
+    schema: {
+      example: {
+        message: 'Post pinned successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Post already pinned' })
   @UseGuards(AuthGuard)
   @Post('/:id/pin')
   pinPost(@Param() params: IdDto, @Req() req: Request) {
@@ -102,6 +384,54 @@ export class PostsController {
     return this.postsService.pinPost(account!, params.id);
   }
 
+  @ApiOperation({
+    summary: 'Reply to a post',
+    description:
+      'Create a reply to a post with optional file attachments (max 4 files). Must follow private account authors to reply.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Parent post ID', example: 1 })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: 'Reply content (max 280 characters)',
+          example: 'Great post! Thanks for sharing.',
+          maxLength: 280,
+        },
+        file: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Optional file attachments (max 4 files)',
+        },
+      },
+      required: ['content'],
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Reply created successfully',
+    schema: {
+      example: {
+        message: 'Reply created successfully',
+        data: {
+          id: 10,
+          content: 'Great post! Thanks for sharing.',
+          type: 'REPLY',
+          accountId: 456,
+          actionPostId: 1,
+          createdAt: '2025-11-19T10:35:00.000Z',
+          files: [],
+        },
+      },
+    },
+  })
   @UseGuards(AuthGuard)
   @Post('/:id/replies')
   @UseInterceptors(FilesInterceptor('file', 4))
@@ -120,6 +450,31 @@ export class PostsController {
     );
   }
 
+  @ApiOperation({
+    summary: 'Get post replies',
+    description:
+      'Retrieve all replies to a specific post, with filtering, sorting, and pagination. Authentication is optional. Filters out replies from private accounts (unless following), muted, or blocked users.',
+  })
+  @ApiParam({ name: 'id', description: 'Post ID', example: 1 })
+  @ApiResponse({
+    status: 200,
+    description: 'Replies retrieved successfully',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 10,
+            content: 'Great post! Thanks for sharing.',
+            type: 'REPLY',
+            accountId: 456,
+            actionPostId: 1,
+            createdAt: '2025-11-19T10:35:00.000Z',
+            files: [],
+          },
+        ],
+      },
+    },
+  })
   @UseGuards(AuthGuard)
   @OptionalAuth()
   @Get('/:id/replies')

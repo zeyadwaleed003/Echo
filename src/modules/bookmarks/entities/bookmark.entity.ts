@@ -4,6 +4,7 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Column,
 } from 'typeorm';
 import { Post } from '../../posts/entities/post.entity';
 import { Account } from '../../accounts/entities/account.entity';
@@ -11,15 +12,21 @@ import { Account } from '../../accounts/entities/account.entity';
 @Entity('bookmarks')
 export class Bookmark {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id!: string;
+  id!: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'postId' })
   post!: Post;
 
+  @Column({ type: 'bigint', nullable: false })
+  postId!: number;
+
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'bookmarkedBy', referencedColumnName: 'id' })
+  @JoinColumn({ name: 'bookmarkedById' })
   bookmarkedBy!: Account;
+
+  @Column({ type: 'bigint', nullable: false })
+  bookmarkedById!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

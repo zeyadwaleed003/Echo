@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
 import { APIResponse } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -109,23 +108,46 @@ export class BookmarksService {
     return `This action returns all bookmarks`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} bookmark`;
-  }
-
-  update(id: number, updateBookmarkDto: UpdateBookmarkDto) {
-    return `This action updates a #${id} bookmark`;
-  }
-
-  async remove(accountId: number, id: number): Promise<APIResponse> {
-    const bookmark = await this.bookmarkRepository.findOneBy({
-      id,
-      bookmarkedById: accountId,
+  private async findSpecificBookmarkForUser(
+    accountId: number,
+    id: number,
+    relations?: string[]
+  ): Promise<Bookmark> {
+    const bookmark = await this.bookmarkRepository.findOne({
+      where: {
+        id,
+        bookmarkedById: accountId,
+      },
+      ...(relations && { relations }),
     });
     if (!bookmark)
       throw new NotFoundException(
         'No bookmark matching this id was found for your account'
       );
+
+    return bookmark;
+  }
+
+  async findOne(accountId: number, id: number): Promise<APIResponse> {
+    const bookmark = await this.findSpecificBookmarkForUser(accountId, id, [
+      'post',
+      'bookmarkedBy',
+    ]);
+
+    const postFiles = await this.postFilesRepository.findBy({
+      postId: bookmark.postId,
+    });
+
+    return {
+      data: {
+        ...bookmark,
+        postFiles,
+      },
+    };
+  }
+
+  async remove(accountId: number, id: number): Promise<APIResponse> {
+    const bookmark = await this.findSpecificBookmarkForUser(accountId, id);
 
     await this.bookmarkRepository.remove(bookmark);
 

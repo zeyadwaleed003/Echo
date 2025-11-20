@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Req,
@@ -13,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { BookmarksService } from './bookmarks.service';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
-import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { IdDto } from 'src/common/dtos/id.dto';
@@ -37,16 +35,9 @@ export class BookmarksController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.bookmarksService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateBookmarkDto: UpdateBookmarkDto
-  ) {
-    return this.bookmarksService.update(+id, updateBookmarkDto);
+  @UseGuards(AuthGuard)
+  findOne(@Param() idDto: IdDto, @Req() req: Request) {
+    return this.bookmarksService.findOne(req.account!.id, idDto.id);
   }
 
   @Delete(':id')

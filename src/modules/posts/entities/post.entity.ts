@@ -23,7 +23,7 @@ export class Post {
   @Column({ type: 'bigint', nullable: false })
   accountId!: number;
 
-  @Column()
+  @Column({ nullable: true })
   actionPostId?: number | null;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE', nullable: true })

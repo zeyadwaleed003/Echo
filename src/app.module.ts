@@ -16,6 +16,7 @@ import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AiModule } from './modules/ai/ai.module';
+import { SearchModule } from './modules/search/search.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AiModule } from './modules/ai/ai.module';
     TasksModule,
     CloudinaryModule,
     AiModule,
+    SearchModule,
   ],
   providers: [
     {

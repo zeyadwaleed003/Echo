@@ -4,14 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { APIResponse } from 'src/common/types/api.types';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindManyOptions, Repository } from 'typeorm';
 import { Post } from '../posts/entities/post.entity';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { RelationshipType } from '../accounts/accounts.enums';
 import { Bookmark } from './entities/bookmark.entity';
 import { PostFiles } from '../posts/entities/post-file.entity';
+import ApiFeatures from 'src/common/utils/ApiFeatures';
 
 @Injectable()
 export class BookmarksService {
@@ -104,8 +105,46 @@ export class BookmarksService {
     };
   }
 
-  findAll() {
-    return `This action returns all bookmarks`;
+  // Very expensive
+  async findAll(
+    q: QueryString,
+    qOptions?: FindManyOptions<Bookmark>
+  ): Promise<APIResponse> {
+    const queryOptions: FindManyOptions<Bookmark> = {
+      ...qOptions,
+      relations: ['post', 'bookmarkedBy'],
+    };
+
+    const bookmarks = await new ApiFeatures(
+      this.bookmarkRepository,
+      q,
+      queryOptions
+    )
+      .paginate()
+      .sort()
+      .exec();
+
+    const postsFilesPromises = bookmarks.map(
+      async (b) => await this.postFilesRepository.findBy({ postId: b.postId })
+    );
+    const postsFiles = await Promise.all(postsFilesPromises);
+
+    const bookmarksWithFiles = bookmarks.map((bookmark, index) => ({
+      ...bookmark,
+      postFiles: postsFiles[index],
+    }));
+
+    return {
+      size: bookmarks.length,
+      data: bookmarksWithFiles,
+    };
+  }
+
+  async findCurrentUserBookmarks(
+    accountId: number,
+    q: QueryString
+  ): Promise<APIResponse> {
+    return await this.findAll(q, { where: { bookmarkedById: accountId } });
   }
 
   private async findSpecificBookmarkForUser(

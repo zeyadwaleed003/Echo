@@ -11,7 +11,7 @@ import { Account } from '../../accounts/entities/account.entity';
 
 @Entity('bookmarks')
 export class Bookmark {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
+  @PrimaryGeneratedColumn('increment')
   id!: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })

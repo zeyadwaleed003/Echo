@@ -8,12 +8,15 @@ import {
   Delete,
   Req,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { BookmarksService } from './bookmarks.service';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
 import { UpdateBookmarkDto } from './dto/update-bookmark.dto';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
+import { IdDto } from 'src/common/dtos/id.dto';
 
 @Controller('bookmarks')
 export class BookmarksController {
@@ -21,11 +24,8 @@ export class BookmarksController {
 
   @Post()
   @UseGuards(AuthGuard)
-  async create(
-    @Body() createBookmarkDto: CreateBookmarkDto,
-    @Req() req: Request
-  ) {
-    return await this.bookmarksService.create(
+  create(@Body() createBookmarkDto: CreateBookmarkDto, @Req() req: Request) {
+    return this.bookmarksService.create(
       req.account!.id,
       createBookmarkDto.postId
     );
@@ -50,7 +50,9 @@ export class BookmarksController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.bookmarksService.remove(+id);
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param() idDto: IdDto, @Req() req: Request) {
+    return this.bookmarksService.remove(req.account!.id, idDto.id);
   }
 }

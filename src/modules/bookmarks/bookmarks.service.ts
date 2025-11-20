@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -83,7 +84,7 @@ export class BookmarksService {
       bookmarkedById: accountId,
     });
     if (isBookmarked)
-      throw new BadRequestException(
+      throw new ConflictException(
         'You cannot bookmark a post, reply, or repost you have been bookmarked before'
       );
 
@@ -116,7 +117,20 @@ export class BookmarksService {
     return `This action updates a #${id} bookmark`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} bookmark`;
+  async remove(accountId: number, id: number): Promise<APIResponse> {
+    const bookmark = await this.bookmarkRepository.findOneBy({
+      id,
+      bookmarkedById: accountId,
+    });
+    if (!bookmark)
+      throw new NotFoundException(
+        'No bookmark matching this id was found for your account'
+      );
+
+    await this.bookmarkRepository.remove(bookmark);
+
+    return {
+      message: 'Bookmark deleted successfully',
+    };
   }
 }

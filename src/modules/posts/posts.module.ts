@@ -10,6 +10,7 @@ import { PostFiles } from './entities/post-file.entity';
 import { Post } from './entities/post.entity';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { AuthModule } from '../auth/auth.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from '../auth/auth.module';
       RefreshToken,
       AccountRelationships,
     ]),
+    AiModule,
     AuthModule,
     TokenModule,
     CloudinaryModule,

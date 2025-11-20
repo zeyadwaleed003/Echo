@@ -21,6 +21,7 @@
     "m:rev": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.39",
     "@nestjs-modules/mailer": "^2.0.1",
     "@nestjs/common": "^11.1.7",
     "@nestjs/config": "^4.0.2",
@@ -31,6 +32,7 @@
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.1",
     "@nestjs/typeorm": "^11.0.0",
+    "ai": "^5.0.97",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",

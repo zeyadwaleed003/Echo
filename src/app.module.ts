@@ -15,6 +15,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     BlockedWordsModule,
     TasksModule,
     CloudinaryModule,
+    AiModule,
   ],
   providers: [
     {

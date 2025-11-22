@@ -54,6 +54,8 @@ const validatedEnv = z
     REACTIVATION_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
     SETUP_TOKEN_SECRET: z.string().min(1),
     SETUP_TOKEN_EXPIRES_IN: jwtExpiresInSchema,
+
+    GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
   })
   .parse(process.env);
 

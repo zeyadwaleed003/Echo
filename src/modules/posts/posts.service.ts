@@ -18,6 +18,7 @@ import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { RelationshipType } from '../accounts/accounts.enums';
 import { CreateReplyDto } from './dto/create-reply.dto';
+import { AiService, ContentClassification } from '../ai/ai.service';
 
 @Injectable()
 export class PostsService {
@@ -31,7 +32,8 @@ export class PostsService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
-    private readonly accountRelationshipsRepository: Repository<AccountRelationships>
+    private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    private readonly aiService: AiService
   ) {}
 
   private containFiles(q: QueryString) {
@@ -71,6 +73,15 @@ export class PostsService {
     account: Account,
     files?: Express.Multer.File[]
   ) {
+    // Post moderation system ... check if the content or the files contains anything harmful
+    if (
+      (await this.aiService.classifyContent(createPostDto.content, files)) ===
+      ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        'Your post contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
+      );
+
     return await this.dataSource.transaction(async (manager) => {
       const post = manager.create(Post, {
         ...createPostDto,
@@ -393,6 +404,14 @@ export class PostsService {
         );
       }
     }
+
+    if (
+      (await this.aiService.classifyContent(createReplyDto.content, files)) ===
+      ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        'Your reply contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
+      );
 
     return await this.dataSource.transaction(async (manager) => {
       const postRepository = manager.getRepository(Post);

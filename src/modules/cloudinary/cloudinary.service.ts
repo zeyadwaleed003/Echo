@@ -7,14 +7,14 @@ import { AppConfig } from 'src/config/configuration';
 export class CloudinaryService {
   private cloudinary = cloudinary;
   constructor(private configService: ConfigService<AppConfig, true>) {
-    const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
-    const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
-    const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
+    const cloud_name = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    const api_key = this.configService.get<string>('CLOUDINARY_API_KEY');
+    const api_secret = this.configService.get<string>('CLOUDINARY_API_SECRET');
 
     cloudinary.config({
-      cloudName,
-      apiKey,
-      apiSecret,
+      cloud_name,
+      api_key,
+      api_secret,
     });
   }
 

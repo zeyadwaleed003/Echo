@@ -36,6 +36,7 @@ import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 import { IdDto } from 'src/common/dtos/id.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import type { QueryString } from 'src/common/types/api.types';
+import { CreateRepostDto } from './dto/create-repost.dto';
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -80,7 +81,7 @@ export class PostsController {
     @UploadedFiles() files?: Express.Multer.File[]
   ) {
     const { account } = req;
-    return this.postsService.create(createPostDto, account!, files);
+    return this.postsService.createPost(createPostDto, account!, files);
   }
 
   @ApiOperation({
@@ -321,5 +322,23 @@ export class PostsController {
   getPostBookmarks(@Param() params: IdDto) {
     const { id } = params;
     return this.postsService.getPostBookmarks(id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/:id/reposts')
+  @UseInterceptors(FilesInterceptor('file', 4))
+  createRepost(
+    @Req() req: Request,
+    @Param() params: IdDto,
+    @Body() createRepostDto: CreateRepostDto,
+    @UploadedFiles() files?: Express.Multer.File[]
+  ) {
+    const { account } = req;
+    return this.postsService.createRepost(
+      account!,
+      params.id,
+      createRepostDto,
+      files
+    );
   }
 }

@@ -72,6 +72,44 @@ export class PostsService {
     return postFiles;
   }
 
+  private async checkRelationship(
+    account: Account,
+    targetAccount: Account,
+    action: String
+  ) {
+    if (account.id === targetAccount.id || account.role === 'admin') return;
+
+    const [relationActor, relationTarget] = await Promise.all([
+      this.accountRelationshipsRepository.findOne({
+        where: { actorId: account.id, targetId: targetAccount.id },
+      }),
+      this.accountRelationshipsRepository.findOne({
+        where: { targetId: account.id, actorId: targetAccount.id },
+      }),
+    ]);
+
+    if (relationActor?.relationshipType === RelationshipType.BLOCK) {
+      throw new ForbiddenException(
+        `You have blocked @${targetAccount.username}. Unblock them to ${action} their posts.`
+      );
+    }
+
+    if (relationTarget?.relationshipType === RelationshipType.BLOCK) {
+      throw new ForbiddenException(
+        `You cannot ${action} this post because @${targetAccount.username} has blocked you.`
+      );
+    }
+
+    if (
+      targetAccount.isPrivate &&
+      targetAccount.id !== account.id &&
+      relationActor?.relationshipType !== RelationshipType.FOLLOW
+    )
+      throw new ForbiddenException(
+        `You must follow @${targetAccount.username} to ${action} their posts`
+      );
+  }
+
   private async validateActionPost(
     actionPostId: number,
     account: Account,
@@ -91,33 +129,8 @@ export class PostsService {
       throw new NotFoundException('Post author account not found');
     }
 
-    const relationActor = await this.accountRelationshipsRepository.findOne({
-      where: { actorId: account.id, targetId: targetAccount.id },
-    });
-    const relationTarget = await this.accountRelationshipsRepository.findOne({
-      where: { targetId: account.id, actorId: targetAccount.id },
-    });
-
     const action = type === PostType.REPLY ? 'reply to' : 'repost';
-
-    if (
-      targetAccount.isPrivate &&
-      targetAccount.id !== account.id &&
-      relationActor?.relationshipType !== RelationshipType.FOLLOW
-    )
-      throw new ForbiddenException(
-        `You must follow @${targetAccount.username} to ${action} their posts`
-      );
-
-    if (relationActor?.relationshipType === RelationshipType.BLOCK)
-      throw new ForbiddenException(
-        `You must unblock @${targetAccount.username} to ${action} their posts`
-      );
-
-    if (relationTarget?.relationshipType === RelationshipType.BLOCK)
-      throw new ForbiddenException(
-        `You can't ${action} @${targetAccount.username}'s post because you are blocked`
-      );
+    this.checkRelationship(account, targetAccount, action);
   }
 
   private async create(
@@ -244,6 +257,9 @@ export class PostsService {
     ]);
 
     if (!author) throw new NotFoundException('Post author not found');
+
+    if (account) await this.checkRelationship(account, author, 'view');
+
     if (!author.isPrivate)
       return {
         data: { ...post, files },
@@ -252,19 +268,6 @@ export class PostsService {
     if (!account)
       throw new UnauthorizedException(
         'This post is from a private account. Please log in to view it.'
-      );
-
-    const isFollowing =
-      (
-        await this.accountRelationshipsRepository.findOneBy({
-          actorId: account!.id,
-          targetId: author.id,
-        })
-      )?.relationshipType === RelationshipType.FOLLOW;
-
-    if (account.role !== 'admin' && account.id !== author.id && !isFollowing)
-      throw new UnauthorizedException(
-        `Follow @${author.username} to see the post`
       );
 
     const res: APIResponse = {
@@ -350,9 +353,14 @@ export class PostsService {
     });
   }
 
-  private async remove(id: number, account: Account, type: PostType) {
-    const post = await this.postRepository.findOneBy({ id, type });
-    if (!post) throw new NotFoundException(`No ${type} found with this id`);
+  async remove(id: number, account: Account) {
+    const post = await this.postRepository.findOneBy({ id });
+    if (!post)
+      throw new NotFoundException(
+        `No post, repost, or reply found with this id`
+      );
+
+    const type = post.type;
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
@@ -379,10 +387,6 @@ export class PostsService {
       };
       return res;
     });
-  }
-
-  async removePost(id: number, account: Account) {
-    return this.remove(id, account, PostType.POST);
   }
 
   async findAccountPosts(accountId: number, q: QueryString, account?: Account) {
@@ -592,10 +596,6 @@ export class PostsService {
     return res;
   }
 
-  async removeReply(account: Account, id: number) {
-    return this.remove(id, account, PostType.REPLY);
-  }
-
   async createRepost(
     account: Account,
     actionPostId: number,
@@ -611,9 +611,5 @@ export class PostsService {
       files,
       actionPostId
     );
-  }
-
-  async removeRepost(account: Account, id: number) {
-    return this.remove(id, account, PostType.REPOST);
   }
 }

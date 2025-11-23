@@ -207,8 +207,9 @@ export class PostsController {
   @Delete('/:id')
   remove(@Param() params: IdDto, @Req() req: Request) {
     const { account } = req;
-    return this.postsService.remove(params.id, account!);
+    return this.postsService.removePost(params.id, account!);
   }
+
   @ApiOperation({
     summary: 'Get posts by account',
     description:
@@ -340,5 +341,21 @@ export class PostsController {
       createRepostDto,
       files
     );
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('/:id/reposts')
+  @UseInterceptors(FilesInterceptor('file', 4))
+  deleteRepost(@Req() req: Request, @Param() params: IdDto) {
+    const { account } = req;
+    return this.postsService.removeRepost(account!, params.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('/:id/replies')
+  @UseInterceptors(FilesInterceptor('file', 4))
+  deleteReply(@Req() req: Request, @Param() params: IdDto) {
+    const { account } = req;
+    return this.postsService.removeReply(account!, params.id);
   }
 }

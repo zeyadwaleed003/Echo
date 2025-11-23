@@ -350,13 +350,13 @@ export class PostsService {
     });
   }
 
-  async remove(id: number, account: Account) {
-    const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+  private async remove(id: number, account: Account, type: PostType) {
+    const post = await this.postRepository.findOneBy({ id, type });
+    if (!post) throw new NotFoundException(`No ${type} found with this id`);
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        'You do not have permission to delete this post'
+        `You do not have permission to delete this ${type}`
       );
 
     return await this.dataSource.transaction(async (manager) => {
@@ -375,10 +375,14 @@ export class PostsService {
       await postRepository.delete({ id });
 
       const res: APIResponse = {
-        message: 'Post deleted successfully',
+        message: `${type} deleted successfully`,
       };
       return res;
     });
+  }
+
+  async removePost(id: number, account: Account) {
+    return this.remove(id, account, PostType.POST);
   }
 
   async findAccountPosts(accountId: number, q: QueryString, account?: Account) {
@@ -588,6 +592,10 @@ export class PostsService {
     return res;
   }
 
+  async removeReply(account: Account, id: number) {
+    return this.remove(id, account, PostType.REPLY);
+  }
+
   async createRepost(
     account: Account,
     actionPostId: number,
@@ -603,5 +611,9 @@ export class PostsService {
       files,
       actionPostId
     );
+  }
+
+  async removeRepost(account: Account, id: number) {
+    return this.remove(id, account, PostType.REPOST);
   }
 }

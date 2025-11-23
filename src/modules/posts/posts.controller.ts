@@ -307,4 +307,19 @@ export class PostsController {
     const { account } = req;
     return this.postsService.getPostReplies(id, q, account);
   }
+
+  @ApiOperation({
+    summary: 'Get post bookmarks count',
+    description: 'Get the number of bookmarks for a specific post',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Post ID',
+    example: 1,
+  })
+  @Get('/:id/bookmarks/count')
+  getPostBookmarks(@Param() params: IdDto) {
+    const { id } = params;
+    return this.postsService.getPostBookmarks(id);
+  }
 }

@@ -19,6 +19,7 @@ import { AccountRelationships } from '../accounts/entities/account-relationship.
 import { RelationshipType } from '../accounts/accounts.enums';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AiService, ContentClassification } from '../ai/ai.service';
+import { Bookmark } from '../bookmarks/entities/bookmark.entity';
 
 @Injectable()
 export class PostsService {
@@ -33,6 +34,8 @@ export class PostsService {
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    @InjectRepository(Bookmark)
+    private readonly bookmarkRepository: Repository<Bookmark>,
     private readonly aiService: AiService
   ) {}
 
@@ -541,6 +544,21 @@ export class PostsService {
     const res: APIResponse = {
       size: visibleReplies.length,
       data: visibleReplies,
+    };
+    return res;
+  }
+
+  async getPostBookmarks(id: number) {
+    const postExists = this.postRepository.existsBy({ id });
+    if (!postExists) throw new NotFoundException('No post found with this id');
+
+    const bookmarksNumber = await this.bookmarkRepository.count({
+      where: { postId: id },
+    });
+    const res: APIResponse = {
+      data: {
+        bookmarksNumber,
+      },
     };
     return res;
   }

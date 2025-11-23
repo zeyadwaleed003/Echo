@@ -130,7 +130,15 @@ export class PostsService {
     }
 
     const action = type === PostType.REPLY ? 'reply to' : 'repost';
-    this.checkRelationship(account, targetAccount, action);
+
+    if (type === PostType.REPOST && targetAccount.isPrivate) {
+      throw new ForbiddenException(
+        `Cannot repost posts from private accounts.`
+      );
+    }
+
+    await this.checkRelationship(account, targetAccount, action);
+    return targetAccount;
   }
 
   private async create(

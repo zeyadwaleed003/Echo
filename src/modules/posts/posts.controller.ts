@@ -325,6 +325,13 @@ export class PostsController {
     return this.postsService.getPostBookmarks(id);
   }
 
+  @ApiOperation({
+    summary: 'Repost a post',
+    description: `Repost a post with optional file attachments (max 4 files), optional content. Cannot repost a private account's post.`,
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Parent post ID', example: 1 })
   @UseGuards(AuthGuard)
   @Post('/:id/reposts')
   @UseInterceptors(FilesInterceptor('file', 4))

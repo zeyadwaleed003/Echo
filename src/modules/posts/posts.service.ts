@@ -21,6 +21,7 @@ import { CreateReplyDto } from './dto/create-reply.dto';
 import { AiService, ContentClassification } from '../ai/ai.service';
 import { Bookmark } from '../bookmarks/entities/bookmark.entity';
 import { CreateRepostDto } from './dto/create-repost.dto';
+import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 
 @Injectable()
 export class PostsService {
@@ -37,7 +38,8 @@ export class PostsService {
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     @InjectRepository(Bookmark)
     private readonly bookmarkRepository: Repository<Bookmark>,
-    private readonly aiService: AiService
+    private readonly aiService: AiService,
+    private readonly relationshipHelper: RelationshipHelper
   ) {}
 
   private containFiles(q: QueryString) {
@@ -72,75 +74,6 @@ export class PostsService {
     return postFiles;
   }
 
-  private async checkRelationship(
-    account: Account,
-    targetAccount: Account,
-    action: String
-  ) {
-    if (account.id === targetAccount.id || account.role === 'admin') return;
-
-    const [relationActor, relationTarget] = await Promise.all([
-      this.accountRelationshipsRepository.findOne({
-        where: { actorId: account.id, targetId: targetAccount.id },
-      }),
-      this.accountRelationshipsRepository.findOne({
-        where: { targetId: account.id, actorId: targetAccount.id },
-      }),
-    ]);
-
-    if (relationActor?.relationshipType === RelationshipType.BLOCK) {
-      throw new ForbiddenException(
-        `You have blocked @${targetAccount.username}. Unblock them to ${action} their posts.`
-      );
-    }
-
-    if (relationTarget?.relationshipType === RelationshipType.BLOCK) {
-      throw new ForbiddenException(
-        `You cannot ${action} this post because @${targetAccount.username} has blocked you.`
-      );
-    }
-
-    if (
-      targetAccount.isPrivate &&
-      targetAccount.id !== account.id &&
-      relationActor?.relationshipType !== RelationshipType.FOLLOW
-    )
-      throw new ForbiddenException(
-        `You must follow @${targetAccount.username} to ${action} their posts`
-      );
-  }
-
-  private async validateActionPost(
-    actionPostId: number,
-    account: Account,
-    type: PostType
-  ) {
-    const actionPost = await this.postRepository.findOne({
-      where: { id: actionPostId },
-    });
-    if (!actionPost) {
-      throw new NotFoundException('No post found with this id');
-    }
-
-    const targetAccount = await this.accountsRepository.findOne({
-      where: { id: actionPost.accountId },
-    });
-    if (!targetAccount) {
-      throw new NotFoundException('Post author account not found');
-    }
-
-    const action = type === PostType.REPLY ? 'reply to' : 'repost';
-
-    if (type === PostType.REPOST && targetAccount.isPrivate) {
-      throw new ForbiddenException(
-        `Cannot repost posts from private accounts.`
-      );
-    }
-
-    await this.checkRelationship(account, targetAccount, action);
-    return targetAccount;
-  }
-
   private async create(
     content: string,
     type: PostType,
@@ -156,8 +89,17 @@ export class PostsService {
         'Original post ID is required for replies and reposts'
       );
     }
-    if (actionPostId)
-      await this.validateActionPost(actionPostId, account, type);
+    if (actionPostId) {
+      const accounts = await this.relationshipHelper.validateActionPost(
+        actionPostId,
+        type
+      );
+      await this.relationshipHelper.checkRelationship(
+        account,
+        accounts.targetAccount,
+        type
+      );
+    }
 
     if (
       (await this.aiService.classifyContent(content || '', files)) ===
@@ -266,7 +208,9 @@ export class PostsService {
 
     if (!author) throw new NotFoundException('Post author not found');
 
-    if (account) await this.checkRelationship(account, author, 'view');
+    if (account) {
+      await this.relationshipHelper.checkRelationship(account, author, 'view');
+    }
 
     if (!author.isPrivate)
       return {

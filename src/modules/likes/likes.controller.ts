@@ -1,30 +1,46 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+  Req,
+} from '@nestjs/common';
+import type { Request } from 'express';
+
 import { LikesService } from './likes.service';
+import { AuthGuard } from '../auth/auth.guard';
+import { Role } from '../accounts/accounts.enums';
 import { CreateLikeDto } from './dto/create-like.dto';
-import { UpdateLikeDto } from './dto/update-like.dto';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import type { QueryString } from 'src/common/types/api.types';
 
 @Controller('likes')
 export class LikesController {
   constructor(private readonly likesService: LikesService) {}
 
+  @UseGuards(AuthGuard)
   @Post()
-  create(@Body() createLikeDto: CreateLikeDto) {
-    return this.likesService.create(createLikeDto);
+  create(@Req() req: Request, @Body() createLikeDto: CreateLikeDto) {
+    const { account } = req;
+    const { postId } = createLikeDto;
+    return this.likesService.create(account!, postId);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Get()
-  findAll() {
-    return this.likesService.findAll();
+  findAll(@Query() q: QueryString) {
+    return this.likesService.findAll(q);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.likesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLikeDto: UpdateLikeDto) {
-    return this.likesService.update(+id, updateLikeDto);
   }
 
   @Delete(':id')

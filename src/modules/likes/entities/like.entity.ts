@@ -1,6 +1,7 @@
 import { Account } from '../../accounts/entities/account.entity';
 import { Post } from '../../posts/entities/post.entity';
 import {
+  Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
@@ -14,12 +15,18 @@ export class Like {
   id!: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'postId' })
   post!: Post;
 
+  @Column({ type: 'bigint', nullable: false })
+  postId!: number;
+
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @JoinColumn({ name: 'accountId' })
   account!: Account;
+
+  @Column({ type: 'bigint', nullable: false })
+  accountId!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

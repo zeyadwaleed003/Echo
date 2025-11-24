@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { SearchQueryDto } from './dto/search-query.dto';
 import { APIResponse } from 'src/common/types/api.types';
 import { SearchFilter } from './search.enums';
@@ -7,9 +13,10 @@ import { Account } from '../accounts/entities/account.entity';
 import { In, Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { estypes } from '@elastic/elasticsearch';
-import { AccountDocument } from './search.types';
-import { AccountStatus, RelationshipType } from '../accounts/accounts.enums';
-import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { AccountIndex, PostIndex } from './search.types';
+import { AccountStatus } from '../accounts/accounts.enums';
+import { AccountsService } from '../accounts/accounts.service';
+import { Post } from '../posts/entities/post.entity';
 
 @Injectable()
 export class SearchService implements OnModuleInit {
@@ -19,13 +26,9 @@ export class SearchService implements OnModuleInit {
   constructor(
     @InjectRepository(Account)
     private readonly accountRepository: Repository<Account>,
-    @InjectRepository(AccountRelationships)
-    private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
-    // @InjectRepository(Post)
-    // private readonly postRepository: Repository<Post>,
-    // @InjectRepository(PostFiles)
-    // private readonly postFilesRepository: Repository<PostFiles>,
-    private readonly elasticsearchService: ElasticsearchService
+    private readonly elasticsearchService: ElasticsearchService,
+    @Inject(forwardRef(() => AccountsService))
+    private readonly accountsService: AccountsService
   ) {}
 
   async onModuleInit() {
@@ -60,12 +63,110 @@ export class SearchService implements OnModuleInit {
         index: this.POSTS_INDEX,
         mappings: {
           properties: {
-            id: { type: 'integer' },
+            id: { type: 'long' },
+            accountId: { type: 'long' },
             content: { type: 'text', analyzer: 'standard' },
+            isPrivate: { type: 'boolean' },
             createdAt: { type: 'date' },
           },
         },
       });
+  }
+
+  private async createDocument<T extends { id: number }>(
+    document: T,
+    index: string
+  ) {
+    await this.elasticsearchService.create<T>({
+      index,
+      id: document.id.toString(),
+      document,
+    });
+  }
+
+  async createAccountDocument(account: Account) {
+    const doc: AccountIndex = {
+      id: account.id,
+      username: account.username,
+      name: account.name,
+      status: account.status,
+      createdAt: account.createdAt,
+    };
+
+    await this.createDocument<AccountIndex>(doc, this.ACCOUNTS_INDEX);
+  }
+
+  async createPostDocument(post: Post) {
+    const doc: PostIndex = {
+      id: post.id,
+      accountId: post.accountId,
+      content: post.content,
+      isPrivate: post.account.isPrivate,
+      createdAt: post.createdAt,
+    };
+
+    await this.createDocument<PostIndex>(doc, this.POSTS_INDEX);
+  }
+
+  private async updateDocument<T extends { id: number }>(
+    doc: T,
+    index: string
+  ) {
+    await this.elasticsearchService.update<T>({
+      index,
+      id: doc.id!.toString(),
+      doc,
+    });
+  }
+
+  async updateAccountDocument(account: Account) {
+    const doc: AccountIndex = {
+      id: account.id,
+      username: account.username,
+      name: account.name,
+      status: account.status,
+      createdAt: account.createdAt,
+    };
+
+    await this.updateDocument(doc, this.ACCOUNTS_INDEX);
+  }
+
+  async updatePostDocument(post: Post) {
+    const doc: PostIndex = {
+      id: post.id,
+      accountId: post.accountId,
+      content: post.content,
+      isPrivate: post.account.isPrivate,
+      createdAt: post.createdAt,
+    };
+
+    await this.updateDocument(doc, this.POSTS_INDEX);
+  }
+
+  async deleteDocument(id: number, index: string) {
+    await this.elasticsearchService.delete({
+      index,
+      id: id.toString(),
+    });
+  }
+
+  async deleteAccountDocument(accountId: number) {
+    await this.deleteDocument(accountId, this.ACCOUNTS_INDEX);
+  }
+
+  async deletePostDocument(postId: number) {
+    await this.deleteDocument(postId, this.POSTS_INDEX);
+  }
+
+  async bulkDeleteDocuments(
+    ids: number[],
+    index: string = this.ACCOUNTS_INDEX
+  ) {
+    const body = ids.flatMap((id) => [
+      { delete: { _index: index, _id: id.toString() } },
+    ]);
+
+    await this.elasticsearchService.bulk({ body });
   }
 
   private decodeCursor(
@@ -103,7 +204,7 @@ export class SearchService implements OnModuleInit {
     return null;
   }
 
-  private assignSearchParams(
+  private assignAccountSearchParams(
     search_after: estypes.SortResults | undefined,
     q: string,
     limit: number
@@ -119,9 +220,15 @@ export class SearchService implements OnModuleInit {
           fuzziness: 'AUTO',
         },
       },
+    ];
+
+    const filterQueries: estypes.QueryDslQueryContainer[] = [
       {
-        // show only activated accounts
-        term: { status: AccountStatus.ACTIVATED },
+        term: {
+          status: {
+            value: AccountStatus.ACTIVATED,
+          },
+        },
       },
     ];
 
@@ -133,6 +240,7 @@ export class SearchService implements OnModuleInit {
       query: {
         bool: {
           must: mustQueries,
+          filter: filterQueries,
         },
       },
     };
@@ -143,48 +251,6 @@ export class SearchService implements OnModuleInit {
     return searchParams;
   }
 
-  private async fetchRelationships(
-    accountId: number | undefined,
-    targetIds: number[]
-  ): Promise<{
-    outgoingMap: Map<number, RelationshipType>;
-    incomingMap: Map<number, RelationshipType>;
-  }> {
-    if (!accountId || targetIds.length === 0)
-      return { outgoingMap: new Map(), incomingMap: new Map() };
-
-    // me to them
-    const outgoingRelationships =
-      await this.accountRelationshipsRepository.findBy({
-        actorId: accountId,
-        targetId: In(targetIds),
-      });
-
-    // them to me
-    const incomingRelationships =
-      await this.accountRelationshipsRepository.findBy({
-        actorId: In(targetIds),
-        targetId: accountId,
-      });
-
-    const outgoingMap = new Map(
-      outgoingRelationships.map((o) => [o.targetId, o.relationshipType])
-    );
-
-    const incomingMap = new Map(
-      incomingRelationships.map((o) => [o.actorId, o.relationshipType])
-    );
-
-    return { outgoingMap, incomingMap };
-  }
-
-  private getRelationshipType(
-    accountId: number | undefined,
-    relationshipsMap: Map<number | undefined, RelationshipType>
-  ) {
-    return relationshipsMap.get(accountId) || null;
-  }
-
   private async searchAccounts(
     search_after: estypes.SortResults | undefined,
     q: string,
@@ -192,8 +258,8 @@ export class SearchService implements OnModuleInit {
     accountId: number | undefined
   ): Promise<APIResponse> {
     const hits = (
-      await this.elasticsearchService.search<AccountDocument>(
-        this.assignSearchParams(search_after, q, limit)
+      await this.elasticsearchService.search<AccountIndex>(
+        this.assignAccountSearchParams(search_after, q, limit)
       )
     ).hits.hits;
 
@@ -212,17 +278,18 @@ export class SearchService implements OnModuleInit {
     const sortedAccounts = accountIds.map((id) => accountMap.get(id));
 
     // fetch relationships
-    const { outgoingMap, incomingMap } = await this.fetchRelationships(
-      accountId,
-      accountIds
-    );
+    const { outgoingMap, incomingMap } =
+      await this.accountsService.fetchRelationships(accountId, accountIds);
 
     // enhanced accounts
     const enhancedAccounts = sortedAccounts.map((a) => ({
       ...a,
       relationship: {
-        outgoing: this.getRelationshipType(a!.id, outgoingMap),
-        incomingMap: this.getRelationshipType(a!.id, incomingMap),
+        outgoing: this.accountsService.getRelationshipType(a!.id, outgoingMap),
+        incomingMap: this.accountsService.getRelationshipType(
+          a!.id,
+          incomingMap
+        ),
       },
     }));
 
@@ -230,6 +297,120 @@ export class SearchService implements OnModuleInit {
     return {
       size: enhancedAccounts.length,
       data: enhancedAccounts,
+      nextCursor,
+    };
+  }
+
+  private assignPostSearchParams(
+    search_after: estypes.SortResults | undefined,
+    q: string,
+    limit: number,
+    accountId: number | undefined,
+    blockedAccountIds: number[],
+    followingAccountIds: number[]
+  ) {
+    const mustQueries: estypes.QueryDslQueryContainer[] = [
+      {
+        match: {
+          content: {
+            query: q,
+            fuzziness: 'AUTO',
+          },
+        },
+      },
+    ];
+
+    const mustNotQueries: estypes.QueryDslQueryContainer[] = [];
+
+    if (!accountId) {
+      // if no logged in account, should not display posts with private accounts
+      mustNotQueries.push({
+        term: { isPrivate: true },
+      });
+    } else {
+      // Exclude posts from blocked accounts
+      if (blockedAccountIds.length > 0) {
+        mustNotQueries.push({
+          terms: { accountId: blockedAccountIds },
+        });
+      }
+
+      const visibleAccountIds = [...followingAccountIds, accountId];
+      mustQueries.push(
+        { term: { isPrivate: false } },
+        {
+          bool: {
+            must: [
+              { term: { isPrivate: true } },
+              { terms: { accountId: visibleAccountIds } },
+            ],
+          },
+        }
+      );
+    }
+
+    const searchParams: estypes.SearchRequest = {
+      index: this.POSTS_INDEX,
+      size: limit + 1,
+      sort: [{ createdAt: { order: 'desc' } }, { id: { order: 'desc' } }],
+      query: {
+        bool: {
+          must: mustQueries,
+          must_not: mustNotQueries,
+        },
+      },
+      highlight: {
+        fields: {
+          content: {
+            pre_tags: ['<strong>'],
+            post_tags: ['</strong>'],
+          },
+        },
+      },
+    };
+
+    if (search_after) searchParams.search_after = search_after;
+
+    return searchParams;
+  }
+
+  private async searchLatestPosts(
+    search_after: estypes.SortResults | undefined,
+    q: string,
+    limit: number,
+    accountId: number | undefined
+  ) {
+    // fetch relationships
+    const [blockedAccountIds, followingAccountIds] = await Promise.all([
+      this.accountsService.getBlockedAccountIds(accountId),
+      this.accountsService.getFollowingAccountIds(accountId),
+    ]);
+
+    const hits = (
+      await this.elasticsearchService.search<PostIndex>(
+        this.assignPostSearchParams(
+          search_after,
+          q,
+          limit,
+          accountId,
+          blockedAccountIds,
+          followingAccountIds
+        )
+      )
+    ).hits.hits;
+
+    const nextCursor = this.assignNextCursor(hits, limit);
+
+    const paginatedHits = hits.slice(0, limit);
+
+    const postsData = paginatedHits.map((hit) => ({
+      ...hit._source,
+      highlightedContent: hit.highlight?.content?.[0] || null,
+    }));
+
+    return {
+      size: postsData.length,
+      data: postsData,
       nextCursor,
     };
   }
@@ -247,19 +428,11 @@ export class SearchService implements OnModuleInit {
       case SearchFilter.USER:
         // Search in account table to find any matching accounts
         return this.searchAccounts(id, q, limit, accountId);
-      // case SearchFilter.LIVE:
-      //   // Search through the latest posts
-      //   return this.searchLatestPosts(id, q, limit);
+      case SearchFilter.LIVE:
+        // Search through the latest posts
+        return this.searchLatestPosts(id, q, limit, accountId);
     }
 
     return {};
   }
-
-  // private async searchLatestPosts(
-  //   id: number | undefined,
-  //   q: string,
-  //   limit: number
-  // ) {
-  //   // Need to add text highlighting as well pre_tags: ['<strong>'], post_tags: ['</strong>']
-  // }
 }

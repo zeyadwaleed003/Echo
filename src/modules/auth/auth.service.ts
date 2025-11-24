@@ -10,6 +10,8 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
@@ -36,6 +38,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CompleteSetupDtp } from './dto/complete-setup.dto';
+import { SearchService } from '../search/search.service';
 
 @Injectable()
 export class AuthService {
@@ -49,7 +52,9 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
-    private readonly tokenService: TokenService
+    private readonly tokenService: TokenService,
+    @Inject(forwardRef(() => SearchService))
+    private readonly searchService: SearchService
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID')
@@ -107,7 +112,7 @@ export class AuthService {
     res.cookie(name, val, options);
   }
 
-  async signup(signupDto: SignupDto) {
+  async signup(signupDto: SignupDto): Promise<APIResponse> {
     // Check if the email is in the database
     const account = await this.accountsRepository.findOneBy({
       email: signupDto.email,
@@ -126,13 +131,12 @@ export class AuthService {
     // If NOT ...
 
     // Create the account
-    const user = this.accountsRepository.create({
+    const newAccount = this.accountsRepository.create({
       name: signupDto.name,
       email: signupDto.email,
       status: AccountStatus.INACTIVATED,
     });
-
-    await this.accountsRepository.save(user);
+    await this.accountsRepository.save(newAccount);
 
     // OTP generation and send email
     await this.generateAndSendVerificationEmail(
@@ -140,12 +144,10 @@ export class AuthService {
       signupDto.name
     );
 
-    const res: APIResponse = {
+    return {
       message:
         'Account created successfully. Please check your email for the verification code.',
     };
-
-    return res;
   }
 
   async resendVerificationEmail(email: string) {
@@ -179,7 +181,7 @@ export class AuthService {
     id: number,
     error: boolean = false,
     message: string = 'Email verified successfully. Please complete your profile setup'
-  ) {
+  ): Promise<APIResponse> {
     const setupToken = await this.tokenService.generateSetupToken({
       id,
     });
@@ -191,12 +193,10 @@ export class AuthService {
         setupToken,
       });
 
-    const result: APIResponse = {
+    return {
       message: message,
       setupToken,
     };
-
-    return result;
   }
 
   async verifyAccount(verifyAccountDto: VerifyOtpDto) {
@@ -269,7 +269,7 @@ export class AuthService {
     return await this.sendCompleteProfileSetupResponse(account.id);
   }
 
-  async googleAuth(googleAuthDto: GoogleAuthDto) {
+  async googleAuth(googleAuthDto: GoogleAuthDto): Promise<APIResponse> {
     const { idToken } = googleAuthDto;
     const ticket = await this.googleClient.verifyIdToken({
       idToken,
@@ -310,15 +310,13 @@ export class AuthService {
           sessionId: uuidv4(),
         });
 
-        const res: APIResponse = {
+        return {
           statusCode: HttpStatus.OK,
           message: 'Logged in successfully',
           data: account,
           accessToken,
           refreshToken,
         };
-
-        return res;
       }
 
       // signup
@@ -341,7 +339,7 @@ export class AuthService {
           sessionId: uuidv4(),
         });
 
-        const res: APIResponse = {
+        return {
           statusCode: HttpStatus.OK,
           message:
             'Email verified successfully. Please complete your profile setup',
@@ -349,8 +347,6 @@ export class AuthService {
           accessToken,
           refreshToken,
         };
-
-        return res;
       }
     } else {
       this.logger.log(
@@ -363,7 +359,6 @@ export class AuthService {
       email: payload.email,
       status: AccountStatus.PENDING,
     });
-
     await this.accountsRepository.save(newAccount);
 
     return await this.sendCompleteProfileSetupResponse(
@@ -541,7 +536,7 @@ export class AuthService {
     return result;
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string): Promise<APIResponse> {
     const verifiedToken =
       await this.tokenService.verifyRefreshToken(refreshToken);
 
@@ -553,11 +548,9 @@ export class AuthService {
       }
     );
 
-    const result: APIResponse = {
+    return {
       message: 'Logged out successfully',
     };
-
-    return result;
   }
 
   async changePassword(changePasswordDto: ChangePasswordDto, account: Account) {
@@ -818,19 +811,20 @@ export class AuthService {
       }
     );
 
-    const updateAccount = await this.accountsRepository.findOneBy({ id });
+    const updatedAccount = await this.accountsRepository.findOneBy({ id });
 
     const accessToken = await this.tokenService.generateAccessToken({
-      ...updateAccount,
+      ...updatedAccount,
     });
     const refreshToken = await this.tokenService.generateRefreshToken({
       id,
       sessionId: uuidv4(),
     });
 
+    this.searchService.createAccountDocument(updatedAccount!);
     return {
       message: `Profile setup completed successfully`,
-      data: updateAccount!,
+      data: updatedAccount!,
       accessToken,
       refreshToken,
     };

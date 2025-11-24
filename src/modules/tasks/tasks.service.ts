@@ -5,6 +5,7 @@ import { LessThan, Repository } from 'typeorm';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { Account } from '../accounts/entities/account.entity';
 import { AccountStatus } from '../accounts/accounts.enums';
+import { SearchService } from '../search/search.service';
 
 @Injectable()
 export class TasksService {
@@ -14,7 +15,8 @@ export class TasksService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(Account)
-    private readonly accountRepository: Repository<Account>
+    private readonly accountRepository: Repository<Account>,
+    private readonly searchService: SearchService
   ) {}
 
   private readonly month = 30 * 24 * 60 * 60 * 1000;
@@ -39,10 +41,23 @@ export class TasksService {
     timeZone: 'Africa/Cairo',
   })
   async handleCleanupDeactivatedAccounts() {
+    const accountsToDelete = await this.accountRepository.find({
+      where: {
+        status: AccountStatus.DEACTIVATED,
+        updatedAt: LessThan(this.cutoff),
+      },
+      select: ['id'],
+    });
+
+    // Delete from database
     const result = await this.accountRepository.delete({
       status: AccountStatus.DEACTIVATED,
       updatedAt: LessThan(this.cutoff),
     });
+
+    // Bulk delete from Elasticsearch index
+    const accountIds = accountsToDelete.map((a) => a.id);
+    await this.searchService.bulkDeleteDocuments(accountIds);
 
     this.logger.log(
       `Cleaned up ${result.affected} accounts deactivated for more than 30 days`

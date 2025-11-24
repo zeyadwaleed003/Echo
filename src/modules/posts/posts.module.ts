@@ -11,6 +11,7 @@ import { Post } from './entities/post.entity';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AiModule } from '../ai/ai.module';
     AuthModule,
     TokenModule,
     CloudinaryModule,
+    SearchModule,
   ],
   controllers: [PostsController],
   providers: [PostsService],

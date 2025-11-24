@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -30,6 +32,7 @@ import {
   RelationshipType,
 } from './accounts.enums';
 import { AuthService } from '../auth/auth.service';
+import { SearchService } from '../search/search.service';
 
 @Injectable()
 export class AccountsService {
@@ -41,15 +44,16 @@ export class AccountsService {
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     private readonly dataSource: DataSource,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    @Inject(forwardRef(() => SearchService))
+    private readonly searchService: SearchService
   ) {}
 
-  async create(createAccountDto: CreateAccountDto) {
+  async create(createAccountDto: CreateAccountDto): Promise<APIResponse> {
     if (createAccountDto.password)
       createAccountDto.password = await hashCode(createAccountDto.password);
 
     const account = this.accountsRepository.create(createAccountDto);
-
     await this.accountsRepository.save(account);
 
     // Remove sensitive fields
@@ -62,12 +66,11 @@ export class AccountsService {
       ...sanitizedAccount
     } = account;
 
-    const result: APIResponse = {
+    this.searchService.createAccountDocument(account);
+    return {
       message: 'Account created successfully',
       data: sanitizedAccount,
     };
-
-    return result;
   }
 
   async find(q: any) {
@@ -102,18 +105,21 @@ export class AccountsService {
     return result;
   }
 
-  async delete(id: number) {
+  async delete(id: number): Promise<APIResponse> {
     await this.accountsRepository.delete({ id });
 
     this.logger.log(`Account deleted: id=${id}`);
 
-    const result: APIResponse = {
+    this.searchService.deleteAccountDocument(id);
+    return {
       message: 'Account deleted successfully',
     };
-    return result;
   }
 
-  async update(id: number, updateAccountAdminDto: UpdateAccountAdminDto) {
+  async update(
+    id: number,
+    updateAccountAdminDto: UpdateAccountAdminDto
+  ): Promise<APIResponse> {
     if (updateAccountAdminDto.password)
       updateAccountAdminDto.password = await hashCode(
         updateAccountAdminDto.password
@@ -125,15 +131,14 @@ export class AccountsService {
     if (!account)
       throw new NotFoundException('No account found with the provided id');
 
-    const result: APIResponse = {
+    this.searchService.updateAccountDocument(account);
+    return {
       message: 'Account updated successfully',
       data: account,
     };
-
-    return result;
   }
 
-  async findCurrentUserAccount(account: Account) {
+  async findCurrentUserAccount(account: Account): Promise<APIResponse> {
     const result: APIResponse = {
       data: account,
     };
@@ -147,12 +152,11 @@ export class AccountsService {
 
     const updatedAccount = await this.accountsRepository.findOneBy({ id });
 
-    const result: APIResponse = {
+    this.searchService.updateAccountDocument(account);
+    return {
       message: 'Account updated successfully',
       data: { ...updatedAccount },
     };
-
-    return result;
   }
 
   private async validateAndGetTargetAccount(
@@ -230,7 +234,10 @@ export class AccountsService {
     return result;
   }
 
-  async unblock(accountId: number, targetAccountId: number) {
+  async unblock(
+    accountId: number,
+    targetAccountId: number
+  ): Promise<APIResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       accountId,
       targetAccountId,
@@ -252,11 +259,9 @@ export class AccountsService {
       targetId: targetAccountId,
     });
 
-    const result: APIResponse = {
+    return {
       message: `Account @${targetAccount.username} has been unblocked successfully`,
     };
-
-    return result;
   }
 
   private validateRelationshipType(relationship: AccountRelationships) {
@@ -323,8 +328,8 @@ export class AccountsService {
 
     const result: APIResponse = {
       message: targetAccount.isPrivate
-        ? `Follow request sent to ${targetAccount.username} successfully`
-        : `Account ${targetAccount.username} followed successfully`,
+        ? `Follow request sent to @${targetAccount.username} successfully`
+        : `Account @${targetAccount.username} followed successfully`,
     };
 
     return result;
@@ -361,8 +366,8 @@ export class AccountsService {
     const result: APIResponse = {
       message:
         relationship.relationshipType === RelationshipType.FOLLOW_REQUEST
-          ? `Follow request to ${targetAccount.username} has been cancelled successfully`
-          : `Account ${targetAccount.username} has been unfollowed successfully`,
+          ? `Follow request to @${targetAccount.username} has been cancelled successfully`
+          : `Account @${targetAccount.username} has been unfollowed successfully`,
     };
 
     return result;
@@ -536,6 +541,8 @@ export class AccountsService {
     account.status = AccountStatus.DEACTIVATED;
     await this.accountsRepository.save(account);
 
+    this.searchService.updateAccountDocument(account);
+
     // Logout the user from all devices
     await this.authService.logoutFromAllDevices(account.id);
 
@@ -613,15 +620,15 @@ export class AccountsService {
     return result;
   }
 
-  async deleteMe(accountId: number) {
+  async deleteMe(accountId: number): Promise<APIResponse> {
     await this.accountsRepository.delete({ id: accountId });
 
     this.logger.log(`Account self-deleted: id=${accountId}`);
 
-    const result: APIResponse = {
+    this.searchService.deleteAccountDocument(accountId);
+    return {
       message: 'Your account has been deleted successfully',
     };
-    return result;
   }
 
   async removeFollower(accountId: number, followerId: number) {
@@ -655,5 +662,84 @@ export class AccountsService {
     };
 
     return result;
+  }
+
+  async getBlockedAccountIds(accountId: number | undefined) {
+    if (!accountId) return [];
+
+    const relationships = await this.accountRelationshipsRepository.find({
+      where: [
+        { actorId: accountId, relationshipType: RelationshipType.BLOCK },
+        { targetId: accountId, relationshipType: RelationshipType.BLOCK },
+      ],
+    });
+
+    const blockedIds = new Set<number>(); // avoid duplications
+    relationships.forEach((r) => {
+      r.actorId === accountId
+        ? blockedIds.add(r.targetId)
+        : blockedIds.add(r.actorId);
+    });
+
+    return Array.from(blockedIds);
+  }
+
+  async getFollowingAccountIds(accountId: number | undefined) {
+    if (!accountId) return [];
+
+    const following = await this.accountRelationshipsRepository.find({
+      where: {
+        actorId: accountId,
+        relationshipType: RelationshipType.FOLLOW,
+      },
+    });
+
+    return following.map((rel) => rel.targetId);
+  }
+
+  // This function returns 2 maps:
+  // outgoingMap ... all the accounts I have relationship with them as an actor and the relationship type
+  // incomingMap ... all the accounts I have relationship with them as a target and the relationship type
+  async fetchRelationships(
+    accountId: number | undefined,
+    targetIds: number[]
+  ): Promise<{
+    outgoingMap: Map<number, RelationshipType>;
+    incomingMap: Map<number, RelationshipType>;
+  }> {
+    if (!accountId || targetIds.length === 0)
+      return { outgoingMap: new Map(), incomingMap: new Map() };
+
+    // me to them
+    const outgoingRelationships =
+      await this.accountRelationshipsRepository.findBy({
+        actorId: accountId,
+        targetId: In(targetIds),
+      });
+
+    // them to me
+    const incomingRelationships =
+      await this.accountRelationshipsRepository.findBy({
+        actorId: In(targetIds),
+        targetId: accountId,
+      });
+
+    const outgoingMap = new Map(
+      outgoingRelationships.map((o) => [o.targetId, o.relationshipType])
+    );
+
+    const incomingMap = new Map(
+      incomingRelationships.map((o) => [o.actorId, o.relationshipType])
+    );
+
+    return { outgoingMap, incomingMap };
+  }
+
+  // If U want to know the relationship between the current user and the provided account
+  getRelationshipType(
+    accountId: number | undefined,
+    relationshipsMap: Map<number | undefined, RelationshipType>
+  ) {
+    return relationshipsMap.get(accountId) || null;
   }
 }

@@ -8,7 +8,7 @@ import {
   Min,
 } from 'class-validator';
 import { SearchFilter } from '../search.enums';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SearchQueryDto {
@@ -18,6 +18,7 @@ export class SearchQueryDto {
   })
   @IsString()
   @MaxLength(353)
+  @Transform(({ value }) => value.trim())
   q: string;
 
   @ApiProperty({

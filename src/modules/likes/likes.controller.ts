@@ -43,8 +43,12 @@ export class LikesController {
     return this.likesService.findOne(+id);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.likesService.remove(+id);
+  @UseGuards(AuthGuard)
+  @Delete('')
+  remove(@Req() req: Request, @Body() createLikeDto: CreateLikeDto) {
+    const { account } = req;
+    const { postId } = createLikeDto;
+
+    return this.likesService.remove(account!, postId);
   }
 }

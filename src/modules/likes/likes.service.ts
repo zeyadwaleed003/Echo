@@ -63,7 +63,16 @@ export class LikesService {
     return `This action returns a #${id} like`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} like`;
+  async remove(account: Account, postId: number): Promise<APIResponse> {
+    const result = await this.likeRepository.delete({
+      accountId: account.id,
+      postId,
+    });
+    if (!result.affected)
+      throw new BadRequestException('You have not liked this post');
+
+    return {
+      message: 'Like deleted successfully',
+    };
   }
 }

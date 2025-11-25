@@ -89,8 +89,8 @@ export class LikesService {
     const res: APIResponse = {
       size: likes.length,
     };
-
     if (!account) return res;
+
     this.relationshipHelper.checkRelationship(
       account,
       accounts.targetAccount,
@@ -98,7 +98,6 @@ export class LikesService {
     );
 
     res.data = likes;
-
     return res;
   }
 
@@ -134,7 +133,6 @@ export class LikesService {
       return { size: 0, data: [] };
     }
 
-    console.log(likes[0]?.post);
     const accountsIds = [...new Set(likes.map((like) => like.post.accountId))];
 
     const privateAccounts = await this.accountsRepository.find({

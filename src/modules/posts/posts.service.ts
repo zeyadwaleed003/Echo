@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -74,6 +75,17 @@ export class PostsService {
     return postFiles;
   }
 
+  private validateContentWithFiles(
+    content: string,
+    files?: Express.Multer.File[]
+  ) {
+    if (content === '' && (!files || files.length === 0)) {
+      throw new BadRequestException(
+        'Post must contain either text content or at least one file'
+      );
+    }
+  }
+
   private async create(
     content: string,
     type: PostType,
@@ -81,6 +93,8 @@ export class PostsService {
     files?: Express.Multer.File[],
     actionPostId?: number
   ) {
+    this.validateContentWithFiles(content, files);
+
     if (
       (type === PostType.REPLY || type === PostType.REPOST) &&
       !actionPostId
@@ -177,8 +191,7 @@ export class PostsService {
     account: Account,
     files?: Express.Multer.File[]
   ) {
-    const content = createPostDto.content.trim();
-    return this.create(content, PostType.POST, account, files);
+    return this.create(createPostDto.content, PostType.POST, account, files);
   }
 
   async findAllPosts(q: any) {
@@ -414,9 +427,8 @@ export class PostsService {
     createReplyDto: CreateReplyDto,
     files?: Express.Multer.File[]
   ) {
-    const content = createReplyDto.content.trim();
     return await this.create(
-      content,
+      createReplyDto.content,
       PostType.REPLY,
       account,
       files,
@@ -554,10 +566,8 @@ export class PostsService {
     createRepostDto: CreateRepostDto,
     files?: Express.Multer.File[]
   ) {
-    let content = createRepostDto.content.trim();
-    if (!content) content = ' ';
     return await this.create(
-      content,
+      createRepostDto.content,
       PostType.REPOST,
       account,
       files,

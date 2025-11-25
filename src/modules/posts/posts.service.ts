@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -20,6 +22,7 @@ import { RelationshipType } from '../accounts/accounts.enums';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AiService, ContentClassification } from '../ai/ai.service';
 import { SearchService } from '../search/search.service';
+import { GroupedPostFile } from './posts.types';
 
 @Injectable()
 export class PostsService {
@@ -35,6 +38,7 @@ export class PostsService {
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     private readonly aiService: AiService,
+    @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService
   ) {}
 
@@ -575,5 +579,18 @@ export class PostsService {
       data: visibleReplies,
     };
     return res;
+  }
+
+  async findPostFiles(postIds: number[]) {
+    return (await this.postFilesRepository
+      .createQueryBuilder('f')
+      .select('f.postId', 'postId')
+      .addSelect(
+        "json_agg(json_build_object('id', f.id, 'url', f.url, 'createdAt', f.createdAt))",
+        'files'
+      )
+      .where('f.postId IN (:...postIds)', { postIds })
+      .groupBy('f.postId')
+      .getRawMany()) as GroupedPostFile[];
   }
 }

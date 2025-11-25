@@ -20,8 +20,8 @@ export class PostFiles {
   @JoinColumn({ name: 'postId' })
   post!: Post;
 
-  @Column({ type: 'bigint', nullable: true })
-  postId!: number | null;
+  @Column({ type: 'bigint' })
+  postId!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

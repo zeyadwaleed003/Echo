@@ -27,6 +27,7 @@ export class SearchQueryDto {
     required: false,
   })
   @IsEnum(SearchFilter)
+  @IsOptional()
   f: SearchFilter;
 
   @ApiProperty({

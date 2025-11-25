@@ -2,8 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -45,7 +43,6 @@ export class AccountsService {
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     private readonly dataSource: DataSource,
     private readonly authService: AuthService,
-    @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService
   ) {}
 
@@ -282,7 +279,10 @@ export class AccountsService {
     }
   }
 
-  async follow(accountId: number, targetAccountId: number) {
+  async follow(
+    accountId: number,
+    targetAccountId: number
+  ): Promise<APIResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       accountId,
       targetAccountId,
@@ -302,7 +302,7 @@ export class AccountsService {
         'You cannot follow an account that has blocked you'
       );
 
-    const relationship = await this.accountRelationshipsRepository.findOneBy({
+    let relationship = await this.accountRelationshipsRepository.findOneBy({
       actorId: accountId,
       targetId: targetAccountId,
     });
@@ -315,7 +315,7 @@ export class AccountsService {
 
       await this.accountRelationshipsRepository.save(relationship);
     } else {
-      const newRelationship = this.accountRelationshipsRepository.create({
+      relationship = this.accountRelationshipsRepository.create({
         actorId: accountId,
         targetId: targetAccountId,
         relationshipType: targetAccount.isPrivate
@@ -323,16 +323,16 @@ export class AccountsService {
           : RelationshipType.FOLLOW,
       });
 
-      await this.accountRelationshipsRepository.save(newRelationship);
+      await this.accountRelationshipsRepository.save(relationship);
     }
 
-    const result: APIResponse = {
+    return {
       message: targetAccount.isPrivate
         ? `Follow request sent to @${targetAccount.username} successfully`
         : `Account @${targetAccount.username} followed successfully`,
-    };
 
-    return result;
+      ...(targetAccount.isPrivate && { data: relationship }),
+    };
   }
 
   async unfollow(accountId: number, targetAccountId: number) {
@@ -591,7 +591,7 @@ export class AccountsService {
     return result;
   }
 
-  async findFollowRequests(accountId: number, q: any) {
+  async findFollowRequests(accountId: number, q: any): Promise<APIResponse> {
     const whereClause: FindOptionsWhere<AccountRelationships> = {
       targetId: accountId,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
@@ -612,12 +612,10 @@ export class AccountsService {
       .paginate()
       .exec();
 
-    const result: APIResponse = {
+    return {
       size: relationships.length,
       data: relationships,
     };
-
-    return result;
   }
 
   async deleteMe(accountId: number): Promise<APIResponse> {
@@ -741,5 +739,11 @@ export class AccountsService {
     relationshipsMap: Map<number | undefined, RelationshipType>
   ) {
     return relationshipsMap.get(accountId) || null;
+  }
+
+  async findAccountsByIds(ids: number[]) {
+    return await this.accountsRepository.findBy({
+      id: In(ids),
+    });
   }
 }

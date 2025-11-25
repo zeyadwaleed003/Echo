@@ -1,15 +1,16 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Account } from '../accounts/entities/account.entity';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppConfig } from 'src/config/configuration';
-import { AuthModule } from '../auth/auth.module';
-import { TokenModule } from '../token/token.module';
-import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { PostsModule } from '../posts/posts.module';
 import { AccountsModule } from '../accounts/accounts.module';
+import { TokenModule } from '../token/token.module';
+import { AuthModule } from '../auth/auth.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Account } from '../accounts/entities/account.entity';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
@@ -21,8 +22,9 @@ import { AccountsModule } from '../accounts/accounts.module';
       }),
       inject: [ConfigService],
     }),
-    forwardRef(() => AuthModule),
     TokenModule,
+    forwardRef(() => AuthModule),
+    forwardRef(() => PostsModule),
     forwardRef(() => AccountsModule),
   ],
   controllers: [SearchController],

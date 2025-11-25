@@ -8,15 +8,14 @@ import {
 import { SearchQueryDto } from './dto/search-query.dto';
 import { APIResponse } from 'src/common/types/api.types';
 import { SearchFilter } from './search.enums';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from '../accounts/entities/account.entity';
-import { In, Repository } from 'typeorm';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { estypes } from '@elastic/elasticsearch';
 import { AccountIndex, PostIndex } from './search.types';
 import { AccountStatus } from '../accounts/accounts.enums';
 import { AccountsService } from '../accounts/accounts.service';
 import { Post } from '../posts/entities/post.entity';
+import { PostsService } from '../posts/posts.service';
 
 @Injectable()
 export class SearchService implements OnModuleInit {
@@ -24,9 +23,9 @@ export class SearchService implements OnModuleInit {
   private readonly ACCOUNTS_INDEX = 'accounts';
 
   constructor(
-    @InjectRepository(Account)
-    private readonly accountRepository: Repository<Account>,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject(forwardRef(() => PostsService))
+    private readonly postsService: PostsService,
     @Inject(forwardRef(() => AccountsService))
     private readonly accountsService: AccountsService
   ) {}
@@ -269,9 +268,7 @@ export class SearchService implements OnModuleInit {
 
     // fetch accounts
     const accountIds = paginatedHits.map((h) => h._source!.id);
-    const accounts = await this.accountRepository.findBy({
-      id: In(accountIds),
-    });
+    const accounts = await this.accountsService.findAccountsByIds(accountIds);
 
     // match elasticsearch relevance order
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
@@ -307,7 +304,8 @@ export class SearchService implements OnModuleInit {
     limit: number,
     accountId: number | undefined,
     blockedAccountIds: number[],
-    followingAccountIds: number[]
+    followingAccountIds: number[],
+    live?: boolean
   ) {
     const mustQueries: estypes.QueryDslQueryContainer[] = [
       {
@@ -320,12 +318,17 @@ export class SearchService implements OnModuleInit {
       },
     ];
 
+    const filterQueries: estypes.QueryDslQueryContainer[] = [];
     const mustNotQueries: estypes.QueryDslQueryContainer[] = [];
 
     if (!accountId) {
       // if no logged in account, should not display posts with private accounts
-      mustNotQueries.push({
-        term: { isPrivate: true },
+      filterQueries.push({
+        term: {
+          isPrivate: {
+            value: false,
+          },
+        },
       });
     } else {
       // Exclude posts from blocked accounts
@@ -336,27 +339,41 @@ export class SearchService implements OnModuleInit {
       }
 
       const visibleAccountIds = [...followingAccountIds, accountId];
-      mustQueries.push(
-        { term: { isPrivate: false } },
-        {
-          bool: {
-            must: [
-              { term: { isPrivate: true } },
-              { terms: { accountId: visibleAccountIds } },
-            ],
-          },
-        }
-      );
+      filterQueries.push({
+        // show post if
+        bool: {
+          // user not private
+          should: [
+            { term: { isPrivate: { value: false } } },
+            {
+              bool: {
+                must: [
+                  { term: { isPrivate: { value: true } } },
+                  { terms: { accountId: visibleAccountIds } },
+                ],
+              },
+            },
+          ],
+          minimum_should_match: 1, // The OR ... at least one condition matches
+        },
+      });
     }
+
+    const sort: estypes.Sort = [];
+    if (live) sort.push({ createdAt: { order: 'desc' } });
+    else sort.push({ _score: { order: 'desc' } });
+
+    sort.push({ id: { order: 'desc' } });
 
     const searchParams: estypes.SearchRequest = {
       index: this.POSTS_INDEX,
       size: limit + 1,
-      sort: [{ createdAt: { order: 'desc' } }, { id: { order: 'desc' } }],
+      sort,
       query: {
         bool: {
           must: mustQueries,
           must_not: mustNotQueries,
+          filter: filterQueries,
         },
       },
       highlight: {
@@ -374,11 +391,12 @@ export class SearchService implements OnModuleInit {
     return searchParams;
   }
 
-  private async searchLatestPosts(
+  private async searchPosts(
     search_after: estypes.SortResults | undefined,
     q: string,
     limit: number,
-    accountId: number | undefined
+    accountId: number | undefined,
+    live?: boolean
   ) {
     // fetch relationships
     const [blockedAccountIds, followingAccountIds] = await Promise.all([
@@ -394,7 +412,8 @@ export class SearchService implements OnModuleInit {
           limit,
           accountId,
           blockedAccountIds,
-          followingAccountIds
+          followingAccountIds,
+          live
         )
       )
     ).hits.hits;
@@ -403,9 +422,16 @@ export class SearchService implements OnModuleInit {
 
     const paginatedHits = hits.slice(0, limit);
 
+    // Now that I have the paginated hits, I need to grap the postFiles
+    const postIds = paginatedHits.map((h) => h._source!.id);
+    const postFiles = await this.postsService.findPostFiles(postIds);
+
+    const postFilesMap = new Map(postFiles.map((f) => [f.postId, f.files]));
+
     const postsData = paginatedHits.map((hit) => ({
       ...hit._source,
       highlightedContent: hit.highlight?.content?.[0] || null,
+      files: postFilesMap.get(hit._source!.id) || [],
     }));
 
     return {
@@ -430,9 +456,10 @@ export class SearchService implements OnModuleInit {
         return this.searchAccounts(id, q, limit, accountId);
       case SearchFilter.LIVE:
         // Search through the latest posts
-        return this.searchLatestPosts(id, q, limit, accountId);
+        return this.searchPosts(id, q, limit, accountId, true);
+      default:
+        // Search through posts ... the best matches gets the higher score
+        return this.searchPosts(id, q, limit, accountId);
     }
-
-    return {};
   }
 }

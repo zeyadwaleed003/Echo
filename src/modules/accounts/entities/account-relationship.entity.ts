@@ -14,7 +14,7 @@ import { RelationshipType } from '../accounts.enums';
 @Entity('account_relationships')
 @Index(['actorId', 'targetId'], { unique: true })
 export class AccountRelationships {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
+  @PrimaryGeneratedColumn('increment')
   id!: number;
 
   @Column()

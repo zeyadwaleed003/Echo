@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -23,6 +25,8 @@ import { AiService, ContentClassification } from '../ai/ai.service';
 import { Bookmark } from '../bookmarks/entities/bookmark.entity';
 import { CreateRepostDto } from './dto/create-repost.dto';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
+import { SearchService } from '../search/search.service';
+import { GroupedPostFile } from './posts.types';
 
 @Injectable()
 export class PostsService {
@@ -40,7 +44,9 @@ export class PostsService {
     @InjectRepository(Bookmark)
     private readonly bookmarkRepository: Repository<Bookmark>,
     private readonly aiService: AiService,
-    private readonly relationshipHelper: RelationshipHelper
+    private readonly relationshipHelper: RelationshipHelper,
+    @Inject(forwardRef(() => SearchService))
+    private readonly searchService: SearchService
   ) {}
 
   private containFiles(q: QueryString) {
@@ -124,26 +130,32 @@ export class PostsService {
         `Your ${type} contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.`
       );
 
-    return await this.dataSource.transaction(async (manager) => {
-      const post = manager.create(Post, {
-        content,
-        type,
-        accountId: account.id,
-        actionPostId: actionPostId || null,
-      });
-      await manager.save(Post, post);
+    const [post, postFiles] = await this.dataSource.transaction(
+      async (manager) => {
+        const post = manager.create(Post, {
+          content,
+          type,
+          accountId: account.id,
+          actionPostId: actionPostId || null,
+        });
+        await manager.save(Post, post);
 
-      let postFiles: PostFiles[] = [];
+        let postFiles: PostFiles[] = [];
 
-      if (files?.length)
-        postFiles = await this.uploadFiles(manager, files, post.id);
+        if (files?.length)
+          postFiles = await this.uploadFiles(manager, files, post.id);
 
-      const res: APIResponse = {
-        message: `${type} created successfully`,
-        data: { ...post, postFiles },
-      };
-      return res;
-    });
+        return [post, postFiles];
+      }
+    );
+
+    post.account = account;
+    this.searchService.createPostDocument(post);
+
+    return {
+      message: `${type} created successfully`,
+      data: { ...post, postFiles },
+    };
   }
 
   async findAll(q: any) {
@@ -247,7 +259,7 @@ export class PostsService {
     account: Account,
     updatePostDto: UpdatePostDto,
     files?: Express.Multer.File[]
-  ) {
+  ): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post) throw new NotFoundException('No post found with this id');
 
@@ -256,69 +268,87 @@ export class PostsService {
         'You do not have permission to update this post'
       );
 
-    return await this.dataSource.transaction(async (manager) => {
-      const postRepository = manager.getRepository(Post);
-      const postFilesRepository = manager.getRepository(PostFiles);
+    if (
+      (await this.aiService.classifyContent(
+        updatePostDto.content || '',
+        files
+      )) === ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        'Your post contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
+      );
 
-      const { deleteFileIds, content } = updatePostDto;
+    const [updatedPost, postFiles] = await this.dataSource.transaction(
+      async (manager) => {
+        const postRepository = manager.getRepository(Post);
+        const postFilesRepository = manager.getRepository(PostFiles);
 
-      // update content
-      if (content) await postRepository.update(id, { content });
+        const { deleteFileIds, content } = updatePostDto;
 
-      let remainingFilesCount = (
-        await postFilesRepository.find({
-          where: { postId: post.id },
-        })
-      ).length;
+        // update content
+        if (content) await postRepository.update(id, { content });
 
-      // handle file deletion
-      if (deleteFileIds) {
-        const filesToDelete = await postFilesRepository.find({
-          where: { id: In(deleteFileIds) },
+        let remainingFilesCount = (
+          await postFilesRepository.find({
+            where: { postId: post.id },
+          })
+        ).length;
+
+        // handle file deletion
+        if (deleteFileIds) {
+          const filesToDelete = await postFilesRepository.find({
+            where: { id: In(deleteFileIds) },
+          });
+
+          const invalidFiles = filesToDelete.filter(
+            (file) => file.postId !== post.id
+          );
+          if (
+            invalidFiles.length ||
+            filesToDelete.length !== deleteFileIds.length
+          )
+            throw new ForbiddenException(
+              'Some files do not belong to this post'
+            );
+
+          await this.cloudinaryService.deleteMultipleFiles(
+            filesToDelete.map((f) => f.url)
+          );
+          await postFilesRepository.remove(filesToDelete);
+          remainingFilesCount -= filesToDelete.length;
+        }
+
+        // handle file uploads
+        if (files?.length) {
+          if (files.length + remainingFilesCount > 4)
+            throw new ForbiddenException('Maximum of 4 files allowed per post');
+
+          await this.uploadFiles(manager, files, post.id);
+        }
+
+        const updatedPost = await postRepository.findOne({
+          where: { id },
+          relations: ['account'],
+        });
+        const postFiles = await postFilesRepository.find({
+          where: { postId: id },
         });
 
-        const invalidFiles = filesToDelete.filter(
-          (file) => file.postId !== post.id
-        );
-        if (
-          invalidFiles.length ||
-          filesToDelete.length !== deleteFileIds.length
-        )
-          throw new ForbiddenException('Some files do not belong to this post');
-
-        await this.cloudinaryService.deleteMultipleFiles(
-          filesToDelete.map((f) => f.url)
-        );
-        await postFilesRepository.remove(filesToDelete);
-        remainingFilesCount -= filesToDelete.length;
+        return [updatedPost, postFiles];
       }
+    );
 
-      // handle file uploads
-      if (files?.length) {
-        if (files.length + remainingFilesCount > 4)
-          throw new ForbiddenException('Maximum of 4 files allowed per post');
-
-        await this.uploadFiles(manager, files, post.id);
-      }
-
-      const updatedPost = await postRepository.findOneBy({ id });
-      const postFiles = await postFilesRepository.find({
-        where: { postId: id },
-      });
-
-      const res: APIResponse = {
-        message: 'Post updated successfully',
-        data: {
-          ...updatedPost,
-          ...(postFiles.length > 0 && { files: postFiles }),
-        },
-      };
-
-      return res;
-    });
+    this.searchService.updatePostDocument(post);
+    return {
+      message: 'Post updated successfully',
+      data: {
+        ...updatedPost,
+        ...(postFiles.length > 0 && { files: postFiles }),
+      },
+    };
   }
 
-  async remove(id: number, account: Account) {
+  async remove(id: number, account: Account): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
@@ -332,7 +362,7 @@ export class PostsService {
         `You do not have permission to delete this ${type}`
       );
 
-    return await this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const postRepository = manager.getRepository(Post);
       const postFilesRepository = manager.getRepository(PostFiles);
 
@@ -346,12 +376,12 @@ export class PostsService {
 
       await postFilesRepository.delete({ postId: id });
       await postRepository.delete({ id });
-
-      const res: APIResponse = {
-        message: `${type} deleted successfully`,
-      };
-      return res;
     });
+
+    this.searchService.deletePostDocument(id);
+    return {
+      message: `${type} deleted successfully`,
+    };
   }
 
   async findAccountPosts(accountId: number, q: QueryString, account?: Account) {
@@ -573,5 +603,18 @@ export class PostsService {
       files,
       actionPostId
     );
+  }
+
+  async findPostFiles(postIds: number[]) {
+    return (await this.postFilesRepository
+      .createQueryBuilder('f')
+      .select('f.postId', 'postId')
+      .addSelect(
+        "json_agg(json_build_object('id', f.id, 'url', f.url, 'createdAt', f.createdAt))",
+        'files'
+      )
+      .where('f.postId IN (:...postIds)', { postIds })
+      .groupBy('f.postId')
+      .getRawMany()) as GroupedPostFile[];
   }
 }

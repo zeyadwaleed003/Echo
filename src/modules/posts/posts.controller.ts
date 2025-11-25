@@ -118,7 +118,7 @@ export class PostsController {
   @Roles(Role.ADMIN)
   @Get()
   findAll(@Query() q: QueryString) {
-    return this.postsService.findAll(q);
+    return this.postsService.findAllPosts(q);
   }
 
   @ApiOperation({

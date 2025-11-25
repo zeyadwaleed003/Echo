@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   forwardRef,
   Inject,
@@ -21,6 +22,9 @@ import { AccountRelationships } from '../accounts/entities/account-relationship.
 import { RelationshipType } from '../accounts/accounts.enums';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AiService, ContentClassification } from '../ai/ai.service';
+import { Bookmark } from '../bookmarks/entities/bookmark.entity';
+import { CreateRepostDto } from './dto/create-repost.dto';
+import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { SearchService } from '../search/search.service';
 import { GroupedPostFile } from './posts.types';
 
@@ -37,7 +41,10 @@ export class PostsService {
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    @InjectRepository(Bookmark)
+    private readonly bookmarkRepository: Repository<Bookmark>,
     private readonly aiService: AiService,
+    private readonly relationshipHelper: RelationshipHelper,
     @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService
   ) {}
@@ -74,26 +81,62 @@ export class PostsService {
     return postFiles;
   }
 
-  async create(
-    createPostDto: CreatePostDto,
-    account: Account,
+  private validateContentWithFiles(
+    content: string,
     files?: Express.Multer.File[]
-  ): Promise<APIResponse> {
-    // Post moderation system ... check if the content or the files contains anything harmful
+  ) {
+    if (content === '' && (!files || files.length === 0)) {
+      throw new BadRequestException(
+        'Post must contain either text content or at least one file'
+      );
+    }
+  }
+
+  private async create(
+    content: string,
+    type: PostType,
+    account: Account,
+    files?: Express.Multer.File[],
+    actionPostId?: number
+  ) {
+    this.validateContentWithFiles(content, files);
+
     if (
-      (await this.aiService.classifyContent(createPostDto.content, files)) ===
+      (type === PostType.REPLY || type === PostType.REPOST) &&
+      !actionPostId
+    ) {
+      throw new NotFoundException(
+        'Original post ID is required for replies and reposts'
+      );
+    }
+    if (actionPostId) {
+      const accounts = await this.relationshipHelper.validateActionPost(
+        actionPostId,
+        type
+      );
+      await this.relationshipHelper.checkRelationship(
+        account,
+        accounts.targetAccount,
+        type
+      );
+    }
+
+    if (
+      (await this.aiService.classifyContent(content || '', files)) ===
       ContentClassification.DANGEROUS
     )
+      // Post moderation system ... check if the content or the files contains anything harmful
       throw new ForbiddenException(
-        'Your post contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
+        `Your ${type} contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.`
       );
 
     const [post, postFiles] = await this.dataSource.transaction(
       async (manager) => {
         const post = manager.create(Post, {
-          ...createPostDto,
-          type: PostType.POST,
+          content,
+          type,
           accountId: account.id,
+          actionPostId: actionPostId || null,
         });
         await manager.save(Post, post);
 
@@ -110,7 +153,7 @@ export class PostsService {
     this.searchService.createPostDocument(post);
 
     return {
-      message: 'Post created successfully',
+      message: `${type} created successfully`,
       data: { ...post, postFiles },
     };
   }
@@ -155,6 +198,14 @@ export class PostsService {
     return data;
   }
 
+  async createPost(
+    createPostDto: CreatePostDto,
+    account: Account,
+    files?: Express.Multer.File[]
+  ) {
+    return this.create(createPostDto.content, PostType.POST, account, files);
+  }
+
   async findAllPosts(q: any) {
     const data = await this.findAll(q);
     const res: APIResponse = {
@@ -181,6 +232,11 @@ export class PostsService {
     ]);
 
     if (!author) throw new NotFoundException('Post author not found');
+
+    if (account) {
+      await this.relationshipHelper.checkRelationship(account, author, 'view');
+    }
+
     if (!author.isPrivate)
       return {
         data: { ...post, files },
@@ -189,19 +245,6 @@ export class PostsService {
     if (!account)
       throw new UnauthorizedException(
         'This post is from a private account. Please log in to view it.'
-      );
-
-    const isFollowing =
-      (
-        await this.accountRelationshipsRepository.findOneBy({
-          actorId: account!.id,
-          targetId: author.id,
-        })
-      )?.relationshipType === RelationshipType.FOLLOW;
-
-    if (account.role !== 'admin' && account.id !== author.id && !isFollowing)
-      throw new UnauthorizedException(
-        `Follow @${author.username} to see the post`
       );
 
     const res: APIResponse = {
@@ -307,11 +350,16 @@ export class PostsService {
 
   async remove(id: number, account: Account): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        `No post, repost, or reply found with this id`
+      );
+
+    const type = post.type;
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        'You do not have permission to delete this post'
+        `You do not have permission to delete this ${type}`
       );
 
     await this.dataSource.transaction(async (manager) => {
@@ -332,7 +380,7 @@ export class PostsService {
 
     this.searchService.deletePostDocument(id);
     return {
-      message: 'Post deleted successfully',
+      message: `${type} deleted successfully`,
     };
   }
 
@@ -408,69 +456,14 @@ export class PostsService {
     actionPostId: number,
     createReplyDto: CreateReplyDto,
     files?: Express.Multer.File[]
-  ): Promise<APIResponse> {
-    const actionPost = await this.postRepository.findOne({
-      where: { id: actionPostId },
-    });
-    if (!actionPost) {
-      throw new NotFoundException('No post found with this id');
-    }
-
-    const targetAccount = await this.accountsRepository.findOne({
-      where: { id: actionPost.accountId },
-    });
-    if (!targetAccount) {
-      throw new NotFoundException('Post author account not found');
-    }
-
-    if (targetAccount.isPrivate && targetAccount.id !== account.id) {
-      const relation = await this.accountRelationshipsRepository.findOne({
-        where: { actorId: account.id, targetId: targetAccount.id },
-      });
-
-      if (relation?.relationshipType !== RelationshipType.FOLLOW) {
-        throw new ForbiddenException(
-          `You must follow @${targetAccount.username} to reply to their posts`
-        );
-      }
-    }
-
-    if (
-      (await this.aiService.classifyContent(createReplyDto.content, files)) ===
-      ContentClassification.DANGEROUS
-    )
-      throw new ForbiddenException(
-        'Your reply contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
-      );
-
-    const [reply, postFiles] = await this.dataSource.transaction(
-      async (manager) => {
-        const postRepository = manager.getRepository(Post);
-
-        const reply = postRepository.create({
-          content: createReplyDto.content,
-          type: PostType.REPLY,
-          accountId: account.id,
-          actionPostId,
-        });
-
-        await postRepository.save(reply);
-
-        let postFiles: PostFiles[] = [];
-        if (files?.length)
-          postFiles = await this.uploadFiles(manager, files, reply.id);
-
-        return [reply, postFiles];
-      }
+  ) {
+    return await this.create(
+      createReplyDto.content,
+      PostType.REPLY,
+      account,
+      files,
+      actionPostId
     );
-
-    reply.account = account;
-    this.searchService.createPostDocument(reply);
-
-    return {
-      message: 'Reply created successfully',
-      data: { ...reply, ...(postFiles.length > 0 && { files: postFiles }) },
-    };
   }
 
   async getPostReplies(
@@ -579,6 +572,37 @@ export class PostsService {
       data: visibleReplies,
     };
     return res;
+  }
+
+  async getPostBookmarks(id: number) {
+    const postExists = await this.postRepository.existsBy({ id });
+    if (!postExists) throw new NotFoundException('No post found with this id');
+
+    const bookmarksNumber = await this.bookmarkRepository.count({
+      where: { postId: id },
+    });
+
+    const res: APIResponse = {
+      data: {
+        bookmarksNumber,
+      },
+    };
+    return res;
+  }
+
+  async createRepost(
+    account: Account,
+    actionPostId: number,
+    createRepostDto: CreateRepostDto,
+    files?: Express.Multer.File[]
+  ) {
+    return await this.create(
+      createRepostDto.content,
+      PostType.REPOST,
+      account,
+      files,
+      actionPostId
+    );
   }
 
   async findPostFiles(postIds: number[]) {

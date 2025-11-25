@@ -36,6 +36,7 @@ import { OptionalAuth } from 'src/common/decorators/optionalAuth.decorator';
 import { IdDto } from 'src/common/dtos/id.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import type { QueryString } from 'src/common/types/api.types';
+import { CreateRepostDto } from './dto/create-repost.dto';
 
 @ApiTags('Posts')
 @Controller('posts')
@@ -80,7 +81,7 @@ export class PostsController {
     @UploadedFiles() files?: Express.Multer.File[]
   ) {
     const { account } = req;
-    return this.postsService.create(createPostDto, account!, files);
+    return this.postsService.createPost(createPostDto, account!, files);
   }
 
   @ApiOperation({
@@ -208,6 +209,7 @@ export class PostsController {
     const { account } = req;
     return this.postsService.remove(params.id, account!);
   }
+
   @ApiOperation({
     summary: 'Get posts by account',
     description:
@@ -306,5 +308,45 @@ export class PostsController {
     const { id } = params;
     const { account } = req;
     return this.postsService.getPostReplies(id, q, account);
+  }
+
+  @ApiOperation({
+    summary: 'Get post bookmarks count',
+    description: 'Get the number of bookmarks for a specific post',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Post ID',
+    example: 1,
+  })
+  @Get('/:id/bookmarks/count')
+  getPostBookmarks(@Param() params: IdDto) {
+    const { id } = params;
+    return this.postsService.getPostBookmarks(id);
+  }
+
+  @ApiOperation({
+    summary: 'Repost a post',
+    description: `Repost a post with optional file attachments (max 4 files), optional content. Cannot repost a private account's post.`,
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBearerAuth()
+  @ApiParam({ name: 'id', description: 'Parent post ID', example: 1 })
+  @UseGuards(AuthGuard)
+  @Post('/:id/reposts')
+  @UseInterceptors(FilesInterceptor('file', 4))
+  createRepost(
+    @Req() req: Request,
+    @Param() params: IdDto,
+    @Body() createRepostDto: CreateRepostDto,
+    @UploadedFiles() files?: Express.Multer.File[]
+  ) {
+    const { account } = req;
+    return this.postsService.createRepost(
+      account!,
+      params.id,
+      createRepostDto,
+      files
+    );
   }
 }

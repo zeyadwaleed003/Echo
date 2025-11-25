@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from 'src/config/configuration';
@@ -6,15 +6,17 @@ import { AppConfig } from 'src/config/configuration';
 @Injectable()
 export class CloudinaryService {
   private cloudinary = cloudinary;
+  private readonly logger = new Logger('Cloudinary');
+
   constructor(private configService: ConfigService<AppConfig, true>) {
-    const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
-    const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
-    const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
+    const cloud_name = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    const api_key = this.configService.get<string>('CLOUDINARY_API_KEY');
+    const api_secret = this.configService.get<string>('CLOUDINARY_API_SECRET');
 
     cloudinary.config({
-      cloudName,
-      apiKey,
-      apiSecret,
+      cloud_name,
+      api_key,
+      api_secret,
     });
   }
 
@@ -42,13 +44,13 @@ export class CloudinaryService {
       const result = await this.cloudinary.uploader.destroy(publicId);
 
       if (result.result !== 'ok') {
-        console.warn(
+        this.logger.warn(
           `Failed to delete file from Cloudinary: ${publicId}`,
           result
         );
       }
     } catch (error) {
-      console.error('Failed to delete file from Cloudinary:', error);
+      this.logger.error('Failed to delete file from Cloudinary:', error);
     }
   }
 

@@ -26,6 +26,8 @@
 
     "strict": true,
 
+    "strictPropertyInitialization": false,
+
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 

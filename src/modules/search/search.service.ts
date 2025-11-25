@@ -242,6 +242,7 @@ export class SearchService implements OnModuleInit {
           filter: filterQueries,
         },
       },
+      _source: ['id'],
     };
 
     // if cursor comming from the client ... assign search_after for cursor based pagination
@@ -266,29 +267,34 @@ export class SearchService implements OnModuleInit {
 
     const paginatedHits = hits.slice(0, limit);
 
-    // fetch accounts
+    // fetch accounts & relationships
     const accountIds = paginatedHits.map((h) => h._source!.id);
-    const accounts = await this.accountsService.findAccountsByIds(accountIds);
+
+    const [accounts, { outgoingMap, incomingMap }] = await Promise.all([
+      this.accountsService.findAccountsByIds(accountIds),
+      this.accountsService.fetchRelationships(accountId, accountIds),
+    ]);
 
     // match elasticsearch relevance order
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
-    const sortedAccounts = accountIds.map((id) => accountMap.get(id));
 
-    // fetch relationships
-    const { outgoingMap, incomingMap } =
-      await this.accountsService.fetchRelationships(accountId, accountIds);
+    const enhancedAccounts = accountIds.map((id) => {
+      const account = accountMap.get(id)!;
 
-    // enhanced accounts
-    const enhancedAccounts = sortedAccounts.map((a) => ({
-      ...a,
-      relationship: {
-        outgoing: this.accountsService.getRelationshipType(a!.id, outgoingMap),
-        incomingMap: this.accountsService.getRelationshipType(
-          a!.id,
-          incomingMap
-        ),
-      },
-    }));
+      return {
+        ...account,
+        relationship: {
+          outgoing: this.accountsService.getRelationshipType(
+            account.id,
+            outgoingMap
+          ),
+          incomingMap: this.accountsService.getRelationshipType(
+            account.id,
+            incomingMap
+          ),
+        },
+      };
+    });
 
     // update the result
     return {

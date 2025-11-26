@@ -12,6 +12,7 @@ import { SearchFilter } from '../search.enums';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
+// search?q=sohhhh
 export class SearchQueryDto {
   @ApiProperty({
     description: 'Search query string to match against accounts or posts',
@@ -23,7 +24,7 @@ export class SearchQueryDto {
   })
   @IsString()
   @MinLength(1, { message: 'Search query must not be empty' })
-  @MaxLength(353, { message: 'Search query must not exceed 100 characters' })
+  @MaxLength(353, { message: 'Search query must not exceed 353 characters' })
   @Transform(({ value }) => value.trim())
   q: string;
 

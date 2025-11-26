@@ -288,7 +288,7 @@ export class SearchService implements OnModuleInit {
             account.id,
             outgoingMap
           ),
-          incomingMap: this.accountsService.getRelationshipType(
+          incoming: this.accountsService.getRelationshipType(
             account.id,
             incomingMap
           ),

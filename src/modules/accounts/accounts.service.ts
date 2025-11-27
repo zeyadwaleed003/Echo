@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -44,7 +46,9 @@ export class AccountsService {
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     private readonly dataSource: DataSource,
+    @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
+    @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService,
     private readonly i18n: I18nService
   ) {}

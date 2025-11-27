@@ -92,7 +92,8 @@
     "alreadyPinned": "هذا المنشور مثبت بالفعل",
     "pinnedSuccessfully": "تم تثبيت المنشور بنجاح",
     "maxFilesExceeded": "الحد الأقصى 4 ملفات لكل منشور",
-    "filesNotBelongToPost": "بعض الملفات لا تنتمي إلى هذا المنشور"
+    "filesNotBelongToPost": "بعض الملفات لا تنتمي إلى هذا المنشور",
+    "alreadyReposted": "لقد اعدت نشر هذا المنشور من قبل"
   },
   "token": {
     "setupTokenInvalid": "رمز الإعداد غير صالح أو منتهي الصلاحية",

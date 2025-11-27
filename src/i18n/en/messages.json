@@ -92,7 +92,8 @@
     "alreadyPinned": "This post is already pinned",
     "pinnedSuccessfully": "Post pinned successfully",
     "maxFilesExceeded": "Maximum of 4 files allowed per post",
-    "filesNotBelongToPost": "Some files do not belong to this post"
+    "filesNotBelongToPost": "Some files do not belong to this post",
+    "alreadyReposted": "You have already reposted this post"
   },
   "token": {
     "setupTokenInvalid": "Setup token is invalid or expired",

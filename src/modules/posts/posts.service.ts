@@ -108,7 +108,9 @@ export class PostsService {
       ]);
 
       if (repost && !files)
-        throw new BadRequestException('You have already reposted this post');
+        throw new BadRequestException(
+          this.i18n.t(`${this.i18nNamespace}.alreadyReposted`)
+        );
     }
   }
 

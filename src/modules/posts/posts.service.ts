@@ -81,14 +81,30 @@ export class PostsService {
     return postFiles;
   }
 
-  private validateContentWithFiles(
+  private async validateContentWithFiles(
     content: string,
+    type: PostType,
+    accountId: number,
+    actionPostId?: number,
     files?: Express.Multer.File[]
   ) {
     if (content === '' && (!files || files.length === 0)) {
-      throw new BadRequestException(
-        'Post must contain either text content or at least one file'
-      );
+      if (type !== PostType.REPOST) {
+        throw new BadRequestException(
+          'Post must contain either text content or at least one file'
+        );
+      }
+
+      const id = actionPostId!;
+      const [repost, files] = await Promise.all([
+        this.postRepository.find({
+          where: { type: PostType.REPOST, content: '', id, accountId },
+        }),
+        this.postFilesRepository.find({ where: { postId: id } }),
+      ]);
+
+      if (repost && !files)
+        throw new BadRequestException('You have already reposted this post');
     }
   }
 
@@ -99,7 +115,13 @@ export class PostsService {
     files?: Express.Multer.File[],
     actionPostId?: number
   ) {
-    this.validateContentWithFiles(content, files);
+    this.validateContentWithFiles(
+      content,
+      type,
+      account.id,
+      actionPostId,
+      files
+    );
 
     if (
       (type === PostType.REPLY || type === PostType.REPOST) &&

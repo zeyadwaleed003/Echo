@@ -37,13 +37,15 @@ import { RevocationReason } from './auth.enums';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { CompleteSetupDtp } from './dto/complete-setup.dto';
+import { CompleteSetupDto } from './dto/complete-setup.dto';
 import { SearchService } from '../search/search.service';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class AuthService {
   private googleClient: OAuth2Client;
   private logger = new Logger('Auth Service');
+  private readonly i18nAuthNamespace = 'messages.auth.';
 
   constructor(
     @InjectRepository(Account)
@@ -54,7 +56,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly tokenService: TokenService,
     @Inject(forwardRef(() => SearchService))
-    private readonly searchService: SearchService
+    private readonly searchService: SearchService,
+    private readonly i18n: I18nService
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID')
@@ -125,7 +128,9 @@ export class AuthService {
       if (status === AccountStatus.INACTIVATED)
         return await this.resendVerificationEmail(account.email);
 
-      throw new ConflictException('An account with this email already exists');
+      throw new ConflictException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountExists`)
+      );
     }
 
     // If NOT ...
@@ -145,8 +150,7 @@ export class AuthService {
     );
 
     return {
-      message:
-        'Account created successfully. Please check your email for the verification code.',
+      message: this.i18n.t(`${this.i18nAuthNamespace}` + `accountCreated`),
     };
   }
 
@@ -155,8 +159,7 @@ export class AuthService {
     const account = await this.accountsRepository.findOneBy({ email });
 
     const result: APIResponse = {
-      message:
-        'A verification code has been sent to your email address. Please check your inbox.',
+      message: this.i18n.t(`${this.i18nAuthNamespace}` + `verificationSent`),
     };
 
     if (!account) {
@@ -168,7 +171,7 @@ export class AuthService {
 
     if (account.status !== AccountStatus.INACTIVATED) {
       throw new ForbiddenException(
-        'Cannot resend verification code for this account'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `cannotResendVerification`)
       );
     }
 
@@ -180,7 +183,7 @@ export class AuthService {
   async sendCompleteProfileSetupResponse(
     id: number,
     error: boolean = false,
-    message: string = 'Email verified successfully. Please complete your profile setup'
+    message: string = this.i18n.t(`${this.i18nAuthNamespace}` + `emailVerified`)
   ): Promise<APIResponse> {
     const setupToken = await this.tokenService.generateSetupToken({
       id,
@@ -211,31 +214,35 @@ export class AuthService {
       .getOne();
 
     if (!account)
-      throw new ForbiddenException('No account found with this email address');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `noAccountFound`)
+      );
 
     if (account.status === AccountStatus.ACTIVATED)
-      throw new ConflictException('An account with this email already exists');
+      throw new ConflictException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountExists`)
+      );
 
     if (account.status === AccountStatus.DEACTIVATED)
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountDeactivated`)
       );
 
     if (account.status === AccountStatus.SUSPENDED)
       throw new ForbiddenException(
-        'This account has been suspended. Please contact support'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountSuspended`)
       );
 
     if (account.status === AccountStatus.PENDING)
       await this.sendCompleteProfileSetupResponse(
         account.id,
         true,
-        'Please complete your profile setup'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `completeProfileSetup`)
       );
 
     if (!account.verificationCode || !account.verificationCodeExpiresAt)
       throw new ForbiddenException(
-        'No verification code found. Please request a new one'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `noVerificationCode`)
       );
 
     // otp = stored otp
@@ -246,13 +253,13 @@ export class AuthService {
 
     if (!isEqual)
       throw new ForbiddenException(
-        'Invalid verification code. Please check the code and try again'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `invalidVerificationCode`)
       );
 
     // Date comparison
     if (new Date() > account.verificationCodeExpiresAt)
       throw new ForbiddenException(
-        'Verification code has expired. Please request a new one'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `verificationCodeExpired`)
       );
 
     // Update the account
@@ -278,14 +285,19 @@ export class AuthService {
     const payload = ticket.getPayload();
     if (!payload) {
       this.logger.error('Invalid Google ID token Payload');
-      throw new UnauthorizedException('Invalid Google ID token Payload');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `invalidGoogleToken`)
+      );
     }
 
     if (!payload.email_verified)
-      throw new UnauthorizedException('Your google account is not verified');
-
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `googleAccountNotVerified`)
+      );
     if (!payload.email)
-      throw new UnauthorizedException('Email not provided by Google');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `emailNotProvided`)
+      );
 
     const account = await this.accountsRepository.findOneBy({
       email: payload.email,
@@ -297,7 +309,7 @@ export class AuthService {
 
       if (account.status === AccountStatus.SUSPENDED)
         throw new ForbiddenException(
-          'This account has been suspended. Please contact support'
+          this.i18n.t(`${this.i18nAuthNamespace}` + `accountSuspended`)
         );
 
       // login
@@ -312,7 +324,9 @@ export class AuthService {
 
         return {
           statusCode: HttpStatus.OK,
-          message: 'Logged in successfully',
+          message: this.i18n.t(
+            `${this.i18nAuthNamespace}` + `loggedInSuccessfully`
+          ),
           data: account,
           accessToken,
           refreshToken,
@@ -324,7 +338,7 @@ export class AuthService {
         await this.sendCompleteProfileSetupResponse(
           account.id,
           true,
-          'You are already registered. Please complete your profile setup'
+          this.i18n.t(`${this.i18nAuthNamespace}` + `alreadyRegistered`)
         );
 
       if (account.status === AccountStatus.INACTIVATED) {
@@ -341,8 +355,7 @@ export class AuthService {
 
         return {
           statusCode: HttpStatus.OK,
-          message:
-            'Email verified successfully. Please complete your profile setup',
+          message: this.i18n.t(`${this.i18nAuthNamespace}` + `emailVerified`),
           data: updatedAccount,
           accessToken,
           refreshToken,
@@ -364,7 +377,7 @@ export class AuthService {
     return await this.sendCompleteProfileSetupResponse(
       newAccount.id,
       false,
-      'Account created and verified successfully. Please complete your profile setup'
+      this.i18n.t(`${this.i18nAuthNamespace}` + `googleAccountCreated`)
     );
   }
 
@@ -374,7 +387,9 @@ export class AuthService {
     );
 
     throw new ForbiddenException({
-      message: 'Your account is deactivated',
+      message: this.i18n.t(
+        `${this.i18nAuthNamespace}` + `accountDeactivatedError`
+      ),
       error: 'AccountDeactivated',
       reactivationToken,
     });
@@ -383,14 +398,14 @@ export class AuthService {
   private async checkAccountActivation(status: AccountStatus, id: number) {
     if (status === AccountStatus.INACTIVATED)
       throw new ForbiddenException(
-        'Please verify your email address to activate your account'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `verifyEmailToActivate`)
       );
 
     if (status === AccountStatus.PENDING)
       await this.sendCompleteProfileSetupResponse(
         id,
         true,
-        'Please complete your profile setup before logging in'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `completeProfileBeforeLogin`)
       );
 
     if (status === AccountStatus.DEACTIVATED)
@@ -398,7 +413,7 @@ export class AuthService {
 
     if (status === AccountStatus.SUSPENDED)
       throw new ForbiddenException(
-        'This account has been suspended. Please contact support'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountSuspended`)
       );
   }
 
@@ -422,7 +437,9 @@ export class AuthService {
       this.logger.warn(
         `Invalid login credentials for: ${loginDto.emailOrUsername}`
       );
-      throw new UnauthorizedException('Invalid email/username or password');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `invalidCredentials`)
+      );
     }
 
     await this.checkAccountActivation(account.status, account.id);
@@ -469,14 +486,18 @@ export class AuthService {
       ]),
     });
     if (!account)
-      throw new UnauthorizedException('Refresh token is invalid or expired');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `refreshTokenInvalid`)
+      );
 
     // Find the token in the refresh token table by the token's session id
     const storedRefreshToken = await this.refreshTokenRepository.findOneBy({
       sessionId: verifiedToken.sessionId,
     });
     if (!storedRefreshToken || account.id !== storedRefreshToken.accountId)
-      throw new UnauthorizedException('Refresh token is invalid or expired');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `refreshTokenInvalid`)
+      );
 
     // Check if the token is revoked
     if (storedRefreshToken.revokedAt) {
@@ -488,20 +509,22 @@ export class AuthService {
       await this.logoutFromAllDevices(account.id);
 
       throw new UnauthorizedException(
-        'Suspicious activity detected. Please sign in again.'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `suspiciousActivity`)
       );
     }
 
     // Check account's status
     if (account.status === AccountStatus.DEACTIVATED) {
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support to reactivate'
+        this.i18n.t(
+          `${this.i18nAuthNamespace}` + `accountDeactivatedReactivate`
+        )
       );
     }
 
     if (account.status === AccountStatus.SUSPENDED) {
       throw new ForbiddenException(
-        'This account has been suspended. Please contact support'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountSuspended`)
       );
     }
 
@@ -549,7 +572,9 @@ export class AuthService {
     );
 
     return {
-      message: 'Logged out successfully',
+      message: this.i18n.t(
+        `${this.i18nAuthNamespace}` + `loggedOutSuccessfully`
+      ),
     };
   }
 
@@ -562,10 +587,14 @@ export class AuthService {
 
     // Compare the given old password with the account actual password
     if (!password)
-      throw new ForbiddenException('No password set for this account');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `noPasswordSet`)
+      );
 
     if (!(await compareHash(changePasswordDto.oldPassword, password)))
-      throw new UnauthorizedException('Provided password is incorrect');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `incorrectPassword`)
+      );
 
     // Update the account with the new password
     const hashedPassword = await hashCode(changePasswordDto.password);
@@ -589,7 +618,7 @@ export class AuthService {
     );
 
     const result: APIResponse = {
-      message: 'Password changed successfully. Please login again',
+      message: this.i18n.t(`${this.i18nAuthNamespace}` + `passwordChanged`),
     };
 
     return result;
@@ -602,8 +631,9 @@ export class AuthService {
     });
 
     const result: APIResponse = {
-      message:
-        'A password reset code has been sent to your email address. Please check your inbox.',
+      message: this.i18n.t(
+        `${this.i18nAuthNamespace}` + `passwordResetCodeSent`
+      ),
     };
 
     if (!account) {
@@ -617,22 +647,24 @@ export class AuthService {
       await this.sendCompleteProfileSetupResponse(
         account.id,
         true,
-        'Please complete your profile setup'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `completeProfileSetup`)
       );
 
     if (account.status === AccountStatus.INACTIVATED)
       throw new ForbiddenException(
-        'Please verify your email address to activate your account'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `verifyEmailToActivate`)
       );
 
     if (account.status === AccountStatus.DEACTIVATED)
       throw new ForbiddenException(
-        'This account has been deactivated. Please contact support to reactivate'
+        this.i18n.t(
+          `${this.i18nAuthNamespace}` + `accountDeactivatedReactivate`
+        )
       );
 
     if (account.status === AccountStatus.SUSPENDED)
       throw new ForbiddenException(
-        'This account has been suspended. Please contact support'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountSuspended`)
       );
 
     const otp = this.generateOTP();
@@ -667,14 +699,18 @@ export class AuthService {
       select: ['id', 'passwordResetCode', 'passwordResetCodeExpiresAt'],
     });
     if (!account)
-      throw new ForbiddenException('No account found with this email address');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `noAccountFound`)
+      );
 
     if (
       !account.passwordResetCode ||
       !account.passwordResetCodeExpiresAt ||
       new Date() > account.passwordResetCodeExpiresAt
     )
-      throw new ForbiddenException('Invalid or expired password reset code.');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `invalidPasswordResetCode`)
+      );
 
     const isEqual = await compareHash(
       verifyOtpDto.verificationCode,
@@ -684,7 +720,9 @@ export class AuthService {
       this.logger.warn(
         `Password reset code mismatch for email: ${verifyOtpDto.email}`
       );
-      throw new ForbiddenException('Invalid or expired password reset code.');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `invalidPasswordResetCode`)
+      );
     }
 
     await this.accountsRepository.update(
@@ -713,7 +751,7 @@ export class AuthService {
     });
     if (!accountExist)
       throw new ForbiddenException(
-        'Password reset token is invalid or expired'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `passwordResetTokenInvalid`)
       );
 
     // Update the account with the new password
@@ -739,7 +777,9 @@ export class AuthService {
     );
 
     const result: APIResponse = {
-      message: 'Password reset successfully. Please login again',
+      message: this.i18n.t(
+        `${this.i18nAuthNamespace}` + `passwordResetSuccess`
+      ),
     };
 
     return result;
@@ -753,12 +793,14 @@ export class AuthService {
       id: verifiedToken.id,
     });
     if (!account) {
-      throw new NotFoundException('Account not found');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountNotFound`)
+      );
     }
 
     if (account.status !== AccountStatus.DEACTIVATED) {
       throw new BadRequestException(
-        'This account is not deactivated and cannot be reactivated'
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountNotDeactivated`)
       );
     }
 
@@ -774,7 +816,7 @@ export class AuthService {
     });
 
     const result: APIResponse = {
-      message: 'Account reactivated successfully',
+      message: this.i18n.t(`${this.i18nAuthNamespace}` + `accountReactivated`),
       data: account,
       accessToken,
       refreshToken,
@@ -784,7 +826,7 @@ export class AuthService {
   }
 
   async completeSetup(
-    completeSetupDto: CompleteSetupDtp
+    completeSetupDto: CompleteSetupDto
   ): Promise<APIResponse> {
     const verifiedSetupToken = await this.tokenService.verifySetupToken(
       completeSetupDto.setupToken
@@ -793,11 +835,16 @@ export class AuthService {
     const { id } = verifiedSetupToken;
 
     const account = await this.accountsRepository.findOneBy({ id });
-    if (!account) throw new NotFoundException('Account not found');
+    if (!account)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nAuthNamespace}` + `accountNotFound`)
+      );
 
     if (account.status !== AccountStatus.PENDING)
       throw new BadRequestException(
-        'Profile setup has already been completed or account is not eligible for setup'
+        this.i18n.t(
+          `${this.i18nAuthNamespace}` + `profileSetupAlreadyCompleted`
+        )
       );
 
     const { confirmPassword, setupToken, ...updateObject } = completeSetupDto;
@@ -823,7 +870,9 @@ export class AuthService {
 
     this.searchService.createAccountDocument(updatedAccount!);
     return {
-      message: `Profile setup completed successfully`,
+      message: this.i18n.t(
+        `${this.i18nAuthNamespace}` + `profileSetupCompleted`
+      ),
       data: updatedAccount!,
       accessToken,
       refreshToken,

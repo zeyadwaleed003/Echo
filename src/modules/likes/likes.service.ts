@@ -9,11 +9,15 @@ import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { RelationshipType } from '../accounts/accounts.enums';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class LikesService {
+  private readonly i18nNamespace = 'messages.likes';
+
   constructor(
     private readonly relationshipHelper: RelationshipHelper,
+    private readonly i18n: I18nService,
     @InjectRepository(Like)
     private readonly likeRepository: Repository<Like>,
     @InjectRepository(Account)
@@ -35,7 +39,9 @@ export class LikesService {
       postId,
     });
     if (isLiked)
-      throw new BadRequestException('You have already liked this post');
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyLiked`)
+      );
 
     const like = this.likeRepository.create({
       accountId: account.id,
@@ -44,7 +50,7 @@ export class LikesService {
     await this.likeRepository.save(like);
 
     return {
-      message: 'You have successfully liked this post',
+      message: this.i18n.t(`${this.i18nNamespace}.likedSuccessfully`),
       data: like,
     };
   }
@@ -107,10 +113,12 @@ export class LikesService {
       postId,
     });
     if (!result.affected)
-      throw new BadRequestException('You have not liked this post');
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.notLiked`)
+      );
 
     return {
-      message: 'Like deleted successfully',
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
     };
   }
 

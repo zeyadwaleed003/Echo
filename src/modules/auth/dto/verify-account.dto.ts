@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class VerifyOtpDto {
   @ApiProperty({
@@ -14,17 +15,38 @@ export class VerifyOtpDto {
     minLength: 6,
     maxLength: 6,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(6)
-  @MaxLength(6)
+  @IsString({
+    message: i18nValidationMessage('validation.auth.verificationCode.isString'),
+  })
+  @IsNotEmpty({
+    message: i18nValidationMessage(
+      'validation.auth.verificationCode.isNotEmpty'
+    ),
+  })
+  @MinLength(6, {
+    message: i18nValidationMessage(
+      'validation.auth.verificationCode.minLength'
+    ),
+  })
+  @MaxLength(6, {
+    message: i18nValidationMessage(
+      'validation.auth.verificationCode.maxLength'
+    ),
+  })
   verificationCode!: string;
 
   @ApiProperty({
     description: 'Email address of the user',
     example: 'user@example.com',
   })
-  @IsEmail()
-  @IsNotEmpty()
+  @IsEmail(
+    {},
+    {
+      message: i18nValidationMessage('validation.auth.email.isEmail'),
+    }
+  )
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.auth.email.isNotEmpty'),
+  })
   email!: string;
 }

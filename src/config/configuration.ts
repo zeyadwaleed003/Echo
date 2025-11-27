@@ -11,6 +11,27 @@ const jwtExpiresInSchema = z
       'Must be in format: number followed by s (seconds), m (minutes), h (hours), or d (days). Example: 15m, 7d, 1h',
   });
 
+const urlListSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (val) =>
+      val
+        .split(',')
+        .map((url) => url.trim())
+        .every((url) => {
+          try {
+            new URL(url);
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+    {
+      message: 'ALLOWED_ORIGINS must be a comma-separated list of valid URLs',
+    }
+  );
+
 const validatedEnv = z
   .object({
     PORT: z.coerce.number().int().min(0).max(65535).default(3000),
@@ -58,6 +79,8 @@ const validatedEnv = z
     GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
 
     ELASTICSEARCH_NODE: z.string().min(1),
+
+    ALLOWED_ORIGINS: urlListSchema,
   })
   .parse(process.env);
 

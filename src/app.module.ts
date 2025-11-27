@@ -14,11 +14,12 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AiModule } from './modules/ai/ai.module';
 import { SearchModule } from './modules/search/search.module';
 import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -39,6 +40,14 @@ import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
       ],
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 60,
+        },
+      ],
+    }),
     HealthModule,
     AccountsModule,
     AuthModule,
@@ -56,6 +65,10 @@ import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

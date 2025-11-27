@@ -30,6 +30,7 @@ import {
 } from '@nestjs/swagger';
 import { ReactivationTokenDto } from './dto/reactivation-token.dto';
 import { CompleteSetupDto } from './dto/complete-setup.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -47,6 +48,7 @@ export class AuthController {
       'Account created successfully. Please check your email for the verification code.',
   })
   @ApiBody({ type: SignupDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @Post('signup')
   async signup(@Body() signupDto: SignupDto) {
     return await this.authService.signup(signupDto);
@@ -62,6 +64,7 @@ export class AuthController {
       'Email verified successfully. Please complete your profile setup.',
   })
   @ApiBody({ type: VerifyOtpDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @Post('verify-account')
   @HttpCode(HttpStatus.OK)
   async verifyAccount(
@@ -78,6 +81,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: GoogleAuthDto })
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 attempts per minute
   @Post('google')
   async googleAuth(@Body() googleAuthDto: GoogleAuthDto, @Res() res: Response) {
     const result = await this.authService.googleAuth(googleAuthDto);
@@ -94,6 +98,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: LoginDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -113,6 +118,7 @@ export class AuthController {
       'Refreshes the access token using the refresh token from cookies.',
   })
   @ApiResponse({ status: 200 })
+  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 attempts per minute
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(
@@ -138,6 +144,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 204 })
   @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @UseGuards(AuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -157,6 +164,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: ChangePasswordDto })
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   @UseGuards(AuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
@@ -180,6 +188,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: ForgotPasswordDto })
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 attempts per 5 minutes
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
@@ -192,6 +201,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: VerifyOtpDto })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('verify-reset-password')
   @HttpCode(HttpStatus.OK)
   async verifyPasswordResetToken(@Body() verifyOtpDto: VerifyOtpDto) {
@@ -204,6 +214,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200 })
   @ApiBody({ type: ResetPasswordDto })
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(
@@ -224,6 +235,7 @@ export class AuthController {
     status: 200,
   })
   @ApiBody({ type: ResendVerificationDto })
+  @Throttle({ default: { limit: 3, ttl: 300000 } }) // 3 per 5 minutes
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
   async resendVerificationEmail(
@@ -240,6 +252,7 @@ export class AuthController {
       'Reactivates a deactivated account using the reactivation token and logs the user in.',
   })
   @ApiResponse({ status: 200 })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('reactivate')
   @HttpCode(HttpStatus.OK)
   async reactivateAndLogin(
@@ -255,6 +268,7 @@ export class AuthController {
     return response;
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('complete-setup')
   @HttpCode(HttpStatus.OK)
   async completeProfileSetup(

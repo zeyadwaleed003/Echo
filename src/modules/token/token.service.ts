@@ -8,12 +8,16 @@ import { RefreshTokenPayload } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { parseExpiresInMs } from 'src/common/utils/functions';
 import { Account } from '../accounts/entities/account.entity';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class TokenService {
+  private readonly i18nNamespace = 'messages.token';
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly i18n: I18nService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>
   ) {}
@@ -86,7 +90,9 @@ export class TokenService {
         secret: this.configService.get<string>('SETUP_TOKEN_SECRET'),
       } as JwtVerifyOptions);
     } catch {
-      throw new UnauthorizedException('Setup token is invalid or expired');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nNamespace}.setupTokenInvalid`)
+      );
     }
   }
 
@@ -97,7 +103,7 @@ export class TokenService {
       } as JwtVerifyOptions);
     } catch {
       throw new UnauthorizedException(
-        'Reactivation token is invalid or expired'
+        this.i18n.t(`${this.i18nNamespace}.reactivationTokenInvalid`)
       );
     }
   }
@@ -108,7 +114,9 @@ export class TokenService {
         secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
       } as JwtVerifyOptions);
     } catch {
-      throw new UnauthorizedException('Access token is invalid or expired');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nNamespace}.accessTokenInvalid`)
+      );
     }
   }
 
@@ -118,7 +126,9 @@ export class TokenService {
         secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
       } as JwtVerifyOptions);
     } catch {
-      throw new UnauthorizedException('Refresh token is invalid or expired');
+      throw new UnauthorizedException(
+        this.i18n.t(`${this.i18nNamespace}.refreshTokenInvalid`)
+      );
     }
   }
 
@@ -129,7 +139,7 @@ export class TokenService {
       } as JwtVerifyOptions);
     } catch {
       throw new UnauthorizedException(
-        'Password Reset token is invalid or expired'
+        this.i18n.t(`${this.i18nNamespace}.passwordResetTokenInvalid`)
       );
     }
   }

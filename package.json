@@ -43,6 +43,7 @@
     "google-auth-library": "^10.4.1",
     "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
+    "nestjs-i18n": "^10.5.1",
     "nodemailer": "^7.0.9",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",

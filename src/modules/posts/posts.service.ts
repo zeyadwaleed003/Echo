@@ -27,12 +27,16 @@ import { CreateRepostDto } from './dto/create-repost.dto';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { SearchService } from '../search/search.service';
 import { GroupedPostFile } from './posts.types';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class PostsService {
+  private readonly i18nNamespace = 'messages.posts';
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly i18n: I18nService,
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(PostFiles)
@@ -87,7 +91,7 @@ export class PostsService {
   ) {
     if (content === '' && (!files || files.length === 0)) {
       throw new BadRequestException(
-        'Post must contain either text content or at least one file'
+        this.i18n.t(`${this.i18nNamespace}.postMustContainContent`)
       );
     }
   }
@@ -106,7 +110,7 @@ export class PostsService {
       !actionPostId
     ) {
       throw new NotFoundException(
-        'Original post ID is required for replies and reposts'
+        this.i18n.t(`${this.i18nNamespace}.originalPostRequired`)
       );
     }
     if (actionPostId) {
@@ -125,9 +129,10 @@ export class PostsService {
       (await this.aiService.classifyContent(content || '', files)) ===
       ContentClassification.DANGEROUS
     )
-      // Post moderation system ... check if the content or the files contains anything harmful
       throw new ForbiddenException(
-        `Your ${type} contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.`
+        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
+          args: { type },
+        })
       );
 
     const [post, postFiles] = await this.dataSource.transaction(
@@ -153,7 +158,9 @@ export class PostsService {
     this.searchService.createPostDocument(post);
 
     return {
-      message: `${type} created successfully`,
+      message: this.i18n.t(`${this.i18nNamespace}.createdSuccessfully`, {
+        args: { type },
+      }),
       data: { ...post, postFiles },
     };
   }
@@ -170,8 +177,6 @@ export class PostsService {
       .limitFields()
       .paginate()
       .exec();
-
-    // if (q.fields && !containFiles) return { data: posts };
 
     const postsIds = posts.map((post) => post.id);
 
@@ -224,14 +229,20 @@ export class PostsService {
 
   async findOne(id: number, account?: Account) {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     const [author, files] = await Promise.all([
       this.accountsRepository.findOneBy({ id: post.accountId }),
       this.postFilesRepository.findBy({ postId: post.id }),
     ]);
 
-    if (!author) throw new NotFoundException('Post author not found');
+    if (!author)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.authorNotFound`)
+      );
 
     if (account) {
       await this.relationshipHelper.checkRelationship(account, author, 'view');
@@ -244,7 +255,7 @@ export class PostsService {
 
     if (!account)
       throw new UnauthorizedException(
-        'This post is from a private account. Please log in to view it.'
+        this.i18n.t(`${this.i18nNamespace}.privateAccountLogin`)
       );
 
     const res: APIResponse = {
@@ -261,11 +272,14 @@ export class PostsService {
     files?: Express.Multer.File[]
   ): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        'You do not have permission to update this post'
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToUpdate`)
       );
 
     if (
@@ -275,7 +289,9 @@ export class PostsService {
       )) === ContentClassification.DANGEROUS
     )
       throw new ForbiddenException(
-        'Your post contains content that violates our community guidelines and cannot be published. Please review our content policy and try again with appropriate content.'
+        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
+          args: { type: 'post' },
+        })
       );
 
     const [updatedPost, postFiles] = await this.dataSource.transaction(
@@ -308,7 +324,7 @@ export class PostsService {
             filesToDelete.length !== deleteFileIds.length
           )
             throw new ForbiddenException(
-              'Some files do not belong to this post'
+              this.i18n.t(`${this.i18nNamespace}.filesNotBelongToPost`, {})
             );
 
           await this.cloudinaryService.deleteMultipleFiles(
@@ -321,7 +337,9 @@ export class PostsService {
         // handle file uploads
         if (files?.length) {
           if (files.length + remainingFilesCount > 4)
-            throw new ForbiddenException('Maximum of 4 files allowed per post');
+            throw new ForbiddenException(
+              this.i18n.t(`${this.i18nNamespace}.maxFilesExceeded`, {})
+            );
 
           await this.uploadFiles(manager, files, post.id);
         }
@@ -340,7 +358,7 @@ export class PostsService {
 
     this.searchService.updatePostDocument(post);
     return {
-      message: 'Post updated successfully',
+      message: this.i18n.t(`${this.i18nNamespace}.updatedSuccessfully`, {}),
       data: {
         ...updatedPost,
         ...(postFiles.length > 0 && { files: postFiles }),
@@ -352,14 +370,16 @@ export class PostsService {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
-        `No post, repost, or reply found with this id`
+        this.i18n.t(`${this.i18nNamespace}.notFoundGeneric`)
       );
 
     const type = post.type;
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        `You do not have permission to delete this ${type}`
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToDelete`, {
+          args: { type },
+        })
       );
 
     await this.dataSource.transaction(async (manager) => {
@@ -380,7 +400,9 @@ export class PostsService {
 
     this.searchService.deletePostDocument(id);
     return {
-      message: `${type} deleted successfully`,
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`, {
+        args: { type },
+      }),
     };
   }
 
@@ -389,7 +411,9 @@ export class PostsService {
       where: { id: accountId },
     });
     if (!targetAccount)
-      throw new NotFoundException('No account found with this id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
     if (account?.id === accountId) {
       const queryString = { ...q, accountId };
@@ -401,7 +425,7 @@ export class PostsService {
       // user not logged in
       if (!account)
         throw new UnauthorizedException(
-          'This account is private. Please log in to view their posts.'
+          this.i18n.t(`${this.i18nNamespace}.privateAccountLoginPosts`)
         );
 
       // user logged in, find the relation
@@ -414,7 +438,9 @@ export class PostsService {
       // user does not follow them
       if (relation !== RelationshipType.FOLLOW)
         throw new ForbiddenException(
-          `This account is private. Follow @${targetAccount.username} to view their posts.`
+          this.i18n.t(`${this.i18nNamespace}.privateAccountFollow`, {
+            args: { username: targetAccount.username },
+          })
         );
     }
     const queryString = { ...q, accountId };
@@ -424,15 +450,20 @@ export class PostsService {
 
   async pinPost(account: Account, id: number) {
     const post = await this.postRepository.findOne({ where: { id } });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     if (post.accountId !== account.id)
       throw new ForbiddenException(
-        'You do not have permission to pin this post'
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToPin`)
       );
 
     if (post.pinned)
-      throw new ForbiddenException('This post is already pinned');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyPinned`)
+      );
 
     return await this.dataSource.transaction(async (manager) => {
       const postRepository = manager.getRepository(Post);
@@ -445,7 +476,7 @@ export class PostsService {
       await postRepository.update({ id }, { pinned: true });
 
       const res: APIResponse = {
-        message: 'Post pinned successfully',
+        message: this.i18n.t(`${this.i18nNamespace}.pinnedSuccessfully`),
       };
       return res;
     });
@@ -576,7 +607,10 @@ export class PostsService {
 
   async getPostBookmarks(id: number) {
     const postExists = await this.postRepository.existsBy({ id });
-    if (!postExists) throw new NotFoundException('No post found with this id');
+    if (!postExists)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     const bookmarksNumber = await this.bookmarkRepository.count({
       where: { postId: id },

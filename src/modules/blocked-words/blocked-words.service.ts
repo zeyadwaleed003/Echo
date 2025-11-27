@@ -5,10 +5,14 @@ import { Repository, DataSource } from 'typeorm';
 import { WordRelationships } from './entities/word-relationship.entity';
 import { APIResponse, QueryString } from 'src/common/types/api.types';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class BlockedWordsService {
+  private readonly i18nNamespace = 'messages.blockedWords';
+
   constructor(
+    private readonly i18n: I18nService,
     @InjectRepository(BlockedWord)
     private readonly blockedWordRepository: Repository<BlockedWord>,
     @InjectRepository(WordRelationships)
@@ -60,7 +64,9 @@ export class BlockedWordsService {
     }
 
     return {
-      message: `${word} has been blocked successfully`,
+      message: this.i18n.t(`${this.i18nNamespace}.blockedSuccessfully`, {
+        args: { word },
+      }),
       data: blockedWord,
     };
   }
@@ -73,12 +79,17 @@ export class BlockedWordsService {
       where: { blockedWordId, accountId },
       relations: ['blockedWord'],
     });
-    if (!relationship) throw new NotFoundException('This word is not blocked');
+    if (!relationship)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notBlocked`)
+      );
 
     await this.wordRelationshipsRepository.remove(relationship);
 
     return {
-      message: `${relationship.blockedWord.text} has been unblocked successfully`,
+      message: this.i18n.t(`${this.i18nNamespace}.unblockedSuccessfully`, {
+        args: { word: relationship.blockedWord.text },
+      }),
     };
   }
 

@@ -29,7 +29,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ReactivationTokenDto } from './dto/reactivation-token.dto';
-import { CompleteSetupDtp } from './dto/complete-setup.dto';
+import { CompleteSetupDto } from './dto/complete-setup.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -258,10 +258,10 @@ export class AuthController {
   @Post('complete-setup')
   @HttpCode(HttpStatus.OK)
   async completeProfileSetup(
-    @Body() completeSetupDtp: CompleteSetupDtp,
+    @Body() completeSetupDto: CompleteSetupDto,
     @Res({ passthrough: true }) res: Response
   ) {
-    const result = await this.authService.completeSetup(completeSetupDtp);
+    const result = await this.authService.completeSetup(completeSetupDto);
     const { refreshToken, ...response } = result;
 
     this.authService.sendCookie(res, 'refreshToken', refreshToken!);

@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class SignupDto {
   @ApiProperty({
@@ -14,17 +15,32 @@ export class SignupDto {
     minLength: 2,
     maxLength: 50,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(2)
-  @MaxLength(50)
+  @IsString({
+    message: i18nValidationMessage('validation.auth.name.isString'),
+  })
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.auth.name.isNotEmpty'),
+  })
+  @MinLength(2, {
+    message: i18nValidationMessage('validation.auth.name.minLength'),
+  })
+  @MaxLength(50, {
+    message: i18nValidationMessage('validation.auth.name.maxLength'),
+  })
   name!: string;
 
   @ApiProperty({
     description: 'Email address of the user',
     example: 'john.doe@example.com',
   })
-  @IsEmail()
-  @IsNotEmpty()
+  @IsEmail(
+    {},
+    {
+      message: i18nValidationMessage('validation.auth.email.isEmail'),
+    }
+  )
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.auth.email.isNotEmpty'),
+  })
   email!: string;
 }

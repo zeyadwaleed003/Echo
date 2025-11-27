@@ -37,7 +37,7 @@ import { RevocationReason } from './auth.enums';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { CompleteSetupDtp } from './dto/complete-setup.dto';
+import { CompleteSetupDto } from './dto/complete-setup.dto';
 import { SearchService } from '../search/search.service';
 import { I18nService } from 'nestjs-i18n';
 
@@ -826,7 +826,7 @@ export class AuthService {
   }
 
   async completeSetup(
-    completeSetupDto: CompleteSetupDtp
+    completeSetupDto: CompleteSetupDto
   ): Promise<APIResponse> {
     const verifiedSetupToken = await this.tokenService.verifySetupToken(
       completeSetupDto.setupToken

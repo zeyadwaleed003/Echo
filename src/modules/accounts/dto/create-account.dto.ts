@@ -19,6 +19,7 @@ import {
 } from '../accounts.enums';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreateAccountDto {
   @ApiProperty({
@@ -26,8 +27,12 @@ export class CreateAccountDto {
     maxLength: 100,
     example: 'John Doe',
   })
-  @IsString()
-  @Length(1, 100)
+  @IsString({
+    message: i18nValidationMessage('validation.account.name.isString'),
+  })
+  @Length(1, 100, {
+    message: i18nValidationMessage('validation.account.name.length'),
+  })
   name!: string;
 
   @ApiProperty({
@@ -35,9 +40,17 @@ export class CreateAccountDto {
     maxLength: 50,
     example: 'johndoe123',
   })
-  @IsString()
-  @Length(3, 50)
-  @IsAlphanumeric()
+  @IsString({
+    message: i18nValidationMessage('validation.account.username.isString'),
+  })
+  @Length(3, 50, {
+    message: i18nValidationMessage('validation.account.username.length'),
+  })
+  @IsAlphanumeric(undefined, {
+    message: i18nValidationMessage(
+      'validation.account.username.isAlphanumeric'
+    ),
+  })
   username!: string;
 
   @ApiProperty({
@@ -45,8 +58,13 @@ export class CreateAccountDto {
     maxLength: 255,
     example: 'john.doe@example.com',
   })
-  @IsEmail()
-  @Length(1, 255)
+  @IsEmail(
+    {},
+    { message: i18nValidationMessage('validation.account.email.isEmail') }
+  )
+  @Length(1, 255, {
+    message: i18nValidationMessage('validation.account.email.length'),
+  })
   email!: string;
 
   @ApiPropertyOptional({
@@ -55,9 +73,13 @@ export class CreateAccountDto {
     maxLength: 255,
     example: 'SecurePass123!',
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage('validation.account.password.isString'),
+  })
   @IsOptional()
-  @Length(8, 255)
+  @Length(8, 255, {
+    message: i18nValidationMessage('validation.account.password.length'),
+  })
   password!: string;
 
   @ApiPropertyOptional({
@@ -65,9 +87,13 @@ export class CreateAccountDto {
     maxLength: 160,
     example: 'Software developer passionate about technology',
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage('validation.account.bio.isString'),
+  })
   @IsOptional()
-  @MaxLength(160)
+  @MaxLength(160, {
+    message: i18nValidationMessage('validation.account.bio.maxLength'),
+  })
   bio!: string;
 
   @ApiPropertyOptional({
@@ -75,9 +101,13 @@ export class CreateAccountDto {
     maxLength: 30,
     example: 'New York, USA',
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage('validation.account.location.isString'),
+  })
   @IsOptional()
-  @Length(1, 30)
+  @Length(1, 30, {
+    message: i18nValidationMessage('validation.account.location.length'),
+  })
   location!: string;
 
   @ApiPropertyOptional({
@@ -86,15 +116,25 @@ export class CreateAccountDto {
     example: '+1234567890',
   })
   @IsOptional()
-  @IsMobilePhone()
-  @Length(1, 25)
+  @IsMobilePhone(
+    undefined,
+    {},
+    { message: i18nValidationMessage('validation.account.phone.isMobilePhone') }
+  )
+  @Length(1, 25, {
+    message: i18nValidationMessage('validation.account.phone.length'),
+  })
   phone!: string;
 
   @ApiPropertyOptional({
     description: 'Enable notifications',
     example: true,
   })
-  @IsBoolean()
+  @IsBoolean({
+    message: i18nValidationMessage(
+      'validation.account.getNotifications.isBoolean'
+    ),
+  })
   @IsOptional()
   getNotifications!: boolean;
 
@@ -102,7 +142,9 @@ export class CreateAccountDto {
     description: 'Account verification status',
     example: false,
   })
-  @IsBoolean()
+  @IsBoolean({
+    message: i18nValidationMessage('validation.account.isVerified.isBoolean'),
+  })
   @IsOptional()
   isVerified!: boolean;
 
@@ -111,7 +153,9 @@ export class CreateAccountDto {
     type: Date,
     example: '2024-01-01T00:00:00.000Z',
   })
-  @IsDate()
+  @IsDate({
+    message: i18nValidationMessage('validation.account.verifiedAt.isDate'),
+  })
   @IsOptional()
   @Type(() => Date)
   verifiedAt!: Date;
@@ -122,7 +166,9 @@ export class CreateAccountDto {
     example: '1990-01-01T00:00:00.000Z',
   })
   @IsOptional()
-  @IsDate()
+  @IsDate({
+    message: i18nValidationMessage('validation.account.birthDate.isDate'),
+  })
   @Type(() => Date)
   birthDate!: Date;
 
@@ -131,9 +177,13 @@ export class CreateAccountDto {
     maxLength: 50,
     example: 'en-US',
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage('validation.account.appLanguage.isString'),
+  })
   @IsOptional()
-  @MaxLength(50)
+  @MaxLength(50, {
+    message: i18nValidationMessage('validation.account.appLanguage.maxLength'),
+  })
   appLanguage!: string;
 
   @ApiPropertyOptional({
@@ -141,9 +191,17 @@ export class CreateAccountDto {
     maxLength: 50,
     example: 'United States',
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage(
+      'validation.account.currentCountry.isString'
+    ),
+  })
   @IsOptional()
-  @MaxLength(50)
+  @MaxLength(50, {
+    message: i18nValidationMessage(
+      'validation.account.currentCountry.maxLength'
+    ),
+  })
   currentCountry!: string;
 
   @ApiPropertyOptional({
@@ -151,7 +209,9 @@ export class CreateAccountDto {
     enum: Gender,
     example: Gender.MALE,
   })
-  @IsEnum(Gender)
+  @IsEnum(Gender, {
+    message: i18nValidationMessage('validation.account.gender.isEnum'),
+  })
   @IsOptional()
   gender!: Gender;
 
@@ -159,7 +219,9 @@ export class CreateAccountDto {
     description: 'Private account setting',
     example: false,
   })
-  @IsBoolean()
+  @IsBoolean({
+    message: i18nValidationMessage('validation.account.isPrivate.isBoolean'),
+  })
   @IsOptional()
   isPrivate!: boolean;
 
@@ -168,7 +230,9 @@ export class CreateAccountDto {
     enum: AccountStatus,
     example: AccountStatus.ACTIVATED,
   })
-  @IsEnum(AccountStatus)
+  @IsEnum(AccountStatus, {
+    message: i18nValidationMessage('validation.account.status.isEnum'),
+  })
   @IsOptional()
   status!: AccountStatus;
 
@@ -176,7 +240,9 @@ export class CreateAccountDto {
     description: 'Allow tagging in posts',
     example: true,
   })
-  @IsBoolean()
+  @IsBoolean({
+    message: i18nValidationMessage('validation.account.taggable.isBoolean'),
+  })
   @IsOptional()
   taggable!: boolean;
 
@@ -184,7 +250,11 @@ export class CreateAccountDto {
     description: 'Display sensitive content setting',
     example: false,
   })
-  @IsBoolean()
+  @IsBoolean({
+    message: i18nValidationMessage(
+      'validation.account.displaySensitiveContent.isBoolean'
+    ),
+  })
   @IsOptional()
   displaySensitiveContent!: boolean;
 
@@ -193,7 +263,9 @@ export class CreateAccountDto {
     enum: DirectMessagingStatus,
     example: DirectMessagingStatus.EVERYONE,
   })
-  @IsEnum(DirectMessagingStatus)
+  @IsEnum(DirectMessagingStatus, {
+    message: i18nValidationMessage('validation.account.directMessaging.isEnum'),
+  })
   @IsOptional()
   directMessaging!: DirectMessagingStatus;
 
@@ -201,7 +273,12 @@ export class CreateAccountDto {
     description: 'Profile picture URL',
     example: 'https://example.com/profile.jpg',
   })
-  @IsUrl()
+  @IsUrl(
+    {},
+    {
+      message: i18nValidationMessage('validation.account.profilePicture.isUrl'),
+    }
+  )
   @IsOptional()
   profilePicture!: string;
 
@@ -209,7 +286,10 @@ export class CreateAccountDto {
     description: 'Header image URL',
     example: 'https://example.com/header.jpg',
   })
-  @IsUrl()
+  @IsUrl(
+    {},
+    { message: i18nValidationMessage('validation.account.header.isUrl') }
+  )
   @IsOptional()
   header!: string;
 
@@ -218,7 +298,9 @@ export class CreateAccountDto {
     enum: Role,
     example: Role.USER,
   })
-  @IsEnum(Role)
+  @IsEnum(Role, {
+    message: i18nValidationMessage('validation.account.role.isEnum'),
+  })
   @IsOptional()
   role!: Role;
 }

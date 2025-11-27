@@ -1,5 +1,6 @@
 import { IsNotEmpty, IsString, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreateBlockedWordDto {
   @ApiProperty({
@@ -8,8 +9,14 @@ export class CreateBlockedWordDto {
     minLength: 3,
     maxLength: 100,
   })
-  @IsString()
-  @IsNotEmpty()
-  @Length(3, 100, { message: 'word must be between 3 and 100 characters' })
+  @IsString({
+    message: i18nValidationMessage('validation.blockedWord.word.isString'),
+  })
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.blockedWord.word.isNotEmpty'),
+  })
+  @Length(3, 100, {
+    message: i18nValidationMessage('validation.blockedWord.word.length'),
+  })
   word!: string;
 }

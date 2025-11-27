@@ -2,6 +2,7 @@ import { PartialType } from '@nestjs/mapped-types';
 import { CreatePostDto } from './create-post.dto';
 import { ArrayMaxSize, IsArray, IsInt, IsOptional } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 function parseJsonArray(value: any) {
   if (!value) return undefined;
@@ -22,8 +23,17 @@ function parseJsonArray(value: any) {
 export class UpdatePostDto extends PartialType(CreatePostDto) {
   @IsOptional()
   @Transform(({ value }) => parseJsonArray(value))
-  @IsArray()
-  @IsInt({ each: true })
-  @ArrayMaxSize(4)
+  @IsArray({
+    message: i18nValidationMessage('validation.post.deleteFileIds.isArray'),
+  })
+  @IsInt({
+    each: true,
+    message: i18nValidationMessage('validation.post.deleteFileIds.isInt'),
+  })
+  @ArrayMaxSize(4, {
+    message: i18nValidationMessage(
+      'validation.post.deleteFileIds.arrayMaxSize'
+    ),
+  })
   deleteFileIds?: number[];
 }

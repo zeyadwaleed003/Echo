@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
+import compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -61,6 +62,8 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Decrease the size of the response body
+  app.use(compression());
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

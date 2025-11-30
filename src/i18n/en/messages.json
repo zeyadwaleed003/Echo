@@ -133,6 +133,11 @@
     "passwordResetFailed": "Failed to send password reset email"
   },
   "notifications": {
-    "notificationCreated": "Notification created successfully"
+    "notificationCreated": "Notification created successfully",
+    "notificationNotFound": "No notification found with this id",
+    "notificationAccessDenied": "You don't have permission to access this notification",
+    "notificationAlreadyRead": "This notification is already marked as read",
+    "notificationMarkedAsRead": "Notification marked as read",
+    "allNotificationsMarkedAsRead": "All notifications marked as read"
   }
 }

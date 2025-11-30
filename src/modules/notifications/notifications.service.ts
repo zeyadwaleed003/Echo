@@ -1,5 +1,11 @@
 import { FindManyOptions, Repository } from 'typeorm';
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Notification } from './entities/notification.entity';
 import { APIResponse, QueryString } from 'src/common/types/api.types';
@@ -20,8 +26,8 @@ export class NotificationsService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
 
-  private invalidateUnreadCountCache(accountId: number) {
-    this.cacheManager.del(`${this.UNREAD_COUNT_PREFIX}:${accountId}`);
+  private async invalidateUnreadCountCache(accountId: number) {
+    await this.cacheManager.del(`${this.UNREAD_COUNT_PREFIX}:${accountId}`);
   }
 
   async create(n: Partial<Notification>): Promise<APIResponse> {
@@ -89,6 +95,53 @@ export class NotificationsService {
 
     return {
       unreadNotificationsNumber: unreadNotificationsNumber,
+    };
+  }
+
+  async markAsRead(accountId: number, notificationId: number) {
+    const notification = await this.notificationsRepository.findOneBy({
+      id: notificationId,
+    });
+
+    if (!notification)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}notificationNotFound`)
+      );
+
+    if (notification.accountId !== accountId) {
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}notificationAccessDenied`)
+      );
+    }
+
+    if (notification.isRead) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}notificationAlreadyRead`)
+      );
+    }
+
+    notification.isRead = true;
+    await this.notificationsRepository.save(notification);
+
+    // Invalidate cache
+    this.invalidateUnreadCountCache(accountId);
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}notificationMarkedAsRead`),
+    };
+  }
+
+  async markAllAsRead(accountId: number): Promise<APIResponse> {
+    await this.notificationsRepository.update(
+      { accountId, isRead: false },
+      { isRead: true }
+    );
+
+    // Invalidate cache
+    this.invalidateUnreadCountCache(accountId);
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}allNotificationsMarkedAsRead`),
     };
   }
 }

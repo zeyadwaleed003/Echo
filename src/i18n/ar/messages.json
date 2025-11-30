@@ -133,6 +133,11 @@
     "passwordResetFailed": "فشل إرسال رسالة إعادة تعيين كلمة المرور"
   },
   "notifications": {
-    "notificationCreated": "تم إنشاء الإشعار بنجاح"
+    "notificationCreated": "تم إنشاء الإشعار بنجاح",
+    "notificationNotFound": "لم يتم العثور على إشعار بهذا المعرف",
+    "notificationAccessDenied": "ليس لديك صلاحية للوصول إلى هذا الإشعار",
+    "notificationAlreadyRead": "هذا الإشعار مقروء بالفعل",
+    "notificationMarkedAsRead": "تم وضع علامة مقروء على الإشعار",
+    "allNotificationsMarkedAsRead": "تم وضع علامة مقروء على جميع الإشعارات"
   }
 }

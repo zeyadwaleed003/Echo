@@ -13,7 +13,7 @@ import { NotificationType } from '../notifications.enums';
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('increment')
-  id: string;
+  id: number;
 
   @Column({ nullable: false })
   accountId: number;

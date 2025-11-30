@@ -127,5 +127,8 @@
     "welcomeSubject": "مرحباً بك في Echo!",
     "verificationFailed": "فشل إرسال رسالة التحقق الإلكترونية",
     "passwordResetFailed": "فشل إرسال رسالة إعادة تعيين كلمة المرور"
+  },
+  "notifications": {
+    "notificationCreated": "تم إنشاء الإشعار بنجاح"
   }
 }

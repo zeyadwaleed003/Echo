@@ -1,26 +1,44 @@
+import { Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Notification } from './entities/notification.entity';
+import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { I18nService } from 'nestjs-i18n';
+import ApiFeatures from 'src/common/utils/ApiFeatures';
 
 @Injectable()
 export class NotificationsService {
-  create(createNotificationDto: CreateNotificationDto) {
-    return 'This action adds a new notification';
+  private readonly i18nNamespace = 'messages.notifications.';
+
+  constructor(
+    @InjectRepository(Notification)
+    private readonly notificationsRepository: Repository<Notification>,
+    private readonly i18n: I18nService
+  ) {}
+
+  async create(n: Partial<Notification>): Promise<APIResponse> {
+    const notification = this.notificationsRepository.create(n);
+    await this.notificationsRepository.save(notification);
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}notificationCreated`),
+    };
   }
 
-  findAll() {
-    return `This action returns all notifications`;
-  }
+  async find(q: QueryString): Promise<APIResponse> {
+    const notifications = await new ApiFeatures<Notification>(
+      this.notificationsRepository,
+      q
+    )
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate()
+      .exec();
 
-  findOne(id: number) {
-    return `This action returns a #${id} notification`;
-  }
-
-  update(id: number, updateNotificationDto: UpdateNotificationDto) {
-    return `This action updates a #${id} notification`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} notification`;
+    return {
+      size: notifications.length,
+      data: notifications,
+    };
   }
 }

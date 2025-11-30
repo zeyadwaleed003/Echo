@@ -1,34 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from '../accounts/accounts.enums';
 import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
+import type { QueryString } from 'src/common/types/api.types';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @Post()
-  create(@Body() createNotificationDto: CreateNotificationDto) {
-    return this.notificationsService.create(createNotificationDto);
-  }
-
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard)
+  @Roles(Role.ADMIN)
   @Get()
-  findAll() {
-    return this.notificationsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.notificationsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDto) {
-    return this.notificationsService.update(+id, updateNotificationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.notificationsService.remove(+id);
+  find(@Query() q: QueryString) {
+    return this.notificationsService.find(q);
   }
 }

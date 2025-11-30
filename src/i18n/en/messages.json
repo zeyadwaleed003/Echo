@@ -127,5 +127,8 @@
     "welcomeSubject": "Welcome to Echo!",
     "verificationFailed": "Failed to send verification email",
     "passwordResetFailed": "Failed to send password reset email"
+  },
+  "notifications": {
+    "notificationCreated": "Notification created successfully"
   }
 }

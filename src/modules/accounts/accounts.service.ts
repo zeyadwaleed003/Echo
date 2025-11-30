@@ -34,6 +34,9 @@ import {
 import { AuthService } from '../auth/auth.service';
 import { SearchService } from '../search/search.service';
 import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Notification } from '../notifications/entities/notification.entity';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class AccountsService {
@@ -50,7 +53,8 @@ export class AccountsService {
     private readonly authService: AuthService,
     @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async create(createAccountDto: CreateAccountDto): Promise<APIResponse> {
@@ -313,11 +317,11 @@ export class AccountsService {
   }
 
   async follow(
-    accountId: number,
+    account: Account,
     targetAccountId: number
   ): Promise<APIResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
-      accountId,
+      account.id,
       targetAccountId,
       'follow'
     );
@@ -326,7 +330,7 @@ export class AccountsService {
     const isBlocked = await this.accountRelationshipsRepository.exists({
       where: {
         actorId: targetAccountId,
-        targetId: accountId,
+        targetId: account.id,
         relationshipType: RelationshipType.BLOCK,
       },
     });
@@ -336,7 +340,7 @@ export class AccountsService {
       );
 
     let relationship = await this.accountRelationshipsRepository.findOneBy({
-      actorId: accountId,
+      actorId: account.id,
       targetId: targetAccountId,
     });
     if (relationship) {
@@ -349,7 +353,7 @@ export class AccountsService {
       await this.accountRelationshipsRepository.save(relationship);
     } else {
       relationship = this.accountRelationshipsRepository.create({
-        actorId: accountId,
+        actorId: account.id,
         targetId: targetAccountId,
         relationshipType: targetAccount.isPrivate
           ? RelationshipType.FOLLOW_REQUEST
@@ -358,6 +362,19 @@ export class AccountsService {
 
       await this.accountRelationshipsRepository.save(relationship);
     }
+
+    // Create a new follow notification
+    const n: Partial<Notification> = {
+      accountId: targetAccountId,
+      actorId: account.id,
+      type: targetAccount.isPrivate
+        ? NotificationType.FR
+        : NotificationType.FOLLOW,
+      description: targetAccount.isPrivate
+        ? `@${account.username} wants to follow you`
+        : `@${account.username} started following you`,
+    };
+    this.notificationsService.create(n);
 
     return {
       message: targetAccount.isPrivate
@@ -600,10 +617,13 @@ export class AccountsService {
     return result;
   }
 
-  async acceptFollowRequest(accountId: number, requestId: number) {
+  async acceptFollowRequest(
+    account: Account,
+    requestId: number
+  ): Promise<APIResponse> {
     const relationship = await this.accountRelationshipsRepository.findOneBy({
       id: requestId,
-      targetId: accountId,
+      targetId: account.id,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
     });
     if (!relationship)
@@ -614,11 +634,18 @@ export class AccountsService {
     relationship.relationshipType = RelationshipType.FOLLOW;
     await this.accountRelationshipsRepository.save(relationship);
 
-    const result: APIResponse = {
+    // Notify the requester that their follow request was accepted
+    const n: Partial<Notification> = {
+      accountId: relationship.actorId,
+      actorId: account.id,
+      type: NotificationType.FR_ACC,
+      description: `@${account.username} accepted your follow request`,
+    };
+    this.notificationsService.create(n);
+
+    return {
       message: this.i18n.t(`${this.i18nNamespace}.followRequestAccepted`),
     };
-
-    return result;
   }
 
   async refuseFollowRequest(accountId: number, requestId: number) {

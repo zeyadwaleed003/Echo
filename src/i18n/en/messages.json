@@ -109,7 +109,8 @@
     "alreadyLiked": "You have already liked this post",
     "likedSuccessfully": "You have successfully liked this post",
     "notLiked": "You have not liked this post",
-    "deletedSuccessfully": "Like deleted successfully"
+    "deletedSuccessfully": "Like deleted successfully",
+    "likeDescription": "@{username} liked your {postType}"
   },
   "bookmarks": {
     "notFound": "No post, reply, or repost found with the provided id",

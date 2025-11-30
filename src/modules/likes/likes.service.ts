@@ -10,6 +10,8 @@ import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { RelationshipType } from '../accounts/accounts.enums';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class LikesService {
@@ -23,7 +25,8 @@ export class LikesService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
-    private readonly accountRelationshipsRepository: Repository<AccountRelationships>
+    private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async create(account: Account, postId: number): Promise<APIResponse> {
@@ -48,6 +51,16 @@ export class LikesService {
       postId,
     });
     await this.likeRepository.save(like);
+
+    // Notify the user that his account has been followed successfully
+    this.notificationsService.create({
+      postId,
+      actorId: account.id,
+      type: NotificationType.LIKE,
+      accountId: accounts.actionPost.accountId,
+      actionPostId: accounts.actionPost.actionPostId || null,
+      description: `@${account.username} liked your ${accounts.actionPost.type}`,
+    });
 
     return {
       message: this.i18n.t(`${this.i18nNamespace}.likedSuccessfully`),

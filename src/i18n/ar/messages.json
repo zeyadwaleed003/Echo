@@ -109,7 +109,8 @@
     "alreadyLiked": "لقد أعجبت بهذا المنشور بالفعل",
     "likedSuccessfully": "تم الإعجاب بالمنشور بنجاح",
     "notLiked": "لم تعجب بهذا المنشور",
-    "deletedSuccessfully": "تم حذف الإعجاب بنجاح"
+    "deletedSuccessfully": "تم حذف الإعجاب بنجاح",
+    "likeDescription": "@{username} أعجب بـ{postType} الخاص بك"
   },
   "bookmarks": {
     "notFound": "لم يتم العثور على منشور أو رد أو إعادة نشر بالمعرف المقدم",

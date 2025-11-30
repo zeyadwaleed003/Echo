@@ -11,6 +11,7 @@ import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
     ]),
     AuthModule,
     TokenModule,
+    NotificationsModule,
   ],
   controllers: [LikesController],
   providers: [LikesService, RelationshipHelper],

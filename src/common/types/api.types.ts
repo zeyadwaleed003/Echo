@@ -9,6 +9,7 @@ export type APIResponse = {
   passwordResetToken?: string;
   setupToken?: string;
   nextCursor?: string | null;
+  unreadNotificationsNumber?: number;
 };
 
 export type RefreshTokenPayload = {

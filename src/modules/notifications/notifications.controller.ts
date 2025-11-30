@@ -32,4 +32,11 @@ export class NotificationsController {
       q
     );
   }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard)
+  @Get('me/unread-count')
+  getUnreadNotificationsCound(@Req() req: Request) {
+    return this.notificationsService.getUnreadCount(req.account!.id);
+  }
 }

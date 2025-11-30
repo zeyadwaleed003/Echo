@@ -37,13 +37,13 @@ services:
     networks:
       - echo-network
 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: echo-redis-commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: echo-redisinsight
     ports:
-      - '8081:8081'
+      - '5540:5540'
+    volumes:
+      - redisinsight-data:/data
     depends_on:
       - redis
     networks:
@@ -53,6 +53,8 @@ volumes:
   elasticsearch-data:
     driver: local
   redis-data:
+    driver: local
+  redisinsight-data:
     driver: local
 
 networks:

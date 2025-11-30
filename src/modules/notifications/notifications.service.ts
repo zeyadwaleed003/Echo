@@ -1,24 +1,34 @@
 import { FindManyOptions, Repository } from 'typeorm';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Notification } from './entities/notification.entity';
 import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { I18nService } from 'nestjs-i18n';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class NotificationsService {
   private readonly i18nNamespace = 'messages.notifications.';
+  private readonly UNREAD_COUNT_PREFIX = 'unread_notifications';
 
   constructor(
     @InjectRepository(Notification)
     private readonly notificationsRepository: Repository<Notification>,
-    private readonly i18n: I18nService
+    private readonly i18n: I18nService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
+
+  private invalidateUnreadCountCache(accountId: number) {
+    this.cacheManager.del(`${this.UNREAD_COUNT_PREFIX}:${accountId}`);
+  }
 
   async create(n: Partial<Notification>): Promise<APIResponse> {
     const notification = this.notificationsRepository.create(n);
     await this.notificationsRepository.save(notification);
+
+    this.invalidateUnreadCountCache(n.accountId!);
 
     return {
       message: this.i18n.t(`${this.i18nNamespace}notificationCreated`),
@@ -59,5 +69,26 @@ export class NotificationsService {
     };
 
     return await this.find(q, queryOptions);
+  }
+
+  async getUnreadCount(accountId: number): Promise<APIResponse> {
+    const cachedKey = `${this.UNREAD_COUNT_PREFIX}:${accountId}`;
+
+    // Cache hit to get the number of unread notifications
+    const cachedCount = await this.cacheManager.get<number>(cachedKey);
+    if (cachedCount)
+      return {
+        unreadNotificationsNumber: cachedCount,
+      };
+
+    // If not in the cache, get the number from the database
+    const unreadNotificationsNumber =
+      await this.notificationsRepository.countBy({ accountId, isRead: false });
+
+    this.cacheManager.set(cachedKey, unreadNotificationsNumber);
+
+    return {
+      unreadNotificationsNumber: unreadNotificationsNumber,
+    };
   }
 }

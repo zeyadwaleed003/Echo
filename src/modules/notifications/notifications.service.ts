@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { FindManyOptions, Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Notification } from './entities/notification.entity';
@@ -25,10 +25,21 @@ export class NotificationsService {
     };
   }
 
-  async find(q: QueryString): Promise<APIResponse> {
+  async find(
+    q: QueryString,
+    queryOptions?: FindManyOptions<Notification>
+  ): Promise<APIResponse> {
     const notifications = await new ApiFeatures<Notification>(
       this.notificationsRepository,
-      q
+      q,
+      {
+        ...queryOptions,
+        relations: {
+          account: true,
+          actor: true,
+          post: true,
+        },
+      }
     )
       .filter()
       .sort()
@@ -40,5 +51,13 @@ export class NotificationsService {
       size: notifications.length,
       data: notifications,
     };
+  }
+
+  async findCurrentAccountNotifications(accountId: number, q: QueryString) {
+    const queryOptions: FindManyOptions<Notification> = {
+      where: { accountId },
+    };
+
+    return await this.find(q, queryOptions);
   }
 }

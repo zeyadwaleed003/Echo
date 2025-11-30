@@ -97,7 +97,7 @@ class ApiFeatures<T extends ObjectLiteral> {
       }
     });
 
-    this.queryOptions.where = whereOptions;
+    this.queryOptions.where = { ...this.queryOptions.where, ...whereOptions };
     return this;
   }
 

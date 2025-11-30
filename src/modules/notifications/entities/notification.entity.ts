@@ -45,13 +45,6 @@ export class Notification {
   @Column('varchar')
   description!: string;
 
-  @Column({ nullable: true })
-  actionPostId: number | null;
-
-  @ManyToOne(() => Post, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'actionPostId' })
-  actionPost: Post | null;
-
   @Column({ type: 'boolean', default: false })
   isRead: boolean;
 

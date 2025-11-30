@@ -14,6 +14,7 @@ import { AiModule } from '../ai/ai.module';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { SearchModule } from '../search/search.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     CloudinaryModule,
     forwardRef(() => AuthModule),
     forwardRef(() => SearchModule),
+    NotificationsModule,
   ],
   controllers: [PostsController],
   providers: [PostsService, RelationshipHelper],

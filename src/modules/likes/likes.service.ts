@@ -58,7 +58,6 @@ export class LikesService {
       actorId: account.id,
       type: NotificationType.LIKE,
       accountId: accounts.actionPost.accountId,
-      actionPostId: accounts.actionPost.actionPostId || null,
       description: `@${account.username} liked your ${accounts.actionPost.type}`,
     });
 

@@ -28,6 +28,8 @@ import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { SearchService } from '../search/search.service';
 import { GroupedPostFile } from './posts.types';
 import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class PostsService {
@@ -50,7 +52,8 @@ export class PostsService {
     private readonly aiService: AiService,
     private readonly relationshipHelper: RelationshipHelper,
     @Inject(forwardRef(() => SearchService))
-    private readonly searchService: SearchService
+    private readonly searchService: SearchService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private containFiles(q: QueryString) {
@@ -137,8 +140,10 @@ export class PostsService {
         this.i18n.t(`${this.i18nNamespace}.originalPostRequired`)
       );
     }
+
+    let accounts = null;
     if (actionPostId) {
-      const accounts = await this.relationshipHelper.validateActionPost(
+      accounts = await this.relationshipHelper.validateActionPost(
         actionPostId,
         type
       );
@@ -180,6 +185,20 @@ export class PostsService {
 
     post.account = account;
     this.searchService.createPostDocument(post);
+
+    // Notify the user if his post was reposted or someone replied to his post
+    if (type === PostType.REPLY || type === PostType.REPOST) {
+      let notificationType = NotificationType.REPLY;
+      if (type === PostType.REPOST) notificationType = NotificationType.REPOST;
+
+      this.notificationsService.create({
+        actorId: account.id,
+        type: notificationType,
+        postId: accounts!.actionPost.id,
+        accountId: accounts!.actionPost.accountId,
+        description: `@${account.username} ${type}ed your post`,
+      });
+    }
 
     return {
       message: this.i18n.t(`${this.i18nNamespace}.createdSuccessfully`, {

@@ -15,7 +15,7 @@ export class LoginDto {
       'validation.auth.emailOrUsername.isNotEmpty'
     ),
   })
-  emailOrUsername!: string;
+  emailOrUsername: string;
 
   @ApiProperty({
     description: 'User password',
@@ -27,5 +27,5 @@ export class LoginDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.password.isNotEmpty'),
   })
-  password!: string;
+  password: string;
 }

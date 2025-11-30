@@ -33,7 +33,7 @@ export class CreateAccountDto {
   @Length(1, 100, {
     message: i18nValidationMessage('validation.account.name.length'),
   })
-  name!: string;
+  name: string;
 
   @ApiProperty({
     description: 'Unique username',
@@ -51,7 +51,7 @@ export class CreateAccountDto {
       'validation.account.username.isAlphanumeric'
     ),
   })
-  username!: string;
+  username: string;
 
   @ApiProperty({
     description: 'Email address',
@@ -65,13 +65,13 @@ export class CreateAccountDto {
   @Length(1, 255, {
     message: i18nValidationMessage('validation.account.email.length'),
   })
-  email!: string;
+  email: string;
 
   @ApiPropertyOptional({
     description: 'Account password (min 8 characters)',
     minLength: 8,
     maxLength: 255,
-    example: 'SecurePass123!',
+    example: 'SecurePass123',
   })
   @IsString({
     message: i18nValidationMessage('validation.account.password.isString'),
@@ -80,7 +80,7 @@ export class CreateAccountDto {
   @Length(8, 255, {
     message: i18nValidationMessage('validation.account.password.length'),
   })
-  password!: string;
+  password: string;
 
   @ApiPropertyOptional({
     description: 'User biography',
@@ -94,7 +94,7 @@ export class CreateAccountDto {
   @MaxLength(160, {
     message: i18nValidationMessage('validation.account.bio.maxLength'),
   })
-  bio!: string;
+  bio: string;
 
   @ApiPropertyOptional({
     description: 'User location',
@@ -108,7 +108,7 @@ export class CreateAccountDto {
   @Length(1, 30, {
     message: i18nValidationMessage('validation.account.location.length'),
   })
-  location!: string;
+  location: string;
 
   @ApiPropertyOptional({
     description: 'Phone number',
@@ -124,7 +124,7 @@ export class CreateAccountDto {
   @Length(1, 25, {
     message: i18nValidationMessage('validation.account.phone.length'),
   })
-  phone!: string;
+  phone: string;
 
   @ApiPropertyOptional({
     description: 'Enable notifications',
@@ -136,7 +136,7 @@ export class CreateAccountDto {
     ),
   })
   @IsOptional()
-  getNotifications!: boolean;
+  getNotifications: boolean;
 
   @ApiPropertyOptional({
     description: 'Account verification status',
@@ -146,7 +146,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.isVerified.isBoolean'),
   })
   @IsOptional()
-  isVerified!: boolean;
+  isVerified: boolean;
 
   @ApiPropertyOptional({
     description: 'Verification timestamp',
@@ -158,7 +158,7 @@ export class CreateAccountDto {
   })
   @IsOptional()
   @Type(() => Date)
-  verifiedAt!: Date;
+  verifiedAt: Date;
 
   @ApiPropertyOptional({
     description: 'Date of birth',
@@ -170,7 +170,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.birthDate.isDate'),
   })
   @Type(() => Date)
-  birthDate!: Date;
+  birthDate: Date;
 
   @ApiPropertyOptional({
     description: 'Preferred application language',
@@ -184,7 +184,7 @@ export class CreateAccountDto {
   @MaxLength(50, {
     message: i18nValidationMessage('validation.account.appLanguage.maxLength'),
   })
-  appLanguage!: string;
+  appLanguage: string;
 
   @ApiPropertyOptional({
     description: 'Current country of the user',
@@ -202,7 +202,7 @@ export class CreateAccountDto {
       'validation.account.currentCountry.maxLength'
     ),
   })
-  currentCountry!: string;
+  currentCountry: string;
 
   @ApiPropertyOptional({
     description: 'User gender',
@@ -213,7 +213,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.gender.isEnum'),
   })
   @IsOptional()
-  gender!: Gender;
+  gender: Gender;
 
   @ApiPropertyOptional({
     description: 'Private account setting',
@@ -223,7 +223,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.isPrivate.isBoolean'),
   })
   @IsOptional()
-  isPrivate!: boolean;
+  isPrivate: boolean;
 
   @ApiPropertyOptional({
     description: 'Account status',
@@ -234,7 +234,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.status.isEnum'),
   })
   @IsOptional()
-  status!: AccountStatus;
+  status: AccountStatus;
 
   @ApiPropertyOptional({
     description: 'Allow tagging in posts',
@@ -244,7 +244,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.taggable.isBoolean'),
   })
   @IsOptional()
-  taggable!: boolean;
+  taggable: boolean;
 
   @ApiPropertyOptional({
     description: 'Display sensitive content setting',
@@ -256,7 +256,7 @@ export class CreateAccountDto {
     ),
   })
   @IsOptional()
-  displaySensitiveContent!: boolean;
+  displaySensitiveContent: boolean;
 
   @ApiPropertyOptional({
     description: 'Direct messaging privacy setting',
@@ -267,7 +267,7 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.directMessaging.isEnum'),
   })
   @IsOptional()
-  directMessaging!: DirectMessagingStatus;
+  directMessaging: DirectMessagingStatus;
 
   @ApiPropertyOptional({
     description: 'Profile picture URL',
@@ -280,7 +280,7 @@ export class CreateAccountDto {
     }
   )
   @IsOptional()
-  profilePicture!: string;
+  profilePicture: string;
 
   @ApiPropertyOptional({
     description: 'Header image URL',
@@ -291,7 +291,7 @@ export class CreateAccountDto {
     { message: i18nValidationMessage('validation.account.header.isUrl') }
   )
   @IsOptional()
-  header!: string;
+  header: string;
 
   @ApiPropertyOptional({
     description: 'User role',
@@ -302,5 +302,5 @@ export class CreateAccountDto {
     message: i18nValidationMessage('validation.account.role.isEnum'),
   })
   @IsOptional()
-  role!: Role;
+  role: Role;
 }

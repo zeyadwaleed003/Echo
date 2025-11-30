@@ -14,7 +14,7 @@ export class ChangePasswordDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.oldPassword.isNotEmpty'),
   })
-  oldPassword!: string;
+  oldPassword: string;
 
   @ApiProperty({
     description: 'The new password',
@@ -34,7 +34,7 @@ export class ChangePasswordDto {
   @MaxLength(255, {
     message: i18nValidationMessage('validation.auth.password.maxLength'),
   })
-  password!: string;
+  password: string;
 
   @ApiProperty({
     description: 'Confirmation of the new password',
@@ -51,5 +51,5 @@ export class ChangePasswordDto {
   @Match('password', {
     message: i18nValidationMessage('validation.auth.confirmPassword.match'),
   })
-  confirmPassword!: string;
+  confirmPassword: string;
 }

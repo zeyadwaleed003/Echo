@@ -14,5 +14,5 @@ export class GoogleAuthDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.idToken.isNotEmpty'),
   })
-  idToken!: string;
+  idToken: string;
 }

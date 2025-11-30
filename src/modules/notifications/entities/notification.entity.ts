@@ -43,7 +43,7 @@ export class Notification {
   type: NotificationType;
 
   @Column('varchar')
-  description!: string;
+  description: string;
 
   @Column({ type: 'boolean', default: false })
   isRead: boolean;

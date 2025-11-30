@@ -11,18 +11,18 @@ import { Post } from './post.entity';
 @Entity('post_files')
 export class PostFiles {
   @PrimaryGeneratedColumn('increment')
-  id!: string;
+  id: string;
 
   @Column('text')
-  url!: string;
+  url: string;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'postId' })
-  post!: Post;
+  post: Post;
 
   @Column({ type: 'bigint' })
-  postId!: number;
+  postId: number;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 }

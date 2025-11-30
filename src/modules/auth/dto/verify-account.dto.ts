@@ -33,7 +33,7 @@ export class VerifyOtpDto {
       'validation.auth.verificationCode.maxLength'
     ),
   })
-  verificationCode!: string;
+  verificationCode: string;
 
   @ApiProperty({
     description: 'Email address of the user',
@@ -48,5 +48,5 @@ export class VerifyOtpDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.email.isNotEmpty'),
   })
-  email!: string;
+  email: string;
 }

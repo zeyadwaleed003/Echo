@@ -18,7 +18,7 @@ export class CompleteSetupDto {
   @Length(8, 255, {
     message: i18nValidationMessage('validation.auth.password.length'),
   })
-  password!: string;
+  password: string;
 
   @IsString({
     message: i18nValidationMessage('validation.auth.confirmPassword.isString'),
@@ -26,18 +26,18 @@ export class CompleteSetupDto {
   @Match('password', {
     message: i18nValidationMessage('validation.auth.confirmPassword.match'),
   })
-  confirmPassword!: string;
+  confirmPassword: string;
 
   @IsDate({
     message: i18nValidationMessage('validation.auth.birthDate.isDate'),
   })
   @Type(() => Date)
-  birthDate!: Date;
+  birthDate: Date;
 
   @IsEnum(Gender, {
     message: i18nValidationMessage('validation.auth.gender.isEnum'),
   })
-  gender!: Gender;
+  gender: Gender;
 
   @IsString({
     message: i18nValidationMessage('validation.auth.username.isString'),
@@ -48,7 +48,7 @@ export class CompleteSetupDto {
   @IsAlphanumeric(undefined, {
     message: i18nValidationMessage('validation.auth.username.isAlphanumeric'),
   })
-  username!: string;
+  username: string;
 
   @IsString({
     message: i18nValidationMessage('validation.auth.setupToken.isString'),
@@ -56,5 +56,5 @@ export class CompleteSetupDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.setupToken.isNotEmpty'),
   })
-  setupToken!: string;
+  setupToken: string;
 }

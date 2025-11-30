@@ -12,5 +12,5 @@ export class ReactivationTokenDto {
       'validation.auth.reactivationToken.isNotEmpty'
     ),
   })
-  reactivationToken!: string;
+  reactivationToken: string;
 }

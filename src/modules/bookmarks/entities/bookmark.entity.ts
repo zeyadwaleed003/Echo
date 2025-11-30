@@ -12,22 +12,22 @@ import { Account } from '../../accounts/entities/account.entity';
 @Entity('bookmarks')
 export class Bookmark {
   @PrimaryGeneratedColumn('increment')
-  id!: number;
+  id: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'postId' })
-  post!: Post;
+  post: Post;
 
   @Column({ type: 'bigint', nullable: false })
-  postId!: number;
+  postId: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'bookmarkedById' })
-  bookmarkedBy!: Account;
+  bookmarkedBy: Account;
 
   @Column({ type: 'bigint', nullable: false })
-  bookmarkedById!: number;
+  bookmarkedById: number;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 }

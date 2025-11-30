@@ -18,5 +18,5 @@ export class CreateBlockedWordDto {
   @Length(3, 100, {
     message: i18nValidationMessage('validation.blockedWord.word.length'),
   })
-  word!: string;
+  word: string;
 }

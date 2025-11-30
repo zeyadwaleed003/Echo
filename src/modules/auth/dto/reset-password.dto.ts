@@ -14,7 +14,7 @@ export class ResetPasswordDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.token.isNotEmpty'),
   })
-  token!: string;
+  token: string;
 
   @ApiProperty({
     description: 'New password for the user',
@@ -34,7 +34,7 @@ export class ResetPasswordDto {
   @MaxLength(255, {
     message: i18nValidationMessage('validation.auth.password.maxLength'),
   })
-  password!: string;
+  password: string;
 
   @ApiProperty({
     description: 'Confirmation of the new password',
@@ -51,5 +51,5 @@ export class ResetPasswordDto {
   @Match('password', {
     message: i18nValidationMessage('validation.auth.confirmPassword.match'),
   })
-  confirmPassword!: string;
+  confirmPassword: string;
 }

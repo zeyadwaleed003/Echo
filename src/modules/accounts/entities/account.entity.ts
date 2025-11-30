@@ -18,14 +18,14 @@ import {
 export class Account {
   @Expose()
   @PrimaryGeneratedColumn('increment') // Bigserial
-  id!: number;
+  id: number;
 
   @Expose()
   @Column({
     type: 'varchar',
     length: 100,
   })
-  name!: string;
+  name: string;
 
   @Expose()
   @Column({
@@ -34,7 +34,7 @@ export class Account {
     unique: true,
     nullable: true,
   })
-  username!: string | null;
+  username: string | null;
 
   @Expose()
   @Column({
@@ -42,7 +42,7 @@ export class Account {
     length: 255,
     unique: true,
   })
-  email!: string;
+  email: string;
 
   @Column({
     type: 'varchar',
@@ -50,7 +50,7 @@ export class Account {
     nullable: true,
     select: false,
   })
-  password!: string | null;
+  password: string | null;
 
   @Expose()
   @Column({
@@ -58,7 +58,7 @@ export class Account {
     length: 160,
     nullable: true,
   })
-  bio!: string | null;
+  bio: string | null;
 
   @Expose()
   @Column({
@@ -66,7 +66,7 @@ export class Account {
     length: 30,
     nullable: true,
   })
-  location!: string | null;
+  location: string | null;
 
   @Expose()
   @Column({
@@ -75,35 +75,35 @@ export class Account {
     nullable: true,
     unique: true,
   })
-  phone!: string | null;
+  phone: string | null;
 
   @Expose()
   @Column({
     type: 'boolean',
     default: true,
   })
-  getNotifications!: boolean;
+  getNotifications: boolean;
 
   @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
-  isVerified!: boolean;
+  isVerified: boolean;
 
   @Expose()
   @Column({
     type: 'timestamp',
     nullable: true,
   })
-  verifiedAt!: Date | null;
+  verifiedAt: Date | null;
 
   @Expose()
   @Column({
     type: 'date',
     nullable: true,
   })
-  birthDate!: Date | null;
+  birthDate: Date | null;
 
   @Expose()
   @Column({
@@ -111,7 +111,7 @@ export class Account {
     length: 50,
     default: 'english',
   })
-  appLanguage!: string;
+  appLanguage: string;
 
   @Expose()
   @Column({
@@ -119,7 +119,7 @@ export class Account {
     length: 50,
     nullable: true,
   })
-  currentCountry!: string | null;
+  currentCountry: string | null;
 
   @Expose()
   @Column({
@@ -127,35 +127,35 @@ export class Account {
     enum: Gender,
     nullable: true,
   })
-  gender!: Gender | null;
+  gender: Gender | null;
 
   @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
-  isPrivate!: boolean;
+  isPrivate: boolean;
 
   @Expose()
   @Column({
     type: 'enum',
     enum: AccountStatus,
   })
-  status!: AccountStatus;
+  status: AccountStatus;
 
   @Expose()
   @Column({
     type: 'boolean',
     default: true,
   })
-  taggable!: boolean;
+  taggable: boolean;
 
   @Expose()
   @Column({
     type: 'boolean',
     default: false,
   })
-  displaySensitiveContent!: boolean;
+  displaySensitiveContent: boolean;
 
   @Expose()
   @Column({
@@ -163,21 +163,21 @@ export class Account {
     enum: DirectMessagingStatus,
     default: DirectMessagingStatus.NONE,
   })
-  directMessaging!: DirectMessagingStatus;
+  directMessaging: DirectMessagingStatus;
 
   @Expose()
   @Column({
     type: 'text',
     nullable: true,
   })
-  profilePicture!: string | null;
+  profilePicture: string | null;
 
   @Expose()
   @Column({
     type: 'text',
     nullable: true,
   })
-  header!: string | null;
+  header: string | null;
 
   @Expose()
   @Column({
@@ -185,7 +185,7 @@ export class Account {
     enum: Role,
     default: Role.USER,
   })
-  role!: Role;
+  role: Role;
 
   @Column({
     type: 'varchar',
@@ -193,14 +193,14 @@ export class Account {
     nullable: true,
     select: false,
   })
-  verificationCode!: string | null;
+  verificationCode: string | null;
 
   @Column({
     type: 'timestamp',
     nullable: true,
     select: false,
   })
-  verificationCodeExpiresAt!: Date | null;
+  verificationCodeExpiresAt: Date | null;
 
   @Column({
     type: 'varchar',
@@ -208,20 +208,20 @@ export class Account {
     nullable: true,
     select: false,
   })
-  passwordResetCode!: string | null;
+  passwordResetCode: string | null;
 
   @Column({
     type: 'timestamp',
     nullable: true,
     select: false,
   })
-  passwordResetCodeExpiresAt!: Date | null;
+  passwordResetCodeExpiresAt: Date | null;
 
   @Expose()
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 
   @Expose()
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt: Date;
 }

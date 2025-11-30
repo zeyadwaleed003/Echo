@@ -14,14 +14,14 @@ import { MaxLength } from 'class-validator';
 @Entity('posts')
 export class Post {
   @PrimaryGeneratedColumn('increment')
-  id!: number;
+  id: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'accountId' })
-  account!: Account;
+  account: Account;
 
   @Column({ type: 'bigint', nullable: false })
-  accountId!: number;
+  accountId: number;
 
   @Column({ nullable: true })
   actionPostId?: number | null;
@@ -35,23 +35,23 @@ export class Post {
     nullable: true,
   })
   @MaxLength(353)
-  content!: string | null;
+  content: string | null;
 
   @Column({
     type: 'boolean',
     default: false,
   })
-  pinned!: boolean;
+  pinned: boolean;
 
   @Column({
     type: 'enum',
     enum: PostType,
   })
-  type!: PostType;
+  type: PostType;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt: Date;
 }

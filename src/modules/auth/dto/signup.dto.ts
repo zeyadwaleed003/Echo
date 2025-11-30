@@ -27,7 +27,7 @@ export class SignupDto {
   @MaxLength(50, {
     message: i18nValidationMessage('validation.auth.name.maxLength'),
   })
-  name!: string;
+  name: string;
 
   @ApiProperty({
     description: 'Email address of the user',
@@ -42,5 +42,5 @@ export class SignupDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.email.isNotEmpty'),
   })
-  email!: string;
+  email: string;
 }

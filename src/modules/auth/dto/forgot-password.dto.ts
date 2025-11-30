@@ -16,5 +16,5 @@ export class ForgotPasswordDto {
   @IsNotEmpty({
     message: i18nValidationMessage('validation.auth.email.isNotEmpty'),
   })
-  email!: string;
+  email: string;
 }

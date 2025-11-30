@@ -70,7 +70,10 @@
     "accountSelfDeleted": "Your account has been deleted successfully",
     "cannotRemoveYourself": "You cannot do this action to yourself",
     "accountNotFollowingYou": "Account @{username} is not following you",
-    "followerRemovedSuccessfully": "Account @{username} has been removed from your followers"
+    "followerRemovedSuccessfully": "Account @{username} has been removed from your followers",
+    "followRequestDescription": "@{username} wants to follow you",
+    "followDescription": "@{username} started following you",
+    "followRequestAcceptedDescription": "@{username} accepted your follow request"
   },
   "posts": {
     "postMustContainContent": "Post must contain either text content or at least one file",

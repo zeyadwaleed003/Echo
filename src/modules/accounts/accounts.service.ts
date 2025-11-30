@@ -371,8 +371,12 @@ export class AccountsService {
         ? NotificationType.FR
         : NotificationType.FOLLOW,
       description: targetAccount.isPrivate
-        ? `@${account.username} wants to follow you`
-        : `@${account.username} started following you`,
+        ? this.i18n.t(`${this.i18nNamespace}.followRequestDescription`, {
+            args: { username: account.username },
+          })
+        : this.i18n.t(`${this.i18nNamespace}.followDescription`, {
+            args: { username: account.username },
+          }),
     };
     this.notificationsService.create(n);
 
@@ -639,7 +643,12 @@ export class AccountsService {
       accountId: relationship.actorId,
       actorId: account.id,
       type: NotificationType.FR_ACC,
-      description: `@${account.username} accepted your follow request`,
+      description: this.i18n.t(
+        `${this.i18nNamespace}.followRequestAcceptedDescription`,
+        {
+          args: { username: account.username },
+        }
+      ),
     };
     this.notificationsService.create(n);
 

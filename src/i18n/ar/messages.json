@@ -70,7 +70,10 @@
     "accountSelfDeleted": "تم حذف حسابك بنجاح",
     "cannotRemoveYourself": "لا يمكنك القيام بهذا الإجراء على نفسك",
     "accountNotFollowingYou": "الحساب @{username} لا يتابعك",
-    "followerRemovedSuccessfully": "تم إزالة الحساب @{username} من متابعيك"
+    "followerRemovedSuccessfully": "تم إزالة الحساب @{username} من متابعيك",
+    "followRequestDescription": "@{username} يريد متابعتك",
+    "followDescription": "@{username} بدأ بمتابعتك",
+    "followRequestAcceptedDescription": "@{username} قبل طلب المتابعة الخاص بك"
   },
   "posts": {
     "postMustContainContent": "يجب أن تحتوي المنشور على نص أو ملف واحد على الأقل",

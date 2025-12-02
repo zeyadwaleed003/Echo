@@ -8,6 +8,7 @@ import { AccountRelationships } from './entities/account-relationship.entity';
 import { AuthModule } from '../auth/auth.module';
 import { SearchModule } from '../search/search.module';
 import { TokenModule } from '../token/token.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TokenModule } from '../token/token.module';
     TokenModule,
     forwardRef(() => AuthModule),
     forwardRef(() => SearchModule),
+    NotificationsModule,
   ],
   controllers: [AccountsController],
   providers: [AccountsService],

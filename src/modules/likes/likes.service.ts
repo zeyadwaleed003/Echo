@@ -9,17 +9,24 @@ import { APIResponse, QueryString } from 'src/common/types/api.types';
 import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
 import { RelationshipType } from '../accounts/accounts.enums';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class LikesService {
+  private readonly i18nNamespace = 'messages.likes';
+
   constructor(
     private readonly relationshipHelper: RelationshipHelper,
+    private readonly i18n: I18nService,
     @InjectRepository(Like)
     private readonly likeRepository: Repository<Like>,
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
-    private readonly accountRelationshipsRepository: Repository<AccountRelationships>
+    private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async create(account: Account, postId: number): Promise<APIResponse> {
@@ -35,7 +42,9 @@ export class LikesService {
       postId,
     });
     if (isLiked)
-      throw new BadRequestException('You have already liked this post');
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyLiked`)
+      );
 
     const like = this.likeRepository.create({
       accountId: account.id,
@@ -43,8 +52,17 @@ export class LikesService {
     });
     await this.likeRepository.save(like);
 
+    // Notify the user that his account has been followed successfully
+    this.notificationsService.create({
+      postId,
+      actorId: account.id,
+      type: NotificationType.LIKE,
+      accountId: accounts.actionPost.accountId,
+      description: `@${account.username} liked your ${accounts.actionPost.type}`,
+    });
+
     return {
-      message: 'You have successfully liked this post',
+      message: this.i18n.t(`${this.i18nNamespace}.likedSuccessfully`),
       data: like,
     };
   }
@@ -107,10 +125,12 @@ export class LikesService {
       postId,
     });
     if (!result.affected)
-      throw new BadRequestException('You have not liked this post');
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.notLiked`)
+      );
 
     return {
-      message: 'Like deleted successfully',
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
     };
   }
 

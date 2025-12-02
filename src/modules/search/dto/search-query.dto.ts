@@ -11,6 +11,7 @@ import {
 import { SearchFilter } from '../search.enums';
 import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 // search?q=sohhhh
 export class SearchQueryDto {
@@ -22,9 +23,15 @@ export class SearchQueryDto {
     required: true,
     type: String,
   })
-  @IsString()
-  @MinLength(1, { message: 'Search query must not be empty' })
-  @MaxLength(353, { message: 'Search query must not exceed 353 characters' })
+  @IsString({
+    message: i18nValidationMessage('validation.search.q.isString'),
+  })
+  @MinLength(1, {
+    message: i18nValidationMessage('validation.search.q.minLength'),
+  })
+  @MaxLength(353, {
+    message: i18nValidationMessage('validation.search.q.maxLength'),
+  })
   @Transform(({ value }) => value.trim())
   q: string;
 
@@ -41,7 +48,7 @@ If no search filter
     required: false,
   })
   @IsEnum(SearchFilter, {
-    message: 'Filter must be one of: user, live',
+    message: i18nValidationMessage('validation.search.f.isEnum'),
   })
   @IsOptional()
   f: SearchFilter;
@@ -60,7 +67,9 @@ If no search filter
     required: false,
     type: String,
   })
-  @IsString()
+  @IsString({
+    message: i18nValidationMessage('validation.search.cursor.isString'),
+  })
   @IsOptional()
   cursor?: string;
 
@@ -78,10 +87,16 @@ Recommended values:
     required: false,
     type: Number,
   })
-  @IsInt({ message: 'Limit must be an integer' })
+  @IsInt({
+    message: i18nValidationMessage('validation.search.limit.isInt'),
+  })
   @IsOptional()
   @Type(() => Number)
-  @Min(1, { message: 'Limit must be at least 1' })
-  @Max(100, { message: 'Limit must not exceed 100' })
+  @Min(1, {
+    message: i18nValidationMessage('validation.search.limit.min'),
+  })
+  @Max(100, {
+    message: i18nValidationMessage('validation.search.limit.max'),
+  })
   limit: number = 20;
 }

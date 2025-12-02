@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsPositive } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreateLikeDto {
   @ApiProperty({
@@ -8,9 +9,15 @@ export class CreateLikeDto {
     description: 'ID of the post to like',
     example: 123,
   })
-  @IsInt({ message: 'PostId must be an integer' })
-  @IsPositive({ message: 'PostId must be a positive number' })
-  @IsNotEmpty({ message: 'PostId is required' })
+  @IsInt({
+    message: i18nValidationMessage('validation.like.postId.isInt'),
+  })
+  @IsPositive({
+    message: i18nValidationMessage('validation.like.postId.isPositive'),
+  })
+  @IsNotEmpty({
+    message: i18nValidationMessage('validation.like.postId.isNotEmpty'),
+  })
   @Type(() => Number)
   postId: number;
 }

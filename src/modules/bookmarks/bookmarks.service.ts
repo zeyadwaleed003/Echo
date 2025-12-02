@@ -13,10 +13,14 @@ import { RelationshipType } from '../accounts/accounts.enums';
 import { Bookmark } from './entities/bookmark.entity';
 import { PostFiles } from '../posts/entities/post-file.entity';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class BookmarksService {
+  private readonly i18nNamespace = 'messages.bookmarks';
+
   constructor(
+    private readonly i18n: I18nService,
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(AccountRelationships)
@@ -36,7 +40,7 @@ export class BookmarksService {
     });
     if (!post)
       throw new NotFoundException(
-        `No post, reply, or repost found with the provided id`
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
       );
 
     // Check if the current user is the same user created the post
@@ -60,7 +64,7 @@ export class BookmarksService {
       });
       if (isBlocked)
         throw new BadRequestException(
-          'You cannot bookmark this post because a block exists between you and the author'
+          this.i18n.t(`${this.i18nNamespace}.cannotBookmarkBlocked`)
         );
 
       // If account is private ... need to check if I follow this account
@@ -73,7 +77,7 @@ export class BookmarksService {
 
         if (!isFollowing)
           throw new BadRequestException(
-            'You must follow this private account before you can bookmark its posts, replies, or reposts'
+            this.i18n.t(`${this.i18nNamespace}.mustFollowPrivate`)
           );
       }
     }
@@ -85,7 +89,7 @@ export class BookmarksService {
     });
     if (isBookmarked)
       throw new ConflictException(
-        'You cannot bookmark a post, reply, or repost you have been bookmarked before'
+        this.i18n.t(`${this.i18nNamespace}.alreadyBookmarked`)
       );
 
     const bookmark = this.bookmarkRepository.create({
@@ -161,7 +165,7 @@ export class BookmarksService {
     });
     if (!bookmark)
       throw new NotFoundException(
-        'No bookmark matching this id was found for your account'
+        this.i18n.t(`${this.i18nNamespace}.bookmarkNotFound`)
       );
 
     return bookmark;
@@ -191,7 +195,7 @@ export class BookmarksService {
     await this.bookmarkRepository.remove(bookmark);
 
     return {
-      message: 'Bookmark deleted successfully',
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
     };
   }
 }

@@ -1,9 +1,14 @@
 import { Transform } from 'class-transformer';
 import { IsString, MaxLength } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreatePostDto {
-  @IsString({ message: 'Content must be a string' })
-  @MaxLength(353, { message: 'Content must not exceed 353 characters' })
+  @IsString({
+    message: i18nValidationMessage('validation.post.content.isString'),
+  })
+  @MaxLength(353, {
+    message: i18nValidationMessage('validation.post.content.maxLength'),
+  })
   @Transform(({ value }) => value?.trim())
   content: string = '';
 }

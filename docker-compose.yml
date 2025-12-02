@@ -26,8 +26,35 @@ services:
     networks:
       - echo-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: echo-redis
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    networks:
+      - echo-network
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: echo-redisinsight
+    ports:
+      - '5540:5540'
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      - redis
+    networks:
+      - echo-network
+
 volumes:
   elasticsearch-data:
+    driver: local
+  redis-data:
+    driver: local
+  redisinsight-data:
     driver: local
 
 networks:

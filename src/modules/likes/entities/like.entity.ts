@@ -12,22 +12,22 @@ import {
 @Entity('likes')
 export class Like {
   @PrimaryGeneratedColumn('increment')
-  id!: number;
+  id: number;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'postId' })
-  post!: Post;
+  post: Post;
 
   @Column({ type: 'bigint', nullable: false })
-  postId!: number;
+  postId: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'accountId' })
-  account!: Account;
+  account: Account;
 
   @Column({ type: 'bigint', nullable: false })
-  accountId!: number;
+  accountId: number;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 }

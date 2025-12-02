@@ -12,34 +12,34 @@ import { RevocationReason } from '../auth.enums';
 @Entity('refresh_tokens')
 export class RefreshToken {
   @PrimaryGeneratedColumn('uuid')
-  id!: string;
+  id: string;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE', nullable: false })
   @JoinColumn({ name: 'accountId' })
-  account!: Account;
+  account: Account;
 
   @Column({ type: 'bigint', nullable: false })
-  accountId!: number;
+  accountId: number;
 
   @Column({ type: 'text' })
-  token!: string;
+  token: string;
 
   @Column({ type: 'uuid' })
-  sessionId!: string;
+  sessionId: string;
 
   @Column({
     type: 'enum',
     enum: RevocationReason,
     nullable: true,
   })
-  revocationReason!: RevocationReason | null;
+  revocationReason: RevocationReason | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  revokedAt!: Date | null;
+  revokedAt: Date | null;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 
   @Column({ type: 'timestamp' })
-  expiresAt!: Date;
+  expiresAt: Date;
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreateBookmarkDto {
   @ApiProperty({
@@ -7,6 +8,11 @@ export class CreateBookmarkDto {
     example: 123,
     type: Number,
   })
-  @IsNumber()
+  @IsNumber(
+    {},
+    {
+      message: i18nValidationMessage('validation.bookmark.postId.isNumber'),
+    }
+  )
   postId: number;
 }

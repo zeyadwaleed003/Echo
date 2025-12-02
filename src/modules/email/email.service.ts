@@ -1,21 +1,24 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly i18nNamespace = 'messages.email';
 
   constructor(
     private readonly mailerService: MailerService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly i18n: I18nService
   ) {}
 
   async sendVerificationEmail(email: string, otp: string, name: string) {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: 'Verify Your Email - Echo',
+        subject: this.i18n.t(`${this.i18nNamespace}.verificationSubject`),
         template: './otp-verification',
         context: {
           name,
@@ -33,7 +36,7 @@ export class EmailService {
         `Failed to send the OTP email to ${email}: ${err.message}`,
         err.stack
       );
-      throw new Error('Failed to send verification email');
+      throw new Error(this.i18n.t(`${this.i18nNamespace}.verificationFailed`));
     }
   }
 
@@ -41,7 +44,7 @@ export class EmailService {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: 'Reset Your Password - Echo',
+        subject: this.i18n.t(`${this.i18nNamespace}.passwordResetSubject`),
         template: './password-reset',
         context: {
           name,
@@ -59,7 +62,7 @@ export class EmailService {
         `Failed to send password reset email to ${email}: ${err.message}`,
         err.stack
       );
-      throw new Error('Failed to send password reset email');
+      throw new Error(this.i18n.t(`${this.i18nNamespace}.passwordResetFailed`));
     }
   }
 
@@ -67,7 +70,7 @@ export class EmailService {
     try {
       await this.mailerService.sendMail({
         to: email,
-        subject: 'Welcome to Echo!',
+        subject: this.i18n.t(`${this.i18nNamespace}.welcomeSubject`),
         template: './welcome',
         context: {
           name,
@@ -82,7 +85,7 @@ export class EmailService {
         err.stack
       );
 
-      // I am not throwing an error here because it is not critical
+      // Not throwing an error here because it is not critical
     }
   }
 }

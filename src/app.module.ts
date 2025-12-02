@@ -24,6 +24,8 @@ import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { createKeyv } from '@keyv/redis';
+import { ConversationsModule } from './modules/conversations/conversations.module';
+import { MessagesModule } from './modules/messages/messages.module';
 
 @Module({
   imports: [
@@ -63,18 +65,20 @@ import { createKeyv } from '@keyv/redis';
         ],
       }),
     }),
-    HealthModule,
-    AccountsModule,
+    AiModule,
     AuthModule,
     LikesModule,
     PostsModule,
-    BookmarksModule,
-    NotificationsModule,
-    BlockedWordsModule,
     TasksModule,
-    CloudinaryModule,
-    AiModule,
     SearchModule,
+    HealthModule,
+    MessagesModule,
+    AccountsModule,
+    BookmarksModule,
+    CloudinaryModule,
+    BlockedWordsModule,
+    NotificationsModule,
+    ConversationsModule,
   ],
   providers: [
     {

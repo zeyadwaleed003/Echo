@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+
+# Environment vars
+.env
+
+# IDE and editor files
+.vscode 
+
+# Git
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+
+# Build files
+dist
+
+# Logs
+logs
+*.log
+
+# Testing
+*.spec.ts
+

@@ -15,11 +15,12 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from 'src/config/configuration';
 import { I18nService } from 'nestjs-i18n';
+import { APIResponse } from 'src/common/types/api.types';
 
 @Injectable()
 export class ConversationsService {
-  private readonly i18nNamespace = 'messages.conversations';
   private readonly maxGroupParticipants = 256;
+  private readonly i18nNamespace = 'messages.conversations';
 
   constructor(
     private readonly accountsService: AccountsService,
@@ -35,7 +36,7 @@ export class ConversationsService {
     admin: Account,
     dto: CreateConversationDto,
     avatar: Express.Multer.File
-  ) {
+  ): Promise<APIResponse> {
     // Admin is already valid because he is logged in
 
     // Remove duplicates and remove the admin id if he was in the participant ids
@@ -73,6 +74,8 @@ export class ConversationsService {
     );
     let uploadedAvatarUrl: string | null = null;
 
+    let conversation: Conversation,
+      members: Account[] = [];
     try {
       if (avatar) {
         const uploadResult = await this.cloudinaryService.uploadFile(avatar);
@@ -80,31 +83,37 @@ export class ConversationsService {
         secure_url = uploadedAvatarUrl;
       }
 
-      await this.dataSource.transaction(async (manager) => {
+      conversation = await this.dataSource.transaction(async (manager) => {
         // Validate if the admin can have a conversation with participants ... 2 db queries
-        await this.accountsService.validateConversationParticipants(
-          manager,
+        members = [
           admin,
-          dto.participantIds
-        );
+          ...(await this.accountsService.validateConversationParticipants(
+            manager,
+            admin,
+            uniqueParticipants
+          )),
+        ];
 
-        // If *direct* conversation ... need to check if one existed before between the 2 users
-        const existingDirectConversation =
-          await this.conversationParticipantRepository
-            .createQueryBuilder('cp')
-            .innerJoin('cp.conversation', 'c')
-            .where('c.type = :type', { type: ConversationType.DIRECT })
-            .andWhere('cp.accountId IN (:...ids)', {
-              ids: [admin.id, uniqueParticipants[0]],
-            })
-            .groupBy('cp.conversationId')
-            .having('COUNT(cp.conversationId) = 2')
-            .getOne();
+        // If *direct* conversation ... need to check if a direct conversation existed before between the 2 users
+        if (dto.type === ConversationType.DIRECT) {
+          const existingDirectConversation =
+            await this.conversationParticipantRepository
+              .createQueryBuilder('cp')
+              .innerJoin('cp.conversation', 'c')
+              .select('cp.conversationId', 'conversationId')
+              .where('c.type = :type', { type: ConversationType.DIRECT })
+              .andWhere('cp.accountId IN (:...ids)', {
+                ids: [admin.id, uniqueParticipants[0]],
+              })
+              .groupBy('cp.conversationId')
+              .having('COUNT(*) = 2')
+              .getRawOne();
 
-        if (existingDirectConversation)
-          throw new ConflictException(
-            this.i18n.t(`${this.i18nNamespace}.DirectConversationExists`)
-          );
+          if (existingDirectConversation)
+            throw new ConflictException(
+              this.i18n.t(`${this.i18nNamespace}.DirectConversationExists`)
+            );
+        }
 
         // Create the conversation
         const conversationRepo = manager.getRepository(Conversation);
@@ -130,6 +139,8 @@ export class ConversationsService {
             role: ParticipantRole.ADMIN,
           },
         ]);
+
+        return conversation;
       });
     } catch (err) {
       if (uploadedAvatarUrl)
@@ -137,5 +148,15 @@ export class ConversationsService {
 
       throw err;
     }
+
+    return {
+      data: {
+        ...conversation,
+        conversationMembers: {
+          size: members.length,
+          members: members,
+        },
+      },
+    };
   }
 }

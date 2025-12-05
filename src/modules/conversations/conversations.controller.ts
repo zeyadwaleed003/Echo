@@ -27,6 +27,6 @@ export class ConversationsController {
     @Body() dto: CreateConversationDto,
     @Req() req: Request
   ) {
-    this.conversationsService.create(req.account!, dto, avatar);
+    return this.conversationsService.create(req.account!, dto, avatar);
   }
 }

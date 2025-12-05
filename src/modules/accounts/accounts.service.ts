@@ -838,9 +838,9 @@ export class AccountsService {
     const dmStatus = [DirectMessagingStatus.EVERYONE];
     if (admin.isVerified) dmStatus.push(DirectMessagingStatus.VERIFIED);
 
-    const [validCount, blockExists] = await Promise.all([
+    const [validParticipants, blockExists] = await Promise.all([
       // Check if a user doesn't accept direct messages from me because of the directMessaging config
-      manager.getRepository(Account).countBy([
+      manager.getRepository(Account).findBy([
         {
           id: In(participantIds),
           directMessaging: In(dmStatus),
@@ -863,9 +863,11 @@ export class AccountsService {
       ]),
     ]);
 
-    if (validCount !== participantIds.length || blockExists)
+    if (validParticipants.length !== participantIds.length || blockExists)
       throw new BadRequestException(
         this.i18n.t(`${this.i18nNamespace}.UserCannotReceiveMessage`)
       );
+
+    return validParticipants;
   }
 }

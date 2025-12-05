@@ -13,6 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
 import {
   DataSource,
+  EntityManager,
   FindManyOptions,
   FindOptionsWhere,
   In,
@@ -28,6 +29,7 @@ import { UpdateMeDto } from './dto/update-me.dto';
 import { AccountRelationships } from './entities/account-relationship.entity';
 import {
   AccountStatus,
+  DirectMessagingStatus,
   RelationshipDirection,
   RelationshipType,
 } from './accounts.enums';
@@ -826,5 +828,44 @@ export class AccountsService {
     return await this.accountsRepository.findBy({
       id: In(ids),
     });
+  }
+
+  async validateConversationParticipants(
+    manager: EntityManager,
+    admin: Account,
+    participantIds: number[]
+  ) {
+    const dmStatus = [DirectMessagingStatus.EVERYONE];
+    if (admin.isVerified) dmStatus.push(DirectMessagingStatus.VERIFIED);
+
+    const [validCount, blockExists] = await Promise.all([
+      // Check if a user doesn't accept direct messages from me because of the directMessaging config
+      manager.getRepository(Account).countBy([
+        {
+          id: In(participantIds),
+          directMessaging: In(dmStatus),
+          status: AccountStatus.ACTIVATED,
+        },
+      ]),
+      ,
+      // Check if a user doesn't accept direct messages from me because of a block
+      manager.getRepository(AccountRelationships).existsBy([
+        {
+          actorId: In(participantIds),
+          targetId: admin.id,
+          relationshipType: RelationshipType.BLOCK,
+        },
+        {
+          actorId: admin.id,
+          targetId: In(participantIds),
+          relationshipType: RelationshipType.BLOCK,
+        },
+      ]),
+    ]);
+
+    if (validCount !== participantIds.length || blockExists)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.UserCannotReceiveMessage`)
+      );
   }
 }

@@ -73,7 +73,8 @@
     "followerRemovedSuccessfully": "تم إزالة الحساب @{username} من متابعيك",
     "followRequestDescription": "@{username} يريد متابعتك",
     "followDescription": "@{username} بدأ بمتابعتك",
-    "followRequestAcceptedDescription": "@{username} قبل طلب المتابعة الخاص بك"
+    "followRequestAcceptedDescription": "@{username} قبل طلب المتابعة الخاص بك",
+    "UserCannotReceiveMessage": "لا يمكن لمستخدم واحد أو أكثر تلقي رسائل منك"
   },
   "posts": {
     "postMustContainContent": "يجب أن تحتوي المنشور على نص أو ملف واحد على الأقل",
@@ -139,5 +140,11 @@
     "notificationAlreadyRead": "هذا الإشعار مقروء بالفعل",
     "notificationMarkedAsRead": "تم وضع علامة مقروء على الإشعار",
     "allNotificationsMarkedAsRead": "تم وضع علامة مقروء على جميع الإشعارات"
+  },
+  "conversations": {
+    "NoValidParticipants": "يجب إضافة مشارك واحد على الأقل لإنشاء محادثة",
+    "TooManyParticipants": "لا يمكن أن تحتوي المحادثة على أكثر من {{max}} مشاركًا",
+    "GroupNameRequired": "يجب أن يكون للمحادثات الجماعية اسم",
+    "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل"
   }
 }

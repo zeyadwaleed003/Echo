@@ -73,7 +73,8 @@
     "followerRemovedSuccessfully": "Account @{username} has been removed from your followers",
     "followRequestDescription": "@{username} wants to follow you",
     "followDescription": "@{username} started following you",
-    "followRequestAcceptedDescription": "@{username} accepted your follow request"
+    "followRequestAcceptedDescription": "@{username} accepted your follow request",
+    "UserCannotReceiveMessage": "One or more users cannot receive messages from you"
   },
   "posts": {
     "postMustContainContent": "Post must contain either text content or at least one file",
@@ -139,5 +140,11 @@
     "notificationAlreadyRead": "This notification is already marked as read",
     "notificationMarkedAsRead": "Notification marked as read",
     "allNotificationsMarkedAsRead": "All notifications marked as read"
+  },
+  "conversations": {
+    "NoValidParticipants": "At least one participant is required to create a conversation",
+    "TooManyParticipants": "A conversation cannot have more than {{max}} participants",
+    "GroupNameRequired": "Group conversations must have a name",
+    "DirectConversationExists": "A direct conversation with this user already exists"
   }
 }

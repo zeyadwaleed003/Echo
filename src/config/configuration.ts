@@ -81,6 +81,8 @@ const validatedEnv = z
     ELASTICSEARCH_NODE: z.string().min(1),
 
     ALLOWED_ORIGINS: urlListSchema,
+
+    DEFAULT_CONVERSATION_AVATAR_URL: z.string().min(1).optional(),
   })
   .parse(process.env);
 

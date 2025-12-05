@@ -189,5 +189,34 @@
       "min": "limit must be at least 1",
       "max": "limit must not exceed 100"
     }
+  },
+  "participant": {
+    "IS_ARRAY": "participantIds must be an array",
+    "ARRAY_NOT_EMPTY": "participantIds cannot be empty",
+    "IS_INT": "Each participant ID must be an integer",
+    "IS_STRING": "{property} must be a string",
+    "LENGTH": "{property} must be between {minLength} and {maxLength} characters"
+  },
+  "conversations": {
+    "participants": {
+      "isArray": "Participants must be an array",
+      "isInt": "Each participant must be a valid user ID",
+      "arrayNotEmpty": "At least one participant is required"
+    },
+    "type": {
+      "isEnum": "Invalid conversation type"
+    },
+    "name": {
+      "isString": "Conversation name must be a string",
+      "length": "Conversation name must be between 1 and 100 characters"
+    },
+    "description": {
+      "isString": "Description must be a string",
+      "length": "Description must be between 1 and 255 characters"
+    },
+    "avatar": {
+      "size": "File too large. Maximum allowed size is 3MB",
+      "type": "Invalid file type. Allowed types: JPG, JPEG, PNG, WEBP"
+    }
   }
 }

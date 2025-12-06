@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   Req,
   UploadedFile,
@@ -13,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AvatarFilePipe } from 'src/common/pipes/avatar-file.pipe';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { ConversationsService } from './conversations.service';
+import { UuidDto } from 'src/common/dtos/uuid.dto';
 
 @Controller('conversations')
 export class ConversationsController {
@@ -28,5 +31,11 @@ export class ConversationsController {
     @Req() req: Request
   ) {
     return this.conversationsService.create(req.account!, dto, avatar);
+  }
+
+  @Get(':id')
+  @UseGuards(AuthGuard)
+  get(@Req() req: Request, @Param() { id }: UuidDto) {
+    return this.conversationsService.findById(req.account!, id);
   }
 }

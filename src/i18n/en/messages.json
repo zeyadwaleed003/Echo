@@ -146,6 +146,7 @@
     "TooManyParticipants": "A conversation cannot have more than {{max}} participants",
     "GroupNameRequired": "Group conversations must have a name",
     "DirectConversationExists": "A direct conversation with this user already exists",
-    "NoConversationFound": "No conversation found with the provided id"
+    "NoConversationFound": "No conversation found with the provided id",
+    "NotConversationMember": "You must be a conversation member to access this resource"
   }
 }

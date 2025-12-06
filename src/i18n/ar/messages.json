@@ -146,6 +146,7 @@
     "TooManyParticipants": "لا يمكن أن تحتوي المحادثة على أكثر من {{max}} مشاركًا",
     "GroupNameRequired": "يجب أن يكون للمحادثات الجماعية اسم",
     "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل",
-    "NoConversationFound": "لا توجد محادثة بالمعرف المقدم"
+    "NoConversationFound": "لا توجد محادثة بالمعرف المقدم",
+    "NotConversationMember": "يجب أن تكون عضوا في المحادثة للوصول إلى هذا المورد"
   }
 }

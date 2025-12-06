@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -16,6 +17,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppConfig } from 'src/config/configuration';
 import { I18nService } from 'nestjs-i18n';
 import { APIResponse } from 'src/common/types/api.types';
+import { Role } from '../accounts/accounts.enums';
 
 @Injectable()
 export class ConversationsService {
@@ -155,6 +157,47 @@ export class ConversationsService {
         conversationMembers: {
           size: members.length,
           members: members,
+        },
+      },
+    };
+  }
+
+  async findById(account: Account, id: string): Promise<APIResponse> {
+    const conversationParticipants =
+      await this.conversationParticipantRepository.find({
+        relations: ['account', 'conversation'],
+        where: { conversationId: id },
+      });
+
+    // check if not available
+    if (!conversationParticipants.length)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NoConversationFound`)
+      );
+
+    // If the account is not the admin ... then he can't view the conversation info unless he is a member in the conversation
+    if (account.role === Role.USER) {
+      const exists = await this.conversationParticipantRepository.exists({
+        where: { conversationId: id, accountId: account.id },
+      });
+
+      if (!exists)
+        throw new ForbiddenException(
+          this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+        );
+    }
+
+    const { conversation } = conversationParticipants[0]!;
+    const members = conversationParticipants.map((c) => c.account);
+
+    // TODO: Need to get the number of unread number & the last sent message
+
+    return {
+      data: {
+        ...conversation,
+        conversationMembers: {
+          size: members.length,
+          members,
         },
       },
     };

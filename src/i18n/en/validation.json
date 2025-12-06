@@ -218,5 +218,8 @@
       "size": "File too large. Maximum allowed size is 3MB",
       "type": "Invalid file type. Allowed types: JPG, JPEG, PNG, WEBP"
     }
+  },
+  "id": {
+    "isUuid": "Invalid ID format. ID must be a valid UUID."
   }
 }

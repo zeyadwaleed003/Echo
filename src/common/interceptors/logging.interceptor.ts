@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
+import { winstonLogger } from 'src/config/logger.config';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -36,7 +37,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const userAgent = req.get('user-agent') || 'Unknown'; // What software is being used to access the API
 
     // Log Requests
-    this.logger.log({
+    const requestLog ={
       message: 'Incoming Request',
       method,
       url,
@@ -47,7 +48,9 @@ export class LoggingInterceptor implements NestInterceptor {
       body,
       query: Object.keys(query).length > 0 ? query : undefined,
       params: Object.keys(params).length > 0 ? params : undefined,
-    });
+    };
+    this.logger.log(requestLog);
+    winstonLogger.info(requestLog);
 
     // Log Responses
     return next.handle().pipe(
@@ -56,7 +59,7 @@ export class LoggingInterceptor implements NestInterceptor {
           const { statusCode } = res;
           const duration = Date.now() - startTime;
 
-          this.logger.log({
+          const responseLog = {
             message: 'Outgoing Response',
             method,
             url,
@@ -65,13 +68,15 @@ export class LoggingInterceptor implements NestInterceptor {
             statusCode,
             duration: `${duration}ms`,
             data,
-          });
+          };
+          this.logger.log(responseLog);
+          winstonLogger.info(responseLog);
         },
         error: (error: any) => {
           const duration = Date.now() - startTime;
           const statusCode = error.status || 500;
 
-          this.logger.error({
+          const errorLog = {
             message: 'Error Response',
             method,
             url,
@@ -83,7 +88,10 @@ export class LoggingInterceptor implements NestInterceptor {
             error: error.message,
             stack: error.stack,
             duration: `${duration}ms`,
-          });
+          };
+          this.logger.error(errorLog);
+          winstonLogger.error(errorLog);
+
         },
       })
     );

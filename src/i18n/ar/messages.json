@@ -145,6 +145,7 @@
     "NoValidParticipants": "يجب إضافة مشارك واحد على الأقل لإنشاء محادثة",
     "TooManyParticipants": "لا يمكن أن تحتوي المحادثة على أكثر من {{max}} مشاركًا",
     "GroupNameRequired": "يجب أن يكون للمحادثات الجماعية اسم",
-    "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل"
+    "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل",
+    "NoConversationFound": "لا توجد محادثة بالمعرف المقدم"
   }
 }

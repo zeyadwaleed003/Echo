@@ -145,6 +145,7 @@
     "NoValidParticipants": "At least one participant is required to create a conversation",
     "TooManyParticipants": "A conversation cannot have more than {{max}} participants",
     "GroupNameRequired": "Group conversations must have a name",
-    "DirectConversationExists": "A direct conversation with this user already exists"
+    "DirectConversationExists": "A direct conversation with this user already exists",
+    "NoConversationFound": "No conversation found with the provided id"
   }
 }

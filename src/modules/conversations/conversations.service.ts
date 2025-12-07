@@ -8,7 +8,7 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { Account } from '../accounts/entities/account.entity';
 import { ConversationType, ParticipantRole } from './conversations.enums';
 import { AccountsService } from '../accounts/accounts.service';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConversationParticipant } from './entities/conversation-participant.entity';
 import { Conversation } from './entities/conversation.entity';
@@ -162,6 +162,33 @@ export class ConversationsService {
     };
   }
 
+  async checkIfUserInConversation(accountId: number, conversationId: string) {
+    const exists = await this.conversationParticipantRepository.existsBy({
+      accountId,
+      conversationId,
+    });
+
+    if (!exists) {
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+  }
+
+  async findActiveConversationParticipantsIds(
+    conversationId: string,
+    excludeAccountId?: number
+  ) {
+    return await this.conversationParticipantRepository.find({
+      where: {
+        conversationId,
+        ...(excludeAccountId && { accountId: Not(excludeAccountId) }),
+        leftAt: IsNull(),
+      },
+      select: ['accountId'],
+    });
+  }
+
   async findById(account: Account, id: string): Promise<APIResponse> {
     const conversationParticipants =
       await this.conversationParticipantRepository.find({
@@ -176,16 +203,8 @@ export class ConversationsService {
       );
 
     // If the account is not the admin ... then he can't view the conversation info unless he is a member in the conversation
-    if (account.role === Role.USER) {
-      const exists = await this.conversationParticipantRepository.exists({
-        where: { conversationId: id, accountId: account.id },
-      });
-
-      if (!exists)
-        throw new ForbiddenException(
-          this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
-        );
-    }
+    if (account.role === Role.USER)
+      await this.checkIfUserInConversation(account.id, id);
 
     const { conversation } = conversationParticipants[0]!;
     const members = conversationParticipants.map((c) => c.account);

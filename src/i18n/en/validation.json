@@ -221,5 +221,30 @@
   },
   "id": {
     "isUuid": "Invalid ID format. ID must be a valid UUID."
+  },
+  "messages": {
+    "conversationId": {
+      "isUuid": "Conversation ID must be a valid UUID",
+      "isNotEmpty": "Conversation ID is required"
+    },
+    "content": {
+      "isString": "Message content must be a string",
+      "isNotEmpty": "Message content is required"
+    },
+    "type": {
+      "isEnum": "Invalid message type. Must be one of: text, image, video, audio, document, location, contact, sticker"
+    },
+    "metadata": {
+      "isObject": "Metadata must be a valid object"
+    },
+    "replyToMessageId": {
+      "isUuid": "Reply message ID must be a valid UUID"
+    },
+    "tempId": {
+      "isString": "Temporary ID must be a string"
+    },
+    "isForwarded": {
+      "isBoolean": "isForwarded must be a boolean"
+    }
   }
 }

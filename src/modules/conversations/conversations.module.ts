@@ -26,5 +26,6 @@ import { AuthModule } from '../auth/auth.module';
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService],
+  exports: [ConversationsService],
 })
 export class ConversationsModule {}

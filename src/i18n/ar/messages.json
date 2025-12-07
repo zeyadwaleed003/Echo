@@ -148,5 +148,8 @@
     "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل",
     "NoConversationFound": "لا توجد محادثة بالمعرف المقدم",
     "NotConversationMember": "يجب أن تكون عضوا في المحادثة للوصول إلى هذا المورد"
+  },
+  "messages": {
+    "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"
   }
 }

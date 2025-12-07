@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { ConversationsModule } from '../conversations/conversations.module';
+import { MessagesGateway } from './messages.gateway';
 
 @Module({
   imports: [
@@ -25,6 +26,6 @@ import { ConversationsModule } from '../conversations/conversations.module';
     ConversationsModule,
   ],
   controllers: [MessagesController],
-  providers: [MessagesService],
+  providers: [MessagesService, MessagesGateway],
 })
 export class MessagesModule {}

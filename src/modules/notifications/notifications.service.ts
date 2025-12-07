@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Notification } from './entities/notification.entity';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
 import { I18nService } from 'nestjs-i18n';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -30,7 +30,7 @@ export class NotificationsService {
     await this.cacheManager.del(`${this.UNREAD_COUNT_PREFIX}:${accountId}`);
   }
 
-  async create(n: Partial<Notification>): Promise<APIResponse> {
+  async create(n: Partial<Notification>): Promise<HttpResponse> {
     const notification = this.notificationsRepository.create(n);
     await this.notificationsRepository.save(notification);
 
@@ -44,7 +44,7 @@ export class NotificationsService {
   async find(
     q: QueryString,
     queryOptions?: FindManyOptions<Notification>
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const notifications = await new ApiFeatures<Notification>(
       this.notificationsRepository,
       q,
@@ -77,7 +77,7 @@ export class NotificationsService {
     return await this.find(q, queryOptions);
   }
 
-  async getUnreadCount(accountId: number): Promise<APIResponse> {
+  async getUnreadCount(accountId: number): Promise<HttpResponse> {
     const cachedKey = `${this.UNREAD_COUNT_PREFIX}:${accountId}`;
 
     // Cache hit to get the number of unread notifications
@@ -131,7 +131,7 @@ export class NotificationsService {
     };
   }
 
-  async markAllAsRead(accountId: number): Promise<APIResponse> {
+  async markAllAsRead(accountId: number): Promise<HttpResponse> {
     await this.notificationsRepository.update(
       { accountId, isRead: false },
       { isRead: true }

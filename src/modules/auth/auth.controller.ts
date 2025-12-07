@@ -24,9 +24,9 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBody,
   ApiBearerAuth,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { ReactivationTokenDto } from './dto/reactivation-token.dto';
 import { CompleteSetupDto } from './dto/complete-setup.dto';

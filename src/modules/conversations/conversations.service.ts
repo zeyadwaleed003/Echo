@@ -16,7 +16,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ConfigService } from '@nestjs/config';
 import { AppConfig } from 'src/config/configuration';
 import { I18nService } from 'nestjs-i18n';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { Role } from '../accounts/accounts.enums';
 
 @Injectable()
@@ -38,7 +38,7 @@ export class ConversationsService {
     admin: Account,
     dto: CreateConversationDto,
     avatar: Express.Multer.File
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     // Admin is already valid because he is logged in
 
     // Remove duplicates and remove the admin id if he was in the participant ids
@@ -189,7 +189,7 @@ export class ConversationsService {
     });
   }
 
-  async findById(account: Account, id: string): Promise<APIResponse> {
+  async findById(account: Account, id: string): Promise<HttpResponse> {
     const conversationParticipants =
       await this.conversationParticipantRepository.find({
         relations: ['account', 'conversation'],

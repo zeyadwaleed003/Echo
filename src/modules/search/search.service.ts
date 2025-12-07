@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { SearchQueryDto } from './dto/search-query.dto';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { SearchFilter } from './search.enums';
 import { Account } from '../accounts/entities/account.entity';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -256,7 +256,7 @@ export class SearchService implements OnModuleInit {
     q: string,
     limit: number,
     accountId: number | undefined
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const hits = (
       await this.elasticsearchService.search<AccountIndex>(
         this.assignAccountSearchParams(search_after, q, limit)
@@ -450,7 +450,7 @@ export class SearchService implements OnModuleInit {
   async search(
     query: SearchQueryDto,
     accountId: number | undefined
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const { f, q, cursor, limit } = query;
 
     // decode the given cursor

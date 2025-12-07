@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Message } from './entities/message.entity';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessageStatus } from './entities/message-status.entity';
 import { Conversation } from '../conversations/entities/conversation.entity';
@@ -21,7 +21,7 @@ export class MessagesService {
     private readonly i18n: I18nService
   ) {}
 
-  async create(senderId: number, dto: CreateMessageDto): Promise<APIResponse> {
+  async create(senderId: number, dto: CreateMessageDto): Promise<HttpResponse> {
     // Need to check if the user is sending the message in a conversation where he belongs to
     await this.conversationsService.checkIfUserInConversation(
       senderId,
@@ -77,6 +77,11 @@ export class MessagesService {
       return message;
     });
 
-    return { data: message };
+    return {
+      data: {
+        ...message,
+        tempId: dto.tempId,
+      },
+    };
   }
 }

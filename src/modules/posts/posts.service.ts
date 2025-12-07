@@ -15,7 +15,7 @@ import { PostFiles } from './entities/post-file.entity';
 import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
 import { PostType } from './posts.enums';
 import { Account } from '../accounts/entities/account.entity';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
@@ -256,7 +256,7 @@ export class PostsService {
 
   async findAllPosts(q: any) {
     const data = await this.findAll(q);
-    const res: APIResponse = {
+    const res: HttpResponse = {
       size: data.length,
       data,
     };
@@ -301,7 +301,7 @@ export class PostsService {
         this.i18n.t(`${this.i18nNamespace}.privateAccountLogin`)
       );
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       data: { ...post, files },
     };
 
@@ -313,7 +313,7 @@ export class PostsService {
     account: Account,
     updatePostDto: UpdatePostDto,
     files?: Express.Multer.File[]
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
@@ -409,7 +409,7 @@ export class PostsService {
     };
   }
 
-  async remove(id: number, account: Account): Promise<APIResponse> {
+  async remove(id: number, account: Account): Promise<HttpResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
@@ -518,7 +518,7 @@ export class PostsService {
 
       await postRepository.update({ id }, { pinned: true });
 
-      const res: APIResponse = {
+      const res: HttpResponse = {
         message: this.i18n.t(`${this.i18nNamespace}.pinnedSuccessfully`),
       };
       return res;
@@ -553,7 +553,7 @@ export class PostsService {
 
     const allReplies = await this.findAll(queryString);
     if (!allReplies.length) {
-      const res: APIResponse = {
+      const res: HttpResponse = {
         size: 0,
         data: [],
       };
@@ -575,7 +575,7 @@ export class PostsService {
       const data = allReplies.filter(
         (reply) => !privateAccountsIds.has(reply.accountId)
       );
-      const res: APIResponse = {
+      const res: HttpResponse = {
         size: data.length,
         data,
       };
@@ -641,7 +641,7 @@ export class PostsService {
       return privateFollowedAccountsIds.has(accountId);
     });
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       size: visibleReplies.length,
       data: visibleReplies,
     };
@@ -659,7 +659,7 @@ export class PostsService {
       where: { postId: id },
     });
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       data: {
         bookmarksNumber,
       },

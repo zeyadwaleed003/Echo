@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { BlockedWord } from './entities/blocked-word.entity';
 import { Repository, DataSource } from 'typeorm';
 import { WordRelationships } from './entities/word-relationship.entity';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { I18nService } from 'nestjs-i18n';
 
@@ -20,7 +20,7 @@ export class BlockedWordsService {
     private readonly dataSource: DataSource
   ) {}
 
-  async block(accountId: number, word: string): Promise<APIResponse> {
+  async block(accountId: number, word: string): Promise<HttpResponse> {
     let blockedWord: BlockedWord;
 
     // Check if the word already existed
@@ -74,7 +74,7 @@ export class BlockedWordsService {
   async unblock(
     accountId: number,
     blockedWordId: number
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const relationship = await this.wordRelationshipsRepository.findOne({
       where: { blockedWordId, accountId },
       relations: ['blockedWord'],
@@ -96,7 +96,7 @@ export class BlockedWordsService {
   async getCurrentAccountBlockedWords(
     accountId: number,
     q: QueryString
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const relationships = await new ApiFeatures(
       this.wordRelationshipsRepository,
       q,

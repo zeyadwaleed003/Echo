@@ -150,8 +150,8 @@
     "NotConversationMember": "You must be a conversation member to access this resource",
     "NoValidMembersToAdd": "No valid members to add to the group",
     "NoValidMembersToRemove": "No valid members to remove from the group",
-    "OnlyGroupConversations": "Members can only be added/removed to group conversations",
-    "OnlyAdminCanManageMembers": "Only the group admin can add/remove members",
+    "OnlyGroupConversations": "This action can be only done to group conversations",
+    "OnlyAdminCanManageMembers": "Only the group admin can do this action",
     "MembersAlreadyInGroup": "All specified members are already in the group",
     "InvalidMemberIds": "One or more member IDs are invalid",
     "ExceedsMaxParticipants": "Cannot add members. Group limit is {{max}} members. Current: {{current}}, Attempting to add: {{adding}}",
@@ -173,7 +173,9 @@
     "ConversationUnmuted": "Conversation unmuted successfully",
     "ConversationAlreadyMuted": "This conversation is already muted",
     "ConversationNotMuted": "This conversation is not muted",
-    "MuteUntilMustBeFuture": "Mute until date must be in the future"
+    "MuteUntilMustBeFuture": "Mute until date must be in the future",
+    "NoFieldsToUpdate": "At least one field must be provided to update the conversation",
+    "ConversationUpdatedSuccessfully": "Conversation updated successfully"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

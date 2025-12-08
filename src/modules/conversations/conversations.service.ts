@@ -21,6 +21,7 @@ import { Role } from '../accounts/accounts.enums';
 import { ManageMembersDto } from './dto/manage-members.dto';
 import { PromoteMemberDto } from './dto/promote-member.dto';
 import { MuteConversationDto } from './dto/mute-conversation.dto';
+import { UpdateConversationDto } from './dto/update-conversation.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -30,6 +31,8 @@ export class ConversationsService {
   constructor(
     private readonly accountsService: AccountsService,
     private readonly dataSource: DataSource,
+    @InjectRepository(Conversation)
+    private readonly conversationRepository: Repository<Conversation>,
     @InjectRepository(ConversationParticipant)
     private readonly conversationParticipantRepository: Repository<ConversationParticipant>,
     private readonly cloudinaryService: CloudinaryService,
@@ -222,7 +225,7 @@ export class ConversationsService {
     ]);
 
     // Check if valid conversation
-    this.validateConversationForManagingMembers(accountParticipant);
+    this.validateGroupAdminPermissions(accountParticipant);
 
     // I want to only add the unique members that are not previously in the group
     const oldMembersMap = new Map(
@@ -331,7 +334,7 @@ export class ConversationsService {
         relations: ['conversation'],
       });
 
-    this.validateConversationForManagingMembers(accountParticipant);
+    this.validateGroupAdminPermissions(accountParticipant);
 
     await this.conversationParticipantRepository.update(
       {
@@ -446,7 +449,7 @@ export class ConversationsService {
     ]);
 
     // The account should be an admin in a group conversation
-    this.validateConversationForManagingMembers(accountParticipant);
+    this.validateGroupAdminPermissions(accountParticipant);
 
     // Check member existance
     if (!memberToPromote) {
@@ -585,6 +588,67 @@ export class ConversationsService {
     };
   }
 
+  async updateConversation(
+    account: Account,
+    conversationId: string,
+    dto: UpdateConversationDto,
+    avatar: Express.Multer.File
+  ): Promise<HttpResponse> {
+    const accountParticipant =
+      await this.conversationParticipantRepository.findOne({
+        where: { conversationId, accountId: account.id },
+        relations: ['conversation'],
+      });
+
+    // Validate conversation exists and account is admin
+    this.validateGroupAdminPermissions(accountParticipant);
+
+    let uploadedAvatarUrl: string | null = null;
+    try {
+      // Handle avatar upload if provided
+      if (avatar) {
+        const uploadResult = await this.cloudinaryService.uploadFile(avatar);
+        uploadedAvatarUrl = uploadResult.secure_url;
+
+        // Delete old avatar if it's not the default one
+        const oldAvatar = accountParticipant!.conversation.avatar;
+        const defaultAvatar = this.configService.get<string>(
+          'DEFAULT_CONVERSATION_AVATAR_URL',
+          ''
+        );
+
+        if (oldAvatar && oldAvatar !== defaultAvatar)
+          await this.cloudinaryService.deleteFile(oldAvatar);
+      }
+
+      await this.conversationRepository.update(
+        { id: conversationId },
+        {
+          ...dto,
+          ...(avatar && { avatar: uploadedAvatarUrl }),
+        }
+      );
+
+      // Fetch updated conversation
+      const updatedConversation = await this.conversationRepository.findOneBy({
+        id: conversationId,
+      });
+
+      return {
+        message: this.i18n.t(
+          `${this.i18nNamespace}.ConversationUpdatedSuccessfully`
+        ),
+        data: updatedConversation!,
+      };
+    } catch (err) {
+      // Don't upload avatar if something went wrong
+      if (uploadedAvatarUrl)
+        await this.cloudinaryService.deleteFile(uploadedAvatarUrl);
+
+      throw err;
+    }
+  }
+
   // === Helpers === //
 
   async checkIfUserInConversation(accountId: number, conversationId: string) {
@@ -654,7 +718,7 @@ export class ConversationsService {
     };
   }
 
-  private validateConversationForManagingMembers(
+  private validateGroupAdminPermissions(
     accountParticipant: ConversationParticipant | null
   ) {
     if (!accountParticipant || !accountParticipant.conversation)

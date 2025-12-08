@@ -150,8 +150,8 @@
     "NotConversationMember": "يجب أن تكون عضوا في المحادثة للوصول إلى هذا المورد",
     "NoValidMembersToAdd": "لا يوجد أعضاء صالحين لإضافتهم إلى المجموعة",
     "NoValidMembersToRemove": "لا يوجد أعضاء صالحين لإزالتهم من المجموعة",
-    "OnlyGroupConversations": "يمكن إضافة/إزالة الأعضاء فقط إلى/من محادثات المجموعات",
-    "OnlyAdminCanManageMembers": "يمكن لمشرف المجموعة فقط إضافة/إزالة أعضاء",
+    "OnlyGroupConversations": "لا يمكن تنفيذ هذا الإجراء إلا على المحادثات الجماعية",
+    "OnlyAdminCanManageMembers": "يمكن لمشرف المجموعة فقط تنفيذ هذا الإجراء",
     "MembersAlreadyInGroup": "جميع الأعضاء المحددين موجودون بالفعل في المجموعة",
     "InvalidMemberIds": "واحد أو أكثر من معرفات الأعضاء غير صالحة",
     "ExceedsMaxParticipants": "لا يمكن إضافة الأعضاء. الحد الأقصى للمجموعة هو {{max}} عضو. الحالي: {{current}}، محاولة الإضافة: {{adding}}",
@@ -173,7 +173,9 @@
     "ConversationUnmuted": "تم إلغاء كتم المحادثة بنجاح",
     "ConversationAlreadyMuted": "هذه المحادثة مكتومة بالفعل",
     "ConversationNotMuted": "هذه المحادثة غير مكتومة",
-    "MuteUntilMustBeFuture": "يجب أن يكون تاريخ الكتم في المستقبل"
+    "MuteUntilMustBeFuture": "يجب أن يكون تاريخ الكتم في المستقبل",
+    "NoFieldsToUpdate": "يجب توفير حقل واحد على الأقل لتحديث المحادثة",
+    "ConversationUpdatedSuccessfully": "تم تحديث المحادثة بنجاح"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

@@ -11,6 +11,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Patch,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
@@ -22,6 +23,7 @@ import { UuidDto } from 'src/common/dtos/uuid.dto';
 import { ManageMembersDto } from './dto/manage-members.dto';
 import { PromoteMemberDto } from './dto/promote-member.dto';
 import { MuteConversationDto } from './dto/mute-conversation.dto';
+import { UpdateConversationDto } from './dto/update-conversation.dto';
 
 @Controller('conversations')
 @UseGuards(AuthGuard)
@@ -113,5 +115,21 @@ export class ConversationsController {
   @HttpCode(HttpStatus.OK)
   unmuteConversation(@Req() req: Request, @Param() { id }: UuidDto) {
     return this.conversationsService.unmuteConversation(req.account!, id);
+  }
+
+  @Patch(':id')
+  @UseInterceptors(FileInterceptor('avatar'))
+  updateConversation(
+    @Req() req: Request,
+    @Param() { id }: UuidDto,
+    @Body() dto: UpdateConversationDto,
+    @UploadedFile(AvatarFilePipe) avatar: Express.Multer.File
+  ) {
+    return this.conversationsService.updateConversation(
+      req.account!,
+      id,
+      dto,
+      avatar
+    );
   }
 }

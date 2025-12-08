@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Req,
@@ -16,13 +19,14 @@ import { AvatarFilePipe } from 'src/common/pipes/avatar-file.pipe';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { ConversationsService } from './conversations.service';
 import { UuidDto } from 'src/common/dtos/uuid.dto';
+import { ManageMembersDto } from './dto/manage-members.dto';
 
 @Controller('conversations')
+@UseGuards(AuthGuard)
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Post()
-  @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('avatar'))
   create(
     @UploadedFile(AvatarFilePipe)
@@ -34,8 +38,30 @@ export class ConversationsController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard)
   get(@Req() req: Request, @Param() { id }: UuidDto) {
     return this.conversationsService.findById(req.account!, id);
+  }
+
+  @Post(':id/members')
+  addMembersToGroup(
+    @Req() req: Request,
+    @Param() { id }: UuidDto,
+    @Body() dto: ManageMembersDto
+  ) {
+    return this.conversationsService.addMembersToGroup(req.account!, id, dto);
+  }
+
+  @Delete(':id/members')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeMembersFromGroup(
+    @Req() req: Request,
+    @Param() { id }: UuidDto,
+    @Body() dto: ManageMembersDto
+  ) {
+    return this.conversationsService.removeMembersFromGroup(
+      req.account!,
+      id,
+      dto
+    );
   }
 }

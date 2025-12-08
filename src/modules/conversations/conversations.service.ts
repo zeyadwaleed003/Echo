@@ -8,7 +8,7 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { Account } from '../accounts/entities/account.entity';
 import { ConversationType, ParticipantRole } from './conversations.enums';
 import { AccountsService } from '../accounts/accounts.service';
-import { DataSource, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConversationParticipant } from './entities/conversation-participant.entity';
 import { Conversation } from './entities/conversation.entity';
@@ -18,6 +18,7 @@ import { AppConfig } from 'src/config/configuration';
 import { I18nService } from 'nestjs-i18n';
 import { HttpResponse } from 'src/common/types/api.types';
 import { Role } from '../accounts/accounts.enums';
+import { ManageMembersDto } from './dto/manage-members.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -153,7 +154,7 @@ export class ConversationsService {
 
     return {
       data: {
-        ...conversation,
+        conversation,
         conversationMembers: {
           size: members.length,
           members: members,
@@ -195,7 +196,157 @@ export class ConversationsService {
     };
   }
 
-  // --- Helpers --- //
+  async addMembersToGroup(
+    account: Account,
+    conversationId: string,
+    dto: ManageMembersDto
+  ) {
+    // Filter the admin if in the members array
+    const members = dto.memberIds.filter((id) => id !== account.id);
+    if (!members.length)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NoValidMembersToAdd`)
+      );
+
+    const [accountParticipant, oldMembers] = await Promise.all([
+      this.conversationParticipantRepository.findOne({
+        where: { conversationId, accountId: account.id },
+        relations: ['conversation'],
+      }),
+      this.conversationParticipantRepository.find({
+        where: { conversationId },
+        select: ['accountId', 'leftAt'],
+      }),
+    ]);
+
+    // Check if valid conversation
+    this.validateConversationForManagingMembers(accountParticipant);
+
+    // I want to only add the unique members that are not previously in the group
+    const oldMembersMap = new Map(
+      oldMembers.map((p) => [p.accountId, p.leftAt])
+    );
+
+    const newMemberIds: number[] = []; // This is the ids of the new members
+    const returningMemberIds: number[] = []; // The ids of members were in the group and left it and wants to join again
+    const alreadyActiveMemberIds: number[] = []; // Ids of members already in the group
+
+    for (const memberId of members) {
+      if (!oldMembersMap.has(memberId)) newMemberIds.push(memberId);
+      else {
+        const leftAt = oldMembersMap.get(memberId);
+
+        leftAt === null
+          ? alreadyActiveMemberIds.push(memberId)
+          : returningMemberIds.push(memberId);
+      }
+    }
+
+    // No new members and no old members returning to the group
+    if (!newMemberIds.length && !returningMemberIds.length)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.MembersAlreadyInGroup`)
+      );
+
+    const currentActiveMembersCount = oldMembers.filter(
+      (p) => p.leftAt === null
+    ).length;
+
+    // The group can't contain more than 256 member
+    const newTotalActiveMembersNumber =
+      newMemberIds.length +
+      returningMemberIds.length +
+      currentActiveMembersCount;
+
+    if (newTotalActiveMembersNumber > this.maxGroupParticipants)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.ExceedsMaxParticipants`, {
+          args: {
+            max: this.maxGroupParticipants,
+            current: currentActiveMembersCount,
+            adding: newMemberIds.length + returningMemberIds.length,
+          },
+        })
+      );
+
+    await this.dataSource.transaction(async (manager) => {
+      if (newMemberIds.length > 0) {
+        // Validate new members
+        await this.accountsService.validateConversationParticipants(
+          manager,
+          account,
+          newMemberIds
+        );
+      }
+
+      const conversationParticipantRepo = manager.getRepository(
+        ConversationParticipant
+      );
+
+      if (newMemberIds.length)
+        await conversationParticipantRepo.insert(
+          newMemberIds.map((m) => ({
+            conversationId,
+            accountId: m,
+          }))
+        );
+
+      if (returningMemberIds.length)
+        await conversationParticipantRepo.update(
+          { conversationId, accountId: In(returningMemberIds) },
+          {
+            leftAt: null,
+            joinedAt: new Date(),
+          }
+        );
+    });
+
+    return {
+      data: {
+        conversationId,
+        addedMembers: newMemberIds.length,
+        returningMembers: returningMemberIds.length,
+        totalActiveMembers: newTotalActiveMembersNumber,
+        alreadyActive: alreadyActiveMemberIds.length,
+      },
+    };
+  }
+
+  async removeMembersFromGroup(
+    account: Account,
+    conversationId: string,
+    dto: ManageMembersDto
+  ): Promise<HttpResponse> {
+    const members = dto.memberIds.filter((id) => id !== account.id);
+    if (!members.length)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NoValidMembersToRemove`)
+      );
+
+    const accountParticipant =
+      await this.conversationParticipantRepository.findOne({
+        where: { conversationId, accountId: account.id },
+        relations: ['conversation'],
+      });
+
+    this.validateConversationForManagingMembers(accountParticipant);
+
+    await this.conversationParticipantRepository.update(
+      {
+        conversationId,
+        accountId: In(members),
+      },
+      {
+        leftAt: new Date(),
+      }
+    );
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.RemovedFromConversation`),
+    };
+  }
+
+  // === Helpers === //
 
   async checkIfUserInConversation(accountId: number, conversationId: string) {
     const exists = await this.conversationParticipantRepository.existsBy({
@@ -222,5 +373,28 @@ export class ConversationsService {
       },
       select: ['accountId'],
     });
+  }
+
+  // === Private Helpers === //
+
+  private validateConversationForManagingMembers(
+    accountParticipant: ConversationParticipant | null
+  ) {
+    if (!accountParticipant || !accountParticipant.conversation)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NoConversationFound`)
+      );
+
+    // Check if the conversation is a group conv
+    if (accountParticipant.conversation.type !== ConversationType.GROUP)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.OnlyGroupConversations`)
+      );
+
+    // Only admins can add members to group
+    if (accountParticipant.role !== ParticipantRole.ADMIN)
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.OnlyAdminCanManageMembers`)
+      );
   }
 }

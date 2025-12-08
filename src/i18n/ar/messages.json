@@ -147,7 +147,16 @@
     "GroupNameRequired": "يجب أن يكون للمحادثات الجماعية اسم",
     "DirectConversationExists": "محادثة مباشرة مع هذا المستخدم موجودة بالفعل",
     "NoConversationFound": "لا توجد محادثة بالمعرف المقدم",
-    "NotConversationMember": "يجب أن تكون عضوا في المحادثة للوصول إلى هذا المورد"
+    "NotConversationMember": "يجب أن تكون عضوا في المحادثة للوصول إلى هذا المورد",
+    "NoValidMembersToAdd": "لا يوجد أعضاء صالحين لإضافتهم إلى المجموعة",
+    "NoValidMembersToRemove": "لا يوجد أعضاء صالحين لإزالتهم من المجموعة",
+    "OnlyGroupConversations": "يمكن إضافة/إزالة الأعضاء فقط إلى/من محادثات المجموعات",
+    "OnlyAdminCanManageMembers": "يمكن لمشرف المجموعة فقط إضافة/إزالة أعضاء",
+    "MembersAlreadyInGroup": "جميع الأعضاء المحددين موجودون بالفعل في المجموعة",
+    "InvalidMemberIds": "واحد أو أكثر من معرفات الأعضاء غير صالحة",
+    "ExceedsMaxParticipants": "لا يمكن إضافة الأعضاء. الحد الأقصى للمجموعة هو {{max}} عضو. الحالي: {{current}}، محاولة الإضافة: {{adding}}",
+    "FailedToAddMembers": "فشل في إضافة الأعضاء إلى المجموعة. يرجى المحاولة مرة أخرى",
+    "RemovedFromConversation": "تمت إزالة الحسابات من المحادثة بنجاح"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

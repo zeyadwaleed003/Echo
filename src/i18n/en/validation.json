@@ -217,6 +217,14 @@
     "avatar": {
       "size": "File too large. Maximum allowed size is 3MB",
       "type": "Invalid file type. Allowed types: JPG, JPEG, PNG, WEBP"
+    },
+    "memberIds": {
+      "IS_INT": "Member ID must be an integer",
+      "NOT_EMPTY": "Member IDs array is required",
+      "IS_ARRAY": "Member IDs must be an array",
+      "ARRAY_MIN_SIZE": "Member IDs array must contain at least one member",
+      "ARRAY_UNIQUE": "Member IDs must be unique",
+      "IS_POSITIVE": "Each member ID must be a positive number"
     }
   },
   "id": {

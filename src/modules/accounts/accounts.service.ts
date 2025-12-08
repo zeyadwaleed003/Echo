@@ -870,4 +870,8 @@ export class AccountsService {
 
     return validParticipants;
   }
+
+  async findByIds(ids: number[]) {
+    return await this.accountsRepository.findBy({ id: In(ids) });
+  }
 }

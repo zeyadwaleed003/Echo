@@ -156,7 +156,11 @@
     "InvalidMemberIds": "One or more member IDs are invalid",
     "ExceedsMaxParticipants": "Cannot add members. Group limit is {{max}} members. Current: {{current}}, Attempting to add: {{adding}}",
     "FailedToAddMembers": "Failed to add members to the group. Please try again",
-    "RemovedFromConversation": "Accounts Removed from the conversation successfully"
+    "RemovedFromConversation": "Accounts Removed from the conversation successfully",
+    "CanOnlyLeaveGroupConversations": "You can only leave group conversations",
+    "LeftGroup": "Successfully left the group",
+    "NoMembersToPromote": "No members available to promote to admin",
+    "NewAdminNotInGroup": "The specified new admin is not an active member of the group"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

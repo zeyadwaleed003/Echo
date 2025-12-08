@@ -156,7 +156,11 @@
     "InvalidMemberIds": "واحد أو أكثر من معرفات الأعضاء غير صالحة",
     "ExceedsMaxParticipants": "لا يمكن إضافة الأعضاء. الحد الأقصى للمجموعة هو {{max}} عضو. الحالي: {{current}}، محاولة الإضافة: {{adding}}",
     "FailedToAddMembers": "فشل في إضافة الأعضاء إلى المجموعة. يرجى المحاولة مرة أخرى",
-    "RemovedFromConversation": "تمت إزالة الحسابات من المحادثة بنجاح"
+    "RemovedFromConversation": "تمت إزالة الحسابات من المحادثة بنجاح",
+    "CanOnlyLeaveGroupConversations": "يمكنك فقط مغادرة محادثات المجموعة",
+    "LeftGroup": "تم مغادرة المجموعة بنجاح",
+    "NoMembersToPromote": "لا يوجد أعضاء متاحون للترقية إلى مشرف",
+    "NewAdminNotInGroup": "المشرف الجديد المحدد ليس عضوًا نشطًا في المجموعة"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

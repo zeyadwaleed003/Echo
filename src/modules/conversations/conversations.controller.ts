@@ -64,4 +64,10 @@ export class ConversationsController {
       dto
     );
   }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  leaveGroup(@Req() req: Request, @Param() { id }: UuidDto) {
+    return this.conversationsService.leaveGroup(req.account!, id);
+  }
 }

@@ -346,6 +346,78 @@ export class ConversationsService {
     };
   }
 
+  async leaveGroup(
+    account: Account,
+    conversationId: string
+  ): Promise<HttpResponse> {
+    const accountParticipant =
+      await this.conversationParticipantRepository.findOne({
+        where: { conversationId, accountId: account.id, leftAt: IsNull() },
+        relations: ['conversation'],
+      });
+
+    // Validate participant and conversation existance
+    if (!accountParticipant || !accountParticipant.conversation)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+
+    if (accountParticipant.conversation.type !== ConversationType.GROUP)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.CanOnlyLeaveGroupConversations`)
+      );
+
+    const isAdmin = accountParticipant.role === ParticipantRole.ADMIN;
+
+    // Handle admin leaving with other members present
+    await this.dataSource.transaction(async (manager) => {
+      const conversationParticipantRepo = manager.getRepository(
+        ConversationParticipant
+      );
+
+      // If the user was leaving the group was the admin and there was no other admin in the group ... need to promot a new member to be an admin
+      const adminExists = await conversationParticipantRepo.existsBy({
+        conversationId,
+        accountId: Not(account.id),
+        leftAt: IsNull(),
+        role: ParticipantRole.ADMIN,
+      });
+
+      if (isAdmin && !adminExists) {
+        const oldestMember = await conversationParticipantRepo.findOne({
+          where: {
+            conversationId,
+            accountId: Not(account.id),
+            leftAt: IsNull(),
+          },
+          order: { joinedAt: 'ASC' },
+          select: ['accountId'],
+        });
+
+        if (!oldestMember)
+          throw new BadRequestException(
+            this.i18n.t(`${this.i18nNamespace}.NoMembersToPromote`)
+          );
+
+        // Promote new admin
+        await conversationParticipantRepo.update(
+          { conversationId, accountId: oldestMember.accountId },
+          { role: ParticipantRole.ADMIN }
+        );
+      }
+
+      // Mark account as left
+      await conversationParticipantRepo.update(
+        { conversationId, accountId: account.id },
+        { leftAt: new Date() }
+      );
+    });
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.LeftGroup`),
+    };
+  }
+
   // === Helpers === //
 
   async checkIfUserInConversation(accountId: number, conversationId: string) {

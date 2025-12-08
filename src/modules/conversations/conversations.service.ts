@@ -20,6 +20,7 @@ import { HttpResponse } from 'src/common/types/api.types';
 import { Role } from '../accounts/accounts.enums';
 import { ManageMembersDto } from './dto/manage-members.dto';
 import { PromoteMemberDto } from './dto/promote-member.dto';
+import { MuteConversationDto } from './dto/mute-conversation.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -496,6 +497,92 @@ export class ConversationsService {
       'ConversationArchived',
       'ConversationUnarchived'
     );
+  }
+
+  async muteConversation(
+    account: Account,
+    conversationId: string,
+    dto: MuteConversationDto
+  ): Promise<HttpResponse> {
+    const participant = await this.conversationParticipantRepository.findOne({
+      where: {
+        conversationId,
+        accountId: account.id,
+        leftAt: IsNull(),
+      },
+    });
+
+    if (!participant) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+
+    if (participant.isMuted) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.ConversationAlreadyMuted`)
+      );
+    }
+
+    // Validate muteUntil is in the future if provided
+    if (dto.muteUntil && dto.muteUntil <= new Date()) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.MuteUntilMustBeFuture`)
+      );
+    }
+
+    await this.conversationParticipantRepository.update(
+      { conversationId, accountId: account.id },
+      {
+        isMuted: true,
+        mutedUntil: dto.muteUntil || null,
+      }
+    );
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.ConversationMuted`),
+      data: {
+        isMuted: true,
+        mutedUntil: dto.muteUntil || null,
+      },
+    };
+  }
+
+  async unmuteConversation(
+    account: Account,
+    conversationId: string
+  ): Promise<HttpResponse> {
+    const participant = await this.conversationParticipantRepository.findOne({
+      where: {
+        conversationId,
+        accountId: account.id,
+        leftAt: IsNull(),
+      },
+    });
+
+    if (!participant) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+
+    if (!participant.isMuted) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.ConversationNotMuted`)
+      );
+    }
+
+    await this.conversationParticipantRepository.update(
+      { conversationId, accountId: account.id },
+      { isMuted: false, mutedUntil: null }
+    );
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.ConversationUnmuted`),
+      data: {
+        isMuted: false,
+      },
+    };
   }
 
   // === Helpers === //

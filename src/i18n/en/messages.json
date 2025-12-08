@@ -168,7 +168,12 @@
     "ConversationPinned": "Conversation pinned successfully",
     "ConversationUnpinned": "Conversation unpinned successfully",
     "ConversationArchived": "Conversation archived successfully",
-    "ConversationUnarchived": "Conversation unarchived successfully"
+    "ConversationUnarchived": "Conversation unarchived successfully",
+    "ConversationMuted": "Conversation muted successfully",
+    "ConversationUnmuted": "Conversation unmuted successfully",
+    "ConversationAlreadyMuted": "This conversation is already muted",
+    "ConversationNotMuted": "This conversation is not muted",
+    "MuteUntilMustBeFuture": "Mute until date must be in the future"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

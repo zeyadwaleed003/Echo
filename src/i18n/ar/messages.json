@@ -168,7 +168,12 @@
     "ConversationPinned": "تم تثبيت المحادثة بنجاح",
     "ConversationUnpinned": "تم إلغاء تثبيت المحادثة بنجاح",
     "ConversationArchived": "تم أرشفة المحادثة بنجاح",
-    "ConversationUnarchived": "تم إلغاء أرشفة المحادثة بنجاح"
+    "ConversationUnarchived": "تم إلغاء أرشفة المحادثة بنجاح",
+    "ConversationMuted": "تم كتم المحادثة بنجاح",
+    "ConversationUnmuted": "تم إلغاء كتم المحادثة بنجاح",
+    "ConversationAlreadyMuted": "هذه المحادثة مكتومة بالفعل",
+    "ConversationNotMuted": "هذه المحادثة غير مكتومة",
+    "MuteUntilMustBeFuture": "يجب أن يكون تاريخ الكتم في المستقبل"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

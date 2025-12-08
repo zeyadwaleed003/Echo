@@ -21,6 +21,7 @@ import { ConversationsService } from './conversations.service';
 import { UuidDto } from 'src/common/dtos/uuid.dto';
 import { ManageMembersDto } from './dto/manage-members.dto';
 import { PromoteMemberDto } from './dto/promote-member.dto';
+import { MuteConversationDto } from './dto/mute-conversation.dto';
 
 @Controller('conversations')
 @UseGuards(AuthGuard)
@@ -96,5 +97,21 @@ export class ConversationsController {
   @HttpCode(HttpStatus.OK)
   toggleArchive(@Req() req: Request, @Param() { id }: UuidDto) {
     return this.conversationsService.toggleArchive(req.account!, id);
+  }
+
+  @Post(':id/mute')
+  @HttpCode(HttpStatus.OK)
+  muteConversation(
+    @Req() req: Request,
+    @Param() { id }: UuidDto,
+    @Body() dto: MuteConversationDto
+  ) {
+    return this.conversationsService.muteConversation(req.account!, id, dto);
+  }
+
+  @Post(':id/unmute')
+  @HttpCode(HttpStatus.OK)
+  unmuteConversation(@Req() req: Request, @Param() { id }: UuidDto) {
+    return this.conversationsService.unmuteConversation(req.account!, id);
   }
 }

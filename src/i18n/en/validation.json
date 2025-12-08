@@ -230,6 +230,9 @@
       "IS_INT": "Member ID must be an integer",
       "NOT_EMPTY": "Member ID is required",
       "IS_POSITIVE": "Member ID must be a positive number"
+    },
+    "muteUntil": {
+      "IS_DATE": "Mute until must be a valid date"
     }
   },
   "id": {

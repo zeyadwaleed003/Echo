@@ -11,19 +11,19 @@ import {
 @Entity('word_relationships')
 export class WordRelationships {
   @PrimaryColumn()
-  accountId!: number;
+  accountId: number;
 
   @PrimaryColumn()
-  blockedWordId!: number;
+  blockedWordId: number;
 
-  @ManyToOne(() => Account)
+  @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn()
-  account!: Account;
+  account: Account;
 
-  @ManyToOne(() => BlockedWord)
+  @ManyToOne(() => BlockedWord, { onDelete: 'CASCADE' })
   @JoinColumn()
-  blockedWord!: BlockedWord;
+  blockedWord: BlockedWord;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 }

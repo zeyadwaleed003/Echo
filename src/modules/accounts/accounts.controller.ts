@@ -239,7 +239,7 @@ export class AccountsController {
   @Post('follow-requests/:id')
   async acceptFollowRequest(@Req() req: Request, @Param() params: IdDto) {
     return await this.accountService.acceptFollowRequest(
-      req.account!.id,
+      req.account!,
       params.id
     );
   }
@@ -367,7 +367,7 @@ export class AccountsController {
   @UseGuards(AuthGuard)
   @Post(':id/follow')
   async follow(@Param() params: IdDto, @Req() req: Request) {
-    return await this.accountService.follow(req.account!.id, params.id);
+    return await this.accountService.follow(req.account!, params.id);
   }
 
   @ApiOperation({ summary: 'Unfollow an account or cancel follow request' })

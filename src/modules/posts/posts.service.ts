@@ -1,29 +1,44 @@
 import {
+  BadRequestException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
-import { Post } from './entities/post.entity';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
-import { PostFiles } from './entities/post-file.entity';
-import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
-import { PostType } from './posts.enums';
-import { Account } from '../accounts/entities/account.entity';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
-import { InjectRepository } from '@nestjs/typeorm';
-import ApiFeatures from 'src/common/utils/ApiFeatures';
-import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
-import { RelationshipType } from '../accounts/accounts.enums';
-import { CreateReplyDto } from './dto/create-reply.dto';
+} from "@nestjs/common";
+import { CreatePostDto } from "./dto/create-post.dto";
+import { UpdatePostDto } from "./dto/update-post.dto";
+import { Post } from "./entities/post.entity";
+import { DataSource, EntityManager, In, Repository } from "typeorm";
+import { PostFiles } from "./entities/post-file.entity";
+import { CloudinaryService } from "src/modules/cloudinary/cloudinary.service";
+import { PostType } from "./posts.enums";
+import { Account } from "../accounts/entities/account.entity";
+import { APIResponse, QueryString } from "src/common/types/api.types";
+import { InjectRepository } from "@nestjs/typeorm";
+import ApiFeatures from "src/common/utils/ApiFeatures";
+import { AccountRelationships } from "../accounts/entities/account-relationship.entity";
+import { RelationshipType } from "../accounts/accounts.enums";
+import { CreateReplyDto } from "./dto/create-reply.dto";
+import { AiService, ContentClassification } from "../ai/ai.service";
+import { Bookmark } from "../bookmarks/entities/bookmark.entity";
+import { CreateRepostDto } from "./dto/create-repost.dto";
+import { RelationshipHelper } from "src/common/helpers/relationship.helper";
+import { SearchService } from "../search/search.service";
+import { GroupedPostFile } from "./posts.types";
+import { I18nService } from "nestjs-i18n";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../notifications/notifications.enums";
 
 @Injectable()
 export class PostsService {
+  private readonly i18nNamespace = "messages.posts";
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly i18n: I18nService,
     @InjectRepository(Post)
     private readonly postRepository: Repository<Post>,
     @InjectRepository(PostFiles)
@@ -31,21 +46,28 @@ export class PostsService {
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
     @InjectRepository(AccountRelationships)
-    private readonly accountRelationshipsRepository: Repository<AccountRelationships>
+    private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
+    @InjectRepository(Bookmark)
+    private readonly bookmarkRepository: Repository<Bookmark>,
+    private readonly aiService: AiService,
+    private readonly relationshipHelper: RelationshipHelper,
+    @Inject(forwardRef(() => SearchService))
+    private readonly searchService: SearchService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private containFiles(q: QueryString) {
     const queryString = { ...q };
-    const fields = queryString.fields?.split(',');
-    return fields?.includes('files');
+    const fields = queryString.fields?.split(",");
+    return fields?.includes("files");
   }
 
   private cleanFields(q: QueryString) {
     const queryString = { ...q };
-    const fields = queryString.fields?.split(',');
+    const fields = queryString.fields?.split(",");
 
-    const validFields = fields!.filter((field: string) => field !== 'files');
-    return { ...queryString, fields: validFields.join(',') };
+    const validFields = fields!.filter((field: string) => field !== "files");
+    return { ...queryString, fields: validFields.join(",") };
   }
 
   private async uploadFiles(
@@ -66,30 +88,124 @@ export class PostsService {
     return postFiles;
   }
 
-  async create(
-    createPostDto: CreatePostDto,
-    account: Account,
+  private async validateContentWithFiles(
+    content: string,
+    type: PostType,
+    accountId: number,
+    actionPostId?: number,
     files?: Express.Multer.File[]
   ) {
-    return await this.dataSource.transaction(async (manager) => {
-      const post = manager.create(Post, {
-        ...createPostDto,
-        type: PostType.POST,
-        accountId: account.id,
+    if (content === "" && (!files || files.length === 0)) {
+      if (type !== PostType.REPOST) {
+        throw new BadRequestException(
+          this.i18n.t(`${this.i18nNamespace}.postMustContainContent`)
+        );
+      }
+
+      const id = actionPostId!;
+      const [repost, files] = await Promise.all([
+        this.postRepository.find({
+          where: { type: PostType.REPOST, content: "", id, accountId },
+        }),
+        this.postFilesRepository.find({ where: { postId: id } }),
+      ]);
+
+      if (repost && !files)
+        throw new BadRequestException(
+          this.i18n.t(`${this.i18nNamespace}.alreadyReposted`)
+        );
+    }
+  }
+
+  private async create(
+    content: string,
+    type: PostType,
+    account: Account,
+    files?: Express.Multer.File[],
+    actionPostId?: number
+  ) {
+    this.validateContentWithFiles(
+      content,
+      type,
+      account.id,
+      actionPostId,
+      files
+    );
+
+    if (
+      (type === PostType.REPLY || type === PostType.REPOST) &&
+      !actionPostId
+    ) {
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.originalPostRequired`)
+      );
+    }
+
+    let accounts = null;
+    if (actionPostId) {
+      accounts = await this.relationshipHelper.validateActionPost(
+        actionPostId,
+        type
+      );
+      await this.relationshipHelper.checkRelationship(
+        account,
+        accounts.targetAccount,
+        type
+      );
+    }
+
+    if (
+      (await this.aiService.classifyContent(content || "", files)) ===
+      ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
+          args: { type },
+        })
+      );
+
+    const [post, postFiles] = await this.dataSource.transaction(
+      async (manager) => {
+        const post = manager.create(Post, {
+          content,
+          type,
+          accountId: account.id,
+          actionPostId: actionPostId || null,
+        });
+        await manager.save(Post, post);
+
+        let postFiles: PostFiles[] = [];
+
+        if (files?.length)
+          postFiles = await this.uploadFiles(manager, files, post.id);
+
+        return [post, postFiles];
+      }
+    );
+
+    post.account = account;
+    this.searchService.createPostDocument(post);
+
+    // Notify the user if his post was reposted or someone replied to his post
+    if (type === PostType.REPLY || type === PostType.REPOST) {
+      let notificationType = NotificationType.REPLY;
+      if (type === PostType.REPOST) notificationType = NotificationType.REPOST;
+
+      this.notificationsService.create({
+        actorId: account.id,
+        type: notificationType,
+        postId: accounts!.actionPost.id,
+        accountId: accounts!.actionPost.accountId,
+        description: `@${account.username} ${type}ed your post`,
       });
-      await manager.save(Post, post);
+    }
 
-      let postFiles: PostFiles[] = [];
-
-      if (files?.length)
-        postFiles = await this.uploadFiles(manager, files, post.id);
-
-      const res: APIResponse = {
-        message: 'Post created successfully',
-        data: { ...post, postFiles },
-      };
-      return res;
-    });
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.createdSuccessfully`, {
+        args: { type },
+      }),
+      data: { ...post, postFiles },
+    };
   }
 
   async findAll(q: any) {
@@ -104,8 +220,6 @@ export class PostsService {
       .limitFields()
       .paginate()
       .exec();
-
-    // if (q.fields && !containFiles) return { data: posts };
 
     const postsIds = posts.map((post) => post.id);
 
@@ -132,6 +246,14 @@ export class PostsService {
     return data;
   }
 
+  async createPost(
+    createPostDto: CreatePostDto,
+    account: Account,
+    files?: Express.Multer.File[]
+  ) {
+    return this.create(createPostDto.content, PostType.POST, account, files);
+  }
+
   async findAllPosts(q: any) {
     const data = await this.findAll(q);
     const res: APIResponse = {
@@ -150,14 +272,25 @@ export class PostsService {
 
   async findOne(id: number, account?: Account) {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     const [author, files] = await Promise.all([
       this.accountsRepository.findOneBy({ id: post.accountId }),
       this.postFilesRepository.findBy({ postId: post.id }),
     ]);
 
-    if (!author) throw new NotFoundException('Post author not found');
+    if (!author)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.authorNotFound`)
+      );
+
+    if (account) {
+      await this.relationshipHelper.checkRelationship(account, author, "view");
+    }
+
     if (!author.isPrivate)
       return {
         data: { ...post, files },
@@ -165,20 +298,7 @@ export class PostsService {
 
     if (!account)
       throw new UnauthorizedException(
-        'This post is from a private account. Please log in to view it.'
-      );
-
-    const isFollowing =
-      (
-        await this.accountRelationshipsRepository.findOneBy({
-          actorId: account!.id,
-          targetId: author.id,
-        })
-      )?.relationshipType === RelationshipType.FOLLOW;
-
-    if (account.role !== 'admin' && account.id !== author.id && !isFollowing)
-      throw new UnauthorizedException(
-        `Follow @${author.username} to see the post`
+        this.i18n.t(`${this.i18nNamespace}.privateAccountLogin`)
       );
 
     const res: APIResponse = {
@@ -193,87 +313,119 @@ export class PostsService {
     account: Account,
     updatePostDto: UpdatePostDto,
     files?: Express.Multer.File[]
-  ) {
+  ): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        'You do not have permission to update this post'
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToUpdate`)
       );
 
-    return await this.dataSource.transaction(async (manager) => {
-      const postRepository = manager.getRepository(Post);
-      const postFilesRepository = manager.getRepository(PostFiles);
-
-      const { deleteFileIds, content } = updatePostDto;
-
-      // update content
-      if (content) await postRepository.update(id, { content });
-
-      let remainingFilesCount = (
-        await postFilesRepository.find({
-          where: { postId: post.id },
+    if (
+      (await this.aiService.classifyContent(
+        updatePostDto.content || "",
+        files
+      )) === ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
+          args: { type: "post" },
         })
-      ).length;
+      );
 
-      // handle file deletion
-      if (deleteFileIds) {
-        const filesToDelete = await postFilesRepository.find({
-          where: { id: In(deleteFileIds) },
+    const [updatedPost, postFiles] = await this.dataSource.transaction(
+      async (manager) => {
+        const postRepository = manager.getRepository(Post);
+        const postFilesRepository = manager.getRepository(PostFiles);
+
+        const { deleteFileIds, content } = updatePostDto;
+
+        // update content
+        if (content) await postRepository.update(id, { content });
+
+        let remainingFilesCount = (
+          await postFilesRepository.find({
+            where: { postId: post.id },
+          })
+        ).length;
+
+        // handle file deletion
+        if (deleteFileIds) {
+          const filesToDelete = await postFilesRepository.find({
+            where: { id: In(deleteFileIds) },
+          });
+
+          const invalidFiles = filesToDelete.filter(
+            (file) => file.postId !== post.id
+          );
+          if (
+            invalidFiles.length ||
+            filesToDelete.length !== deleteFileIds.length
+          )
+            throw new ForbiddenException(
+              this.i18n.t(`${this.i18nNamespace}.filesNotBelongToPost`, {})
+            );
+
+          await this.cloudinaryService.deleteMultipleFiles(
+            filesToDelete.map((f) => f.url)
+          );
+          await postFilesRepository.remove(filesToDelete);
+          remainingFilesCount -= filesToDelete.length;
+        }
+
+        // handle file uploads
+        if (files?.length) {
+          if (files.length + remainingFilesCount > 4)
+            throw new ForbiddenException(
+              this.i18n.t(`${this.i18nNamespace}.maxFilesExceeded`, {})
+            );
+
+          await this.uploadFiles(manager, files, post.id);
+        }
+
+        const updatedPost = await postRepository.findOne({
+          where: { id },
+          relations: ["account"],
+        });
+        const postFiles = await postFilesRepository.find({
+          where: { postId: id },
         });
 
-        const invalidFiles = filesToDelete.filter(
-          (file) => file.postId !== post.id
-        );
-        if (
-          invalidFiles.length ||
-          filesToDelete.length !== deleteFileIds.length
-        )
-          throw new ForbiddenException('Some files do not belong to this post');
-
-        await this.cloudinaryService.deleteMultipleFiles(
-          filesToDelete.map((f) => f.url)
-        );
-        await postFilesRepository.remove(filesToDelete);
-        remainingFilesCount -= filesToDelete.length;
+        return [updatedPost, postFiles];
       }
+    );
 
-      // handle file uploads
-      if (files?.length) {
-        if (files.length + remainingFilesCount > 4)
-          throw new ForbiddenException('Maximum of 4 files allowed per post');
-
-        await this.uploadFiles(manager, files, post.id);
-      }
-
-      const updatedPost = await postRepository.findOneBy({ id });
-      const postFiles = await postFilesRepository.find({
-        where: { postId: id },
-      });
-
-      const res: APIResponse = {
-        message: 'Post updated successfully',
-        data: {
-          ...updatedPost,
-          ...(postFiles.length > 0 && { files: postFiles }),
-        },
-      };
-
-      return res;
-    });
+    this.searchService.updatePostDocument(post);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.updatedSuccessfully`, {}),
+      data: {
+        ...updatedPost,
+        ...(postFiles.length > 0 && { files: postFiles }),
+      },
+    };
   }
 
-  async remove(id: number, account: Account) {
+  async remove(id: number, account: Account): Promise<APIResponse> {
     const post = await this.postRepository.findOneBy({ id });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFoundGeneric`)
+      );
+
+    const type = post.type;
 
     if (account.id !== post.accountId)
       throw new ForbiddenException(
-        'You do not have permission to delete this post'
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToDelete`, {
+          args: { type },
+        })
       );
 
-    return await this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const postRepository = manager.getRepository(Post);
       const postFilesRepository = manager.getRepository(PostFiles);
 
@@ -287,12 +439,14 @@ export class PostsService {
 
       await postFilesRepository.delete({ postId: id });
       await postRepository.delete({ id });
-
-      const res: APIResponse = {
-        message: 'Post deleted successfully',
-      };
-      return res;
     });
+
+    this.searchService.deletePostDocument(id);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`, {
+        args: { type },
+      }),
+    };
   }
 
   async findAccountPosts(accountId: number, q: QueryString, account?: Account) {
@@ -300,7 +454,9 @@ export class PostsService {
       where: { id: accountId },
     });
     if (!targetAccount)
-      throw new NotFoundException('No account found with this id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
     if (account?.id === accountId) {
       const queryString = { ...q, accountId };
@@ -312,7 +468,7 @@ export class PostsService {
       // user not logged in
       if (!account)
         throw new UnauthorizedException(
-          'This account is private. Please log in to view their posts.'
+          this.i18n.t(`${this.i18nNamespace}.privateAccountLoginPosts`)
         );
 
       // user logged in, find the relation
@@ -325,7 +481,9 @@ export class PostsService {
       // user does not follow them
       if (relation !== RelationshipType.FOLLOW)
         throw new ForbiddenException(
-          `This account is private. Follow @${targetAccount.username} to view their posts.`
+          this.i18n.t(`${this.i18nNamespace}.privateAccountFollow`, {
+            args: { username: targetAccount.username },
+          })
         );
     }
     const queryString = { ...q, accountId };
@@ -335,15 +493,20 @@ export class PostsService {
 
   async pinPost(account: Account, id: number) {
     const post = await this.postRepository.findOne({ where: { id } });
-    if (!post) throw new NotFoundException('No post found with this id');
+    if (!post)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
 
     if (post.accountId !== account.id)
       throw new ForbiddenException(
-        'You do not have permission to pin this post'
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToPin`)
       );
 
     if (post.pinned)
-      throw new ForbiddenException('This post is already pinned');
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyPinned`)
+      );
 
     return await this.dataSource.transaction(async (manager) => {
       const postRepository = manager.getRepository(Post);
@@ -356,7 +519,7 @@ export class PostsService {
       await postRepository.update({ id }, { pinned: true });
 
       const res: APIResponse = {
-        message: 'Post pinned successfully',
+        message: this.i18n.t(`${this.i18nNamespace}.pinnedSuccessfully`),
       };
       return res;
     });
@@ -368,54 +531,13 @@ export class PostsService {
     createReplyDto: CreateReplyDto,
     files?: Express.Multer.File[]
   ) {
-    const actionPost = await this.postRepository.findOne({
-      where: { id: actionPostId },
-    });
-    if (!actionPost) {
-      throw new NotFoundException('No post found with this id');
-    }
-
-    const targetAccount = await this.accountsRepository.findOne({
-      where: { id: actionPost.accountId },
-    });
-    if (!targetAccount) {
-      throw new NotFoundException('Post author account not found');
-    }
-
-    if (targetAccount.isPrivate && targetAccount.id !== account.id) {
-      const relation = await this.accountRelationshipsRepository.findOne({
-        where: { actorId: account.id, targetId: targetAccount.id },
-      });
-
-      if (relation?.relationshipType !== RelationshipType.FOLLOW) {
-        throw new ForbiddenException(
-          `You must follow @${targetAccount.username} to reply to their posts`
-        );
-      }
-    }
-
-    return await this.dataSource.transaction(async (manager) => {
-      const postRepository = manager.getRepository(Post);
-
-      const reply = postRepository.create({
-        content: createReplyDto.content,
-        type: PostType.REPLY,
-        accountId: account.id,
-        actionPostId,
-      });
-
-      await postRepository.save(reply);
-
-      let postFiles: PostFiles[] = [];
-      if (files?.length)
-        postFiles = await this.uploadFiles(manager, files, reply.id);
-
-      const res: APIResponse = {
-        message: 'Reply created successfully',
-        data: { ...reply, ...(postFiles.length > 0 && { files: postFiles }) },
-      };
-      return res;
-    });
+    return await this.create(
+      createReplyDto.content,
+      PostType.REPLY,
+      account,
+      files,
+      actionPostId
+    );
   }
 
   async getPostReplies(
@@ -444,7 +566,7 @@ export class PostsService {
 
     const privateAccounts = await this.accountsRepository.find({
       where: { id: In(accountsIds), isPrivate: true },
-      select: ['id'],
+      select: ["id"],
     });
     const privateAccountsIds = new Set(privateAccounts.map((acc) => acc.id));
 
@@ -465,7 +587,7 @@ export class PostsService {
         // Only query if there are private accounts
         privateAccountsIds.size > 0
           ? this.accountRelationshipsRepository.find({
-              select: ['targetId'],
+              select: ["targetId"],
               where: {
                 actorId: account.id,
                 targetId: In([...privateAccountsIds]),
@@ -474,7 +596,7 @@ export class PostsService {
             })
           : [],
         this.accountRelationshipsRepository.find({
-          select: ['targetId'],
+          select: ["targetId"],
           where: {
             targetId: In(accountsIds),
             actorId: account.id,
@@ -485,7 +607,7 @@ export class PostsService {
           },
         }),
         this.accountRelationshipsRepository.find({
-          select: ['actorId'],
+          select: ["actorId"],
           where: {
             actorId: In(accountsIds),
             targetId: account.id,
@@ -524,5 +646,52 @@ export class PostsService {
       data: visibleReplies,
     };
     return res;
+  }
+
+  async getPostBookmarks(id: number) {
+    const postExists = await this.postRepository.existsBy({ id });
+    if (!postExists)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.notFound`)
+      );
+
+    const bookmarksNumber = await this.bookmarkRepository.count({
+      where: { postId: id },
+    });
+
+    const res: APIResponse = {
+      data: {
+        bookmarksNumber,
+      },
+    };
+    return res;
+  }
+
+  async createRepost(
+    account: Account,
+    actionPostId: number,
+    createRepostDto: CreateRepostDto,
+    files?: Express.Multer.File[]
+  ) {
+    return await this.create(
+      createRepostDto.content,
+      PostType.REPOST,
+      account,
+      files,
+      actionPostId
+    );
+  }
+
+  async findPostFiles(postIds: number[]) {
+    return (await this.postFilesRepository
+      .createQueryBuilder("f")
+      .select("f.postId", "postId")
+      .addSelect(
+        "json_agg(json_build_object('id', f.id, 'url', f.url, 'createdAt', f.createdAt))",
+        "files"
+      )
+      .where("f.postId IN (:...postIds)", { postIds })
+      .groupBy("f.postId")
+      .getRawMany()) as GroupedPostFile[];
   }
 }

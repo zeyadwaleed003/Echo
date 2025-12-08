@@ -1,34 +1,74 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { BlockedWordsService } from './blocked-words.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { CreateBlockedWordDto } from './dto/create-blocked-word.dto';
-import { UpdateBlockedWordDto } from './dto/update-blocked-word.dto';
+import { BlockedWordsService } from './blocked-words.service';
+import { AuthGuard } from '../auth/auth.guard';
+import type { Request } from 'express';
+import { IdDto } from 'src/common/dtos/id.dto';
+import type { QueryString } from 'src/common/types/api.types';
 
+@ApiTags('Blocked Words')
+@ApiBearerAuth()
 @Controller('blocked-words')
 export class BlockedWordsController {
-  constructor(private readonly blockedWordsService: BlockedWordsService) {}
+  constructor(private blockedWordsService: BlockedWordsService) {}
 
   @Post()
-  create(@Body() createBlockedWordDto: CreateBlockedWordDto) {
-    return this.blockedWordsService.create(createBlockedWordDto);
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Block a word' })
+  async block(@Body() dto: CreateBlockedWordDto, @Req() req: Request) {
+    return await this.blockedWordsService.block(req.account!.id, dto.word);
+  }
+
+  @Delete('/:id')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unblock a word' })
+  async unblock(@Req() req: Request, @Param() dto: IdDto) {
+    return await this.blockedWordsService.unblock(req.account!.id, dto.id);
   }
 
   @Get()
-  findAll() {
-    return this.blockedWordsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.blockedWordsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBlockedWordDto: UpdateBlockedWordDto) {
-    return this.blockedWordsService.update(+id, updateBlockedWordDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.blockedWordsService.remove(+id);
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'Get current account blocked words' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  async getCurrentAccountBlockedWords(
+    @Req() req: Request,
+    @Query() q: QueryString
+  ) {
+    return await this.blockedWordsService.getCurrentAccountBlockedWords(
+      req.account!.id,
+      q
+    );
   }
 }

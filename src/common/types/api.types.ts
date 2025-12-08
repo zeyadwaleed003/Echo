@@ -8,6 +8,8 @@ export type APIResponse = {
   refreshToken?: string;
   passwordResetToken?: string;
   setupToken?: string;
+  nextCursor?: string | null;
+  unreadNotificationsNumber?: number;
 };
 
 export type RefreshTokenPayload = {

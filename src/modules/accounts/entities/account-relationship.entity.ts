@@ -14,32 +14,32 @@ import { RelationshipType } from '../accounts.enums';
 @Entity('account_relationships')
 @Index(['actorId', 'targetId'], { unique: true })
 export class AccountRelationships {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id!: number;
+  @PrimaryGeneratedColumn('increment')
+  id: number;
 
   @Column()
-  actorId!: number;
+  actorId: number;
 
   @Column()
-  targetId!: number;
+  targetId: number;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'actorId' })
-  actor!: Account;
+  actor: Account;
 
   @ManyToOne(() => Account, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'targetId' })
-  target!: Account;
+  target: Account;
 
   @Column({
     type: 'enum',
     enum: RelationshipType,
   })
-  relationshipType!: RelationshipType;
+  relationshipType: RelationshipType;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt!: Date;
+  updatedAt: Date;
 }

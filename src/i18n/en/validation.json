@@ -1,0 +1,193 @@
+{
+  "account": {
+    "name": {
+      "isString": "name must be a string",
+      "length": "name must be between 1 and 100 characters"
+    },
+    "username": {
+      "isString": "username must be a string",
+      "length": "username must be between 3 and 50 characters",
+      "isAlphanumeric": "username must be alphanumeric"
+    },
+    "email": {
+      "isEmail": "email must be a valid email address",
+      "length": "email must be between 1 and 255 characters"
+    },
+    "password": {
+      "isString": "password must be a string",
+      "length": "password must be between 8 and 255 characters"
+    },
+    "bio": {
+      "isString": "bio must be a string",
+      "maxLength": "bio must not exceed 160 characters"
+    },
+    "location": {
+      "isString": "location must be a string",
+      "length": "location must be between 1 and 30 characters"
+    },
+    "phone": {
+      "isMobilePhone": "phone must be a valid mobile phone number",
+      "length": "phone must be between 1 and 25 characters"
+    },
+    "getNotifications": {
+      "isBoolean": "getNotifications must be a boolean"
+    },
+    "isVerified": {
+      "isBoolean": "isVerified must be a boolean"
+    },
+    "verifiedAt": {
+      "isDate": "verifiedAt must be a valid date"
+    },
+    "birthDate": {
+      "isDate": "birthDate must be a valid date"
+    },
+    "appLanguage": {
+      "isString": "appLanguage must be a string",
+      "maxLength": "appLanguage must not exceed 50 characters"
+    },
+    "currentCountry": {
+      "isString": "currentCountry must be a string",
+      "maxLength": "currentCountry must not exceed 50 characters"
+    },
+    "gender": {
+      "isEnum": "gender must be a valid Gender enum value"
+    },
+    "isPrivate": {
+      "isBoolean": "isPrivate must be a boolean"
+    },
+    "status": {
+      "isEnum": "status must be a valid AccountStatus enum value"
+    },
+    "taggable": {
+      "isBoolean": "taggable must be a boolean"
+    },
+    "displaySensitiveContent": {
+      "isBoolean": "displaySensitiveContent must be a boolean"
+    },
+    "directMessaging": {
+      "isEnum": "directMessaging must be a valid DirectMessagingStatus enum value"
+    },
+    "profilePicture": {
+      "isUrl": "profilePicture must be a valid URL"
+    },
+    "header": {
+      "isUrl": "header must be a valid URL"
+    },
+    "role": {
+      "isEnum": "role must be a valid Role enum value"
+    }
+  },
+  "auth": {
+    "name": {
+      "isString": "name must be a string",
+      "isNotEmpty": "name is required",
+      "minLength": "name must be at least 2 characters",
+      "maxLength": "name must not exceed 50 characters"
+    },
+    "email": {
+      "isEmail": "email must be a valid email address",
+      "isNotEmpty": "email is required"
+    },
+    "emailOrUsername": {
+      "isString": "email or username must be a string",
+      "isNotEmpty": "email or username is required"
+    },
+    "password": {
+      "isString": "password must be a string",
+      "isNotEmpty": "password is required",
+      "minLength": "password must be at least 8 characters",
+      "maxLength": "password must not exceed 255 characters",
+      "length": "password must be between 8 and 255 characters"
+    },
+    "oldPassword": {
+      "isString": "current password must be a string",
+      "isNotEmpty": "current password is required"
+    },
+    "confirmPassword": {
+      "isString": "password confirmation must be a string",
+      "isNotEmpty": "password confirmation is required",
+      "match": "passwords do not match"
+    },
+    "verificationCode": {
+      "isString": "verification code must be a string",
+      "isNotEmpty": "verification code is required",
+      "minLength": "verification code must be 6 characters",
+      "maxLength": "verification code must be 6 characters"
+    },
+    "token": {
+      "isString": "token must be a string",
+      "isNotEmpty": "token is required"
+    },
+    "idToken": {
+      "isString": "ID token must be a string",
+      "isNotEmpty": "ID token is required"
+    },
+    "setupToken": {
+      "isString": "setup token must be a string",
+      "isNotEmpty": "setup token is required"
+    },
+    "reactivationToken": {
+      "isString": "reactivation token must be a string",
+      "isNotEmpty": "reactivation token is required"
+    },
+    "birthDate": {
+      "isDate": "birth date must be a valid date"
+    },
+    "gender": {
+      "isEnum": "gender must be a valid value"
+    },
+    "username": {
+      "isString": "username must be a string",
+      "length": "username must be between 3 and 50 characters",
+      "isAlphanumeric": "username must contain only letters and numbers"
+    }
+  },
+  "blockedWord": {
+    "word": {
+      "isString": "word must be a string",
+      "isNotEmpty": "word is required",
+      "length": "word must be between 3 and 100 characters"
+    }
+  },
+  "bookmark": {
+    "postId": {
+      "isNumber": "post ID must be a number"
+    }
+  },
+  "like": {
+    "postId": {
+      "isInt": "post ID must be an integer",
+      "isPositive": "post ID must be a positive number",
+      "isNotEmpty": "post ID is required"
+    }
+  },
+  "post": {
+    "content": {
+      "isString": "content must be a string",
+      "maxLength": "content must not exceed 353 characters"
+    },
+    "deleteFileIds": {
+      "isArray": "delete file IDs must be an array",
+      "isInt": "delete file IDs must contain only integers",
+      "arrayMaxSize": "you can delete a maximum of 4 files"
+    }
+  },
+  "search": {
+    "q": {
+      "isString": "search query must be a string",
+      "minLength": "search query must not be empty",
+      "maxLength": "search query must not exceed 353 characters"
+    },
+    "f": {
+      "isEnum": "filter must be one of: user, live"
+    },
+    "cursor": {
+      "isString": "cursor must be a string"
+    },
+    "limit": {
+      "isInt": "limit must be an integer",
+      "min": "limit must be at least 1",
+      "max": "limit must not exceed 100"
+    }
+  }
+}

@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -30,10 +32,16 @@ import {
   RelationshipType,
 } from './accounts.enums';
 import { AuthService } from '../auth/auth.service';
+import { SearchService } from '../search/search.service';
+import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { Notification } from '../notifications/entities/notification.entity';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class AccountsService {
   private readonly logger = new Logger(AccountsService.name);
+  private readonly i18nNamespace = 'messages.accounts';
 
   constructor(
     @InjectRepository(Account)
@@ -41,15 +49,19 @@ export class AccountsService {
     @InjectRepository(AccountRelationships)
     private readonly accountRelationshipsRepository: Repository<AccountRelationships>,
     private readonly dataSource: DataSource,
-    private readonly authService: AuthService
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+    @Inject(forwardRef(() => SearchService))
+    private readonly searchService: SearchService,
+    private readonly i18n: I18nService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
-  async create(createAccountDto: CreateAccountDto) {
+  async create(createAccountDto: CreateAccountDto): Promise<APIResponse> {
     if (createAccountDto.password)
       createAccountDto.password = await hashCode(createAccountDto.password);
 
     const account = this.accountsRepository.create(createAccountDto);
-
     await this.accountsRepository.save(account);
 
     // Remove sensitive fields
@@ -62,12 +74,11 @@ export class AccountsService {
       ...sanitizedAccount
     } = account;
 
-    const result: APIResponse = {
-      message: 'Account created successfully',
+    this.searchService.createAccountDocument(account);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.accountCreatedSuccessfully`),
       data: sanitizedAccount,
     };
-
-    return result;
   }
 
   async find(q: any) {
@@ -93,7 +104,9 @@ export class AccountsService {
   async findById(id: number) {
     const account = await this.accountsRepository.findOneBy({ id });
     if (!account)
-      throw new NotFoundException('No account found with the provided id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
     const result: APIResponse = {
       data: instanceToPlain(account),
@@ -102,18 +115,21 @@ export class AccountsService {
     return result;
   }
 
-  async delete(id: number) {
+  async delete(id: number): Promise<APIResponse> {
     await this.accountsRepository.delete({ id });
 
     this.logger.log(`Account deleted: id=${id}`);
 
-    const result: APIResponse = {
-      message: 'Account deleted successfully',
+    this.searchService.deleteAccountDocument(id);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.accountDeletedSuccessfully`),
     };
-    return result;
   }
 
-  async update(id: number, updateAccountAdminDto: UpdateAccountAdminDto) {
+  async update(
+    id: number,
+    updateAccountAdminDto: UpdateAccountAdminDto
+  ): Promise<APIResponse> {
     if (updateAccountAdminDto.password)
       updateAccountAdminDto.password = await hashCode(
         updateAccountAdminDto.password
@@ -123,17 +139,18 @@ export class AccountsService {
 
     const account = await this.accountsRepository.findOneBy({ id });
     if (!account)
-      throw new NotFoundException('No account found with the provided id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
-    const result: APIResponse = {
-      message: 'Account updated successfully',
+    this.searchService.updateAccountDocument(account);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.accountUpdatedSuccessfully`),
       data: account,
     };
-
-    return result;
   }
 
-  async findCurrentUserAccount(account: Account) {
+  async findCurrentUserAccount(account: Account): Promise<APIResponse> {
     const result: APIResponse = {
       data: account,
     };
@@ -147,12 +164,11 @@ export class AccountsService {
 
     const updatedAccount = await this.accountsRepository.findOneBy({ id });
 
-    const result: APIResponse = {
-      message: 'Account updated successfully',
+    this.searchService.updateAccountDocument(account);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.accountUpdatedSuccessfully`),
       data: { ...updatedAccount },
     };
-
-    return result;
   }
 
   private async validateAndGetTargetAccount(
@@ -161,9 +177,12 @@ export class AccountsService {
     type: string
   ) {
     if (accountId === targetAccountId)
-      throw new BadRequestException(`You cannot ${type} yourself`);
+      throw new BadRequestException(
+        this.i18n.t(
+          `${this.i18nNamespace}.cannot${this.capitalizeFirstLetter(type)}Yourself`
+        )
+      );
 
-    // Check if the account we want to block existed
     const targetAccount = await this.accountsRepository.findOne({
       where: {
         id: targetAccountId,
@@ -171,9 +190,15 @@ export class AccountsService {
       select: ['username', 'isPrivate'],
     });
     if (!targetAccount)
-      throw new NotFoundException('No account found with the provided id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
     return targetAccount;
+  }
+
+  private capitalizeFirstLetter(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
   async block(accountId: number, targetAccountId: number) {
@@ -191,7 +216,9 @@ export class AccountsService {
     });
     if (relationship?.relationshipType === RelationshipType.BLOCK)
       throw new ConflictException(
-        `Account @${targetAccount.username} is already blocked`
+        this.i18n.t(`${this.i18nNamespace}.accountAlreadyBlocked`, {
+          args: { username: targetAccount.username },
+        })
       );
 
     await this.dataSource.transaction(async (manager) => {
@@ -224,13 +251,18 @@ export class AccountsService {
     );
 
     const result: APIResponse = {
-      message: `Account @${targetAccount.username} has been blocked successfully`,
+      message: this.i18n.t(`${this.i18nNamespace}.accountBlockedSuccessfully`, {
+        args: { username: targetAccount.username },
+      }),
     };
 
     return result;
   }
 
-  async unblock(accountId: number, targetAccountId: number) {
+  async unblock(
+    accountId: number,
+    targetAccountId: number
+  ): Promise<APIResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       accountId,
       targetAccountId,
@@ -244,7 +276,9 @@ export class AccountsService {
     });
     if (!relationship)
       throw new BadRequestException(
-        `Account @${targetAccount.username} is not blocked`
+        this.i18n.t(`${this.i18nNamespace}.accountNotBlocked`, {
+          args: { username: targetAccount.username },
+        })
       );
 
     await this.accountRelationshipsRepository.delete({
@@ -252,34 +286,42 @@ export class AccountsService {
       targetId: targetAccountId,
     });
 
-    const result: APIResponse = {
-      message: `Account @${targetAccount.username} has been unblocked successfully`,
+    return {
+      message: this.i18n.t(
+        `${this.i18nNamespace}.accountUnblockedSuccessfully`,
+        {
+          args: { username: targetAccount.username },
+        }
+      ),
     };
-
-    return result;
   }
 
   private validateRelationshipType(relationship: AccountRelationships) {
     if (relationship.relationshipType === RelationshipType.BLOCK) {
       throw new BadRequestException(
-        'You cannot follow an account you have blocked. Unblock them first'
+        this.i18n.t(`${this.i18nNamespace}.cannotFollowBlockedAccount`)
       );
     }
 
     if (relationship.relationshipType === RelationshipType.FOLLOW) {
-      throw new BadRequestException('You are already following this account');
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyFollowing`)
+      );
     }
 
     if (relationship.relationshipType === RelationshipType.FOLLOW_REQUEST) {
       throw new BadRequestException(
-        'You have already sent a follow request to this account'
+        this.i18n.t(`${this.i18nNamespace}.followRequestAlreadySent`)
       );
     }
   }
 
-  async follow(accountId: number, targetAccountId: number) {
+  async follow(
+    account: Account,
+    targetAccountId: number
+  ): Promise<APIResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
-      accountId,
+      account.id,
       targetAccountId,
       'follow'
     );
@@ -288,17 +330,17 @@ export class AccountsService {
     const isBlocked = await this.accountRelationshipsRepository.exists({
       where: {
         actorId: targetAccountId,
-        targetId: accountId,
+        targetId: account.id,
         relationshipType: RelationshipType.BLOCK,
       },
     });
     if (isBlocked)
       throw new BadRequestException(
-        'You cannot follow an account that has blocked you'
+        this.i18n.t(`${this.i18nNamespace}.cannotFollowAccountThatBlockedYou`)
       );
 
-    const relationship = await this.accountRelationshipsRepository.findOneBy({
-      actorId: accountId,
+    let relationship = await this.accountRelationshipsRepository.findOneBy({
+      actorId: account.id,
       targetId: targetAccountId,
     });
     if (relationship) {
@@ -310,24 +352,41 @@ export class AccountsService {
 
       await this.accountRelationshipsRepository.save(relationship);
     } else {
-      const newRelationship = this.accountRelationshipsRepository.create({
-        actorId: accountId,
+      relationship = this.accountRelationshipsRepository.create({
+        actorId: account.id,
         targetId: targetAccountId,
         relationshipType: targetAccount.isPrivate
           ? RelationshipType.FOLLOW_REQUEST
           : RelationshipType.FOLLOW,
       });
 
-      await this.accountRelationshipsRepository.save(newRelationship);
+      await this.accountRelationshipsRepository.save(relationship);
     }
 
-    const result: APIResponse = {
-      message: targetAccount.isPrivate
-        ? `Follow request sent to ${targetAccount.username} successfully`
-        : `Account ${targetAccount.username} followed successfully`,
+    // Create a new follow notification
+    const n: Partial<Notification> = {
+      accountId: targetAccountId,
+      actorId: account.id,
+      type: targetAccount.isPrivate
+        ? NotificationType.FR
+        : NotificationType.FOLLOW,
+      description: targetAccount.isPrivate
+        ? `@${account.username} wants to follow you`
+        : `@${account.username} started following you`,
     };
+    this.notificationsService.create(n);
 
-    return result;
+    return {
+      message: targetAccount.isPrivate
+        ? this.i18n.t(`${this.i18nNamespace}.followRequestSent`, {
+            args: { username: targetAccount.username },
+          })
+        : this.i18n.t(`${this.i18nNamespace}.accountFollowedSuccessfully`, {
+            args: { username: targetAccount.username },
+          }),
+
+      ...(targetAccount.isPrivate && { data: relationship }),
+    };
   }
 
   async unfollow(accountId: number, targetAccountId: number) {
@@ -350,7 +409,7 @@ export class AccountsService {
     });
     if (!relationship)
       throw new BadRequestException(
-        'You are not following or requesting to follow this account'
+        this.i18n.t(`${this.i18nNamespace}.notFollowingOrRequesting`)
       );
 
     await this.accountRelationshipsRepository.delete({
@@ -361,8 +420,12 @@ export class AccountsService {
     const result: APIResponse = {
       message:
         relationship.relationshipType === RelationshipType.FOLLOW_REQUEST
-          ? `Follow request to ${targetAccount.username} has been cancelled successfully`
-          : `Account ${targetAccount.username} has been unfollowed successfully`,
+          ? this.i18n.t(`${this.i18nNamespace}.followRequestCancelled`, {
+              args: { username: targetAccount.username },
+            })
+          : this.i18n.t(`${this.i18nNamespace}.accountUnfollowedSuccessfully`, {
+              args: { username: targetAccount.username },
+            }),
     };
 
     return result;
@@ -462,7 +525,9 @@ export class AccountsService {
       select: ['isPrivate'],
     });
     if (!targetAccount)
-      throw new NotFoundException('No account found with the provided id');
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
 
     // Check if the current account is blocked
     const isBlocked = await this.accountRelationshipsRepository.exists({
@@ -477,7 +542,7 @@ export class AccountsService {
         `Access denied - blocked: viewer=${accountId}, target=${targetAccountId}`
       );
       throw new ForbiddenException(
-        "You do not have permission to view this account's information"
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToView`)
       );
     }
 
@@ -493,7 +558,7 @@ export class AccountsService {
           `Access denied - private account: viewer=${accountId}, target=${targetAccountId}`
         );
         throw new ForbiddenException(
-          'This account is private. You must follow this account to view their information'
+          this.i18n.t(`${this.i18nNamespace}.privateAccountFollowRequired`)
         );
       }
     }
@@ -536,35 +601,51 @@ export class AccountsService {
     account.status = AccountStatus.DEACTIVATED;
     await this.accountsRepository.save(account);
 
+    this.searchService.updateAccountDocument(account);
+
     // Logout the user from all devices
     await this.authService.logoutFromAllDevices(account.id);
 
     this.logger.log(`Account deactivated: id=${account.id}`);
 
     const result: APIResponse = {
-      message:
-        'Your account has been deactivated successfully. You can reactivate it anytime by logging in again.',
+      message: this.i18n.t(
+        `${this.i18nNamespace}.accountDeactivatedSuccessfully`
+      ),
     };
 
     return result;
   }
 
-  async acceptFollowRequest(accountId: number, requestId: number) {
+  async acceptFollowRequest(
+    account: Account,
+    requestId: number
+  ): Promise<APIResponse> {
     const relationship = await this.accountRelationshipsRepository.findOneBy({
       id: requestId,
-      targetId: accountId,
+      targetId: account.id,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
     });
-    if (!relationship) throw new NotFoundException('Follow request not found');
+    if (!relationship)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.followRequestNotFound`)
+      );
 
     relationship.relationshipType = RelationshipType.FOLLOW;
     await this.accountRelationshipsRepository.save(relationship);
 
-    const result: APIResponse = {
-      message: 'Follow request accepted successfully',
+    // Notify the requester that their follow request was accepted
+    const n: Partial<Notification> = {
+      accountId: relationship.actorId,
+      actorId: account.id,
+      type: NotificationType.FR_ACC,
+      description: `@${account.username} accepted your follow request`,
     };
+    this.notificationsService.create(n);
 
-    return result;
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.followRequestAccepted`),
+    };
   }
 
   async refuseFollowRequest(accountId: number, requestId: number) {
@@ -573,18 +654,21 @@ export class AccountsService {
       targetId: accountId,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
     });
-    if (!relationship) throw new NotFoundException('Follow request not found');
+    if (!relationship)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.followRequestNotFound`)
+      );
 
     await this.accountRelationshipsRepository.remove(relationship);
 
     const result: APIResponse = {
-      message: 'Follow request refused successfully',
+      message: this.i18n.t(`${this.i18nNamespace}.followRequestRefused`),
     };
 
     return result;
   }
 
-  async findFollowRequests(accountId: number, q: any) {
+  async findFollowRequests(accountId: number, q: any): Promise<APIResponse> {
     const whereClause: FindOptionsWhere<AccountRelationships> = {
       targetId: accountId,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
@@ -605,30 +689,28 @@ export class AccountsService {
       .paginate()
       .exec();
 
-    const result: APIResponse = {
+    return {
       size: relationships.length,
       data: relationships,
     };
-
-    return result;
   }
 
-  async deleteMe(accountId: number) {
+  async deleteMe(accountId: number): Promise<APIResponse> {
     await this.accountsRepository.delete({ id: accountId });
 
     this.logger.log(`Account self-deleted: id=${accountId}`);
 
-    const result: APIResponse = {
-      message: 'Your account has been deleted successfully',
+    this.searchService.deleteAccountDocument(accountId);
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.accountSelfDeleted`),
     };
-    return result;
   }
 
   async removeFollower(accountId: number, followerId: number) {
     const followerAccount = await this.validateAndGetTargetAccount(
       accountId,
       followerId,
-      'do this action to'
+      'remove'
     );
 
     const relationship = await this.accountRelationshipsRepository.findOne({
@@ -641,7 +723,9 @@ export class AccountsService {
 
     if (!relationship)
       throw new BadRequestException(
-        `Account @${followerAccount.username} is not following you`
+        this.i18n.t(`${this.i18nNamespace}.accountNotFollowingYou`, {
+          args: { username: followerAccount.username },
+        })
       );
 
     await this.accountRelationshipsRepository.remove(relationship);
@@ -651,9 +735,96 @@ export class AccountsService {
     );
 
     const result: APIResponse = {
-      message: `Account @${followerAccount.username} has been removed from your followers`,
+      message: this.i18n.t(
+        `${this.i18nNamespace}.followerRemovedSuccessfully`,
+        {
+          args: { username: followerAccount.username },
+        }
+      ),
     };
 
     return result;
+  }
+
+  async getBlockedAccountIds(accountId: number | undefined) {
+    if (!accountId) return [];
+
+    const relationships = await this.accountRelationshipsRepository.find({
+      where: [
+        { actorId: accountId, relationshipType: RelationshipType.BLOCK },
+        { targetId: accountId, relationshipType: RelationshipType.BLOCK },
+      ],
+    });
+
+    const blockedIds = new Set<number>();
+    relationships.forEach((r) => {
+      r.actorId === accountId
+        ? blockedIds.add(r.targetId)
+        : blockedIds.add(r.actorId);
+    });
+
+    return Array.from(blockedIds);
+  }
+
+  async getFollowingAccountIds(accountId: number | undefined) {
+    if (!accountId) return [];
+
+    const following = await this.accountRelationshipsRepository.find({
+      where: {
+        actorId: accountId,
+        relationshipType: RelationshipType.FOLLOW,
+      },
+    });
+
+    return following.map((rel) => rel.targetId);
+  }
+
+  async fetchRelationships(
+    accountId: number | undefined,
+    targetIds: number[]
+  ): Promise<{
+    outgoingMap: Map<number, RelationshipType>;
+    incomingMap: Map<number, RelationshipType>;
+  }> {
+    if (!accountId || targetIds.length === 0)
+      return { outgoingMap: new Map(), incomingMap: new Map() };
+
+    // me to them
+    const outgoingRelationships =
+      await this.accountRelationshipsRepository.findBy({
+        actorId: accountId,
+        targetId: In(targetIds),
+      });
+
+    // them to me
+    const incomingRelationships =
+      await this.accountRelationshipsRepository.findBy({
+        actorId: In(targetIds),
+        targetId: accountId,
+      });
+
+    const outgoingMap = new Map(
+      outgoingRelationships.map((o) => [o.targetId, o.relationshipType])
+    );
+
+    const incomingMap = new Map(
+      incomingRelationships.map((o) => [o.actorId, o.relationshipType])
+    );
+
+    return { outgoingMap, incomingMap };
+  }
+
+  // If U want to know the relationship between the current user and the provided account
+  getRelationshipType(
+    accountId: number | undefined,
+    relationshipsMap: Map<number | undefined, RelationshipType>
+  ) {
+    return relationshipsMap.get(accountId) || null;
+  }
+
+  async findAccountsByIds(ids: number[]) {
+    return await this.accountsRepository.findBy({
+      id: In(ids),
+    });
   }
 }

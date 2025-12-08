@@ -164,7 +164,9 @@
     "CannotPromoteYourself": "لا يمكنك ترقية نفسك",
     "MemberNotInGroup": "العضو المحدد ليس عضوًا نشطًا في هذه المجموعة",
     "MemberAlreadyAdmin": "العضو المحدد هو مشرف بالفعل",
-    "MemberPromotedSuccessfully": "تمت ترقية العضو إلى مشرف بنجاح"
+    "MemberPromotedSuccessfully": "تمت ترقية العضو إلى مشرف بنجاح",
+    "ConversationPinned": "تم تثبيت المحادثة بنجاح",
+    "ConversationUnpinned": "تم إلغاء تثبيت المحادثة بنجاح"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

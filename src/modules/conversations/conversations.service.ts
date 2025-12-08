@@ -472,6 +472,43 @@ export class ConversationsService {
     };
   }
 
+  async togglePin(
+    account: Account,
+    conversationId: string
+  ): Promise<HttpResponse> {
+    const participant = await this.conversationParticipantRepository.findOne({
+      where: {
+        conversationId,
+        accountId: account.id,
+        leftAt: IsNull(),
+      },
+    });
+
+    if (!participant) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+
+    const newPinStatus = !participant.isPinned;
+
+    await this.conversationParticipantRepository.update(
+      { conversationId, accountId: account.id },
+      { isPinned: newPinStatus }
+    );
+
+    const messageKey = newPinStatus
+      ? 'ConversationPinned'
+      : 'ConversationUnpinned';
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.${messageKey}`),
+      data: {
+        isPinned: newPinStatus,
+      },
+    };
+  }
+
   // === Helpers === //
 
   async checkIfUserInConversation(accountId: number, conversationId: string) {

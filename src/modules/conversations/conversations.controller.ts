@@ -85,4 +85,10 @@ export class ConversationsController {
       dto
     );
   }
+
+  @Post(':id/pin')
+  @HttpCode(HttpStatus.OK)
+  togglePin(@Req() req: Request, @Param() { id }: UuidDto) {
+    return this.conversationsService.togglePin(req.account!, id);
+  }
 }

@@ -164,7 +164,9 @@
     "CannotPromoteYourself": "You cannot promote yourself",
     "MemberNotInGroup": "The specified member is not an active member of this group",
     "MemberAlreadyAdmin": "The specified member is already an admin",
-    "MemberPromotedSuccessfully": "Member promoted to admin successfully"
+    "MemberPromotedSuccessfully": "Member promoted to admin successfully",
+    "ConversationPinned": "Conversation pinned successfully",
+    "ConversationUnpinned": "Conversation unpinned successfully"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

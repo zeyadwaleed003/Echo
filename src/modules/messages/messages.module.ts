@@ -1,17 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 import { Message } from './entities/message.entity';
+import { TokenModule } from '../token/token.module';
+import { RedisModule } from '../redis/redis.module';
 import { MessagesService } from './messages.service';
+import { MessagesGateway } from './messages.gateway';
 import { MessagesController } from './messages.controller';
+import { Account } from '../accounts/entities/account.entity';
 import { MessageStatus } from './entities/message-status.entity';
 import { MessageReaction } from './entities/message-reaction.entity';
-import { TokenModule } from '../token/token.module';
-import { AuthModule } from '../auth/auth.module';
-import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { ConversationsModule } from '../conversations/conversations.module';
-import { MessagesGateway } from './messages.gateway';
-import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [

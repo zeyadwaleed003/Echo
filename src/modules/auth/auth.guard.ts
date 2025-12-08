@@ -6,15 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { TokenService } from '../token/token.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Account } from '../accounts/entities/account.entity';
-import { IsNull, Repository } from 'typeorm';
-import { AccountStatus } from '../accounts/accounts.enums';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
-import { Socket } from 'socket.io';
+import { IsNull, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { TokenService } from '../token/token.service';
+import { AccountStatus } from '../accounts/accounts.enums';
+import { Account } from '../accounts/entities/account.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 export const IS_OPTIONAL_AUTH = 'isOptionalAuth';
 
@@ -35,35 +34,15 @@ export class AuthGuard implements CanActivate {
     return type === 'Bearer' ? token : undefined;
   }
 
-  private extractTokenFromSocket(client: Socket): string | undefined {
-    // Try to get token from handshake auth
-    const token =
-      client.handshake.auth?.token || client.handshake.headers?.authorization;
-
-    if (!token) return undefined;
-
-    // If it's in Bearer format
-    if (typeof token === 'string' && token.startsWith('Bearer '))
-      return token.split(' ')[1];
-
-    return token;
-  }
-
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const contextType = context.getType();
-    const isWs = contextType === 'ws';
-
     const req = context.switchToHttp().getRequest<Request>();
-    const client = context.switchToWs().getClient<Socket>();
 
     const isOptional = this.reflector.getAllAndOverride<boolean>(
       IS_OPTIONAL_AUTH,
       [context.getHandler(), context.getClass()]
     );
 
-    const accessToken = isWs
-      ? this.extractTokenFromSocket(client)
-      : this.extractTokenFromHeader(req);
+    const accessToken = this.extractTokenFromHeader(req);
 
     if (!accessToken) {
       if (isOptional) {
@@ -89,38 +68,32 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Access token is missing or invalid');
       }
 
-      if (!isWs) {
-        const { refreshToken } = req!.cookies;
-        if (!refreshToken) {
-          if (isOptional) {
-            delete req!.account;
-            return true;
-          }
-          throw new UnauthorizedException(
-            'Refresh token is invalid or expired'
-          );
+      const { refreshToken } = req!.cookies;
+      if (!refreshToken) {
+        if (isOptional) {
+          delete req!.account;
+          return true;
         }
+        throw new UnauthorizedException('Refresh token is invalid or expired');
+      }
 
-        const verifiedRefreshToken =
-          await this.tokenService.verifyRefreshToken(refreshToken);
+      const verifiedRefreshToken =
+        await this.tokenService.verifyRefreshToken(refreshToken);
 
-        const storedRefreshToken = await this.refreshTokenRepository.findOne({
-          where: {
-            sessionId: verifiedRefreshToken.sessionId,
-            accountId: verifiedRefreshToken.id,
-            revokedAt: IsNull(),
-          },
-        });
+      const storedRefreshToken = await this.refreshTokenRepository.findOne({
+        where: {
+          sessionId: verifiedRefreshToken.sessionId,
+          accountId: verifiedRefreshToken.id,
+          revokedAt: IsNull(),
+        },
+      });
 
-        if (!storedRefreshToken) {
-          if (isOptional) {
-            delete req!.account;
-            return true;
-          }
-          throw new UnauthorizedException(
-            'Refresh token is invalid or expired'
-          );
+      if (!storedRefreshToken) {
+        if (isOptional) {
+          delete req!.account;
+          return true;
         }
+        throw new UnauthorizedException('Refresh token is invalid or expired');
       }
 
       if (account?.status === AccountStatus.SUSPENDED)
@@ -141,7 +114,6 @@ export class AuthGuard implements CanActivate {
         );
 
       req.account = account;
-      client.account = account;
     } catch (err) {
       if (isOptional) {
         delete req.account;

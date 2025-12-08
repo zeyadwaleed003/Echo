@@ -11,6 +11,7 @@ import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { ConversationsModule } from '../conversations/conversations.module';
 import { MessagesGateway } from './messages.gateway';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MessagesGateway } from './messages.gateway';
       RefreshToken,
     ]),
     AuthModule,
+    RedisModule,
     TokenModule,
     ConversationsModule,
   ],

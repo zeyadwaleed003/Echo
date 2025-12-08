@@ -162,33 +162,6 @@ export class ConversationsService {
     };
   }
 
-  async checkIfUserInConversation(accountId: number, conversationId: string) {
-    const exists = await this.conversationParticipantRepository.existsBy({
-      accountId,
-      conversationId,
-    });
-
-    if (!exists) {
-      throw new ForbiddenException(
-        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
-      );
-    }
-  }
-
-  async findActiveConversationParticipantsIds(
-    conversationId: string,
-    excludeAccountId?: number
-  ) {
-    return await this.conversationParticipantRepository.find({
-      where: {
-        conversationId,
-        ...(excludeAccountId && { accountId: Not(excludeAccountId) }),
-        leftAt: IsNull(),
-      },
-      select: ['accountId'],
-    });
-  }
-
   async findById(account: Account, id: string): Promise<HttpResponse> {
     const conversationParticipants =
       await this.conversationParticipantRepository.find({
@@ -220,5 +193,34 @@ export class ConversationsService {
         },
       },
     };
+  }
+
+  // --- Helpers --- //
+
+  async checkIfUserInConversation(accountId: number, conversationId: string) {
+    const exists = await this.conversationParticipantRepository.existsBy({
+      accountId,
+      conversationId,
+    });
+
+    if (!exists) {
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+  }
+
+  async findActiveConversationParticipantsIds(
+    conversationId: string,
+    excludeAccountId?: number
+  ) {
+    return await this.conversationParticipantRepository.find({
+      where: {
+        conversationId,
+        ...(excludeAccountId && { accountId: Not(excludeAccountId) }),
+        leftAt: IsNull(),
+      },
+      select: ['accountId'],
+    });
   }
 }

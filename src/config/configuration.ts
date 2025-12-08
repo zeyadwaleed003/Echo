@@ -83,6 +83,9 @@ const validatedEnv = z
     ALLOWED_ORIGINS: urlListSchema,
 
     DEFAULT_CONVERSATION_AVATAR_URL: z.string().min(1).optional(),
+
+    REDIS_HOST: z.string().min(1).optional(),
+    REDIS_PORT: z.coerce.number().optional(),
   })
   .parse(process.env);
 

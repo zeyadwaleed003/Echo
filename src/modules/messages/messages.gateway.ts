@@ -1,4 +1,4 @@
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -10,11 +10,12 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { CreateMessageDto } from './dto/create-message.dto';
 import { EVENTS } from './messages.events';
-import { AckResponse } from 'src/common/types/api.types';
-import { AuthGuard } from '../auth/auth.guard';
+import { AccountStatus } from './messages.types';
 import { MessagesService } from './messages.service';
+import { RedisService } from '../redis/redis.service';
+import { AckResponse } from 'src/common/types/api.types';
+import { CreateMessageDto } from './dto/create-message.dto';
 
 @WebSocketGateway({
   cors: {
@@ -25,7 +26,6 @@ import { MessagesService } from './messages.service';
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) })
 )
-@UseGuards(AuthGuard)
 export class MessagesGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -33,15 +33,55 @@ export class MessagesGateway
   server = Server;
 
   private readonly logger = new Logger('MessageGateway');
+  private readonly REDIS_KEYS = {
+    accountStatus: (accountId: number) => `account:${accountId}`,
+    accountSockets: (accountId: number) => `account:${accountId}:sockets`,
+  };
 
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly redisService: RedisService
+  ) {}
 
-  handleConnection(@ConnectedSocket() client: Socket) {
+  async handleConnection(@ConnectedSocket() client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
+
+    const accountId = client.account!.id;
+    await this.redisService.set<AccountStatus>(
+      this.REDIS_KEYS.accountStatus(accountId),
+      {
+        online: true,
+        lastSeen: Date.now(),
+      }
+    );
+
+    await this.redisService.sadd(
+      this.REDIS_KEYS.accountSockets(accountId),
+      client.id
+    );
   }
 
-  handleDisconnect(@ConnectedSocket() client: Socket) {
+  async handleDisconnect(@ConnectedSocket() client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+
+    const accountId = client.account!.id;
+    await this.redisService.srem(
+      this.REDIS_KEYS.accountSockets(accountId),
+      client.id
+    );
+
+    const socketsLeft = await this.redisService.scard(
+      this.REDIS_KEYS.accountSockets(accountId)
+    );
+    if (!socketsLeft) {
+      await this.redisService.set<AccountStatus>(
+        this.REDIS_KEYS.accountStatus(accountId),
+        {
+          online: false,
+          lastSeen: Date.now(),
+        }
+      );
+    }
   }
 
   @SubscribeMessage(EVENTS.MESSAGE_SEND)

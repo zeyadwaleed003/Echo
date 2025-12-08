@@ -166,7 +166,9 @@
     "MemberAlreadyAdmin": "العضو المحدد هو مشرف بالفعل",
     "MemberPromotedSuccessfully": "تمت ترقية العضو إلى مشرف بنجاح",
     "ConversationPinned": "تم تثبيت المحادثة بنجاح",
-    "ConversationUnpinned": "تم إلغاء تثبيت المحادثة بنجاح"
+    "ConversationUnpinned": "تم إلغاء تثبيت المحادثة بنجاح",
+    "ConversationArchived": "تم أرشفة المحادثة بنجاح",
+    "ConversationUnarchived": "تم إلغاء أرشفة المحادثة بنجاح"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

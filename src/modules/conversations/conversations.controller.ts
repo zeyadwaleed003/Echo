@@ -91,4 +91,10 @@ export class ConversationsController {
   togglePin(@Req() req: Request, @Param() { id }: UuidDto) {
     return this.conversationsService.togglePin(req.account!, id);
   }
+
+  @Post(':id/archive')
+  @HttpCode(HttpStatus.OK)
+  toggleArchive(@Req() req: Request, @Param() { id }: UuidDto) {
+    return this.conversationsService.toggleArchive(req.account!, id);
+  }
 }

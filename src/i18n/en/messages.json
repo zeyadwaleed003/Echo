@@ -166,7 +166,9 @@
     "MemberAlreadyAdmin": "The specified member is already an admin",
     "MemberPromotedSuccessfully": "Member promoted to admin successfully",
     "ConversationPinned": "Conversation pinned successfully",
-    "ConversationUnpinned": "Conversation unpinned successfully"
+    "ConversationUnpinned": "Conversation unpinned successfully",
+    "ConversationArchived": "Conversation archived successfully",
+    "ConversationUnarchived": "Conversation unarchived successfully"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

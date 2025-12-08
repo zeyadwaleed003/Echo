@@ -476,37 +476,26 @@ export class ConversationsService {
     account: Account,
     conversationId: string
   ): Promise<HttpResponse> {
-    const participant = await this.conversationParticipantRepository.findOne({
-      where: {
-        conversationId,
-        accountId: account.id,
-        leftAt: IsNull(),
-      },
-    });
-
-    if (!participant) {
-      throw new BadRequestException(
-        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
-      );
-    }
-
-    const newPinStatus = !participant.isPinned;
-
-    await this.conversationParticipantRepository.update(
-      { conversationId, accountId: account.id },
-      { isPinned: newPinStatus }
+    return this.toggleConversationProperty(
+      account,
+      conversationId,
+      'isPinned',
+      'ConversationPinned',
+      'ConversationUnpinned'
     );
+  }
 
-    const messageKey = newPinStatus
-      ? 'ConversationPinned'
-      : 'ConversationUnpinned';
-
-    return {
-      message: this.i18n.t(`${this.i18nNamespace}.${messageKey}`),
-      data: {
-        isPinned: newPinStatus,
-      },
-    };
+  async toggleArchive(
+    account: Account,
+    conversationId: string
+  ): Promise<HttpResponse> {
+    return this.toggleConversationProperty(
+      account,
+      conversationId,
+      'isArchived',
+      'ConversationArchived',
+      'ConversationUnarchived'
+    );
   }
 
   // === Helpers === //
@@ -539,6 +528,44 @@ export class ConversationsService {
   }
 
   // === Private Helpers === //
+
+  private async toggleConversationProperty(
+    account: Account,
+    conversationId: string,
+    property: 'isPinned' | 'isArchived',
+    enabledMessageKey: string,
+    disabledMessageKey: string
+  ): Promise<HttpResponse> {
+    const participant = await this.conversationParticipantRepository.findOne({
+      where: {
+        conversationId,
+        accountId: account.id,
+        leftAt: IsNull(),
+      },
+    });
+
+    if (!participant) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.NotConversationMember`)
+      );
+    }
+
+    const newValue = !participant[property];
+
+    await this.conversationParticipantRepository.update(
+      { conversationId, accountId: account.id },
+      { [property]: newValue }
+    );
+
+    const messageKey = newValue ? enabledMessageKey : disabledMessageKey;
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.${messageKey}`),
+      data: {
+        [property]: newValue,
+      },
+    };
+  }
 
   private validateConversationForManagingMembers(
     accountParticipant: ConversationParticipant | null

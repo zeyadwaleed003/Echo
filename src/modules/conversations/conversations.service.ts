@@ -19,6 +19,7 @@ import { I18nService } from 'nestjs-i18n';
 import { HttpResponse } from 'src/common/types/api.types';
 import { Role } from '../accounts/accounts.enums';
 import { ManageMembersDto } from './dto/manage-members.dto';
+import { PromoteMemberDto } from './dto/promote-member.dto';
 
 @Injectable()
 export class ConversationsService {
@@ -415,6 +416,59 @@ export class ConversationsService {
 
     return {
       message: this.i18n.t(`${this.i18nNamespace}.LeftGroup`),
+    };
+  }
+
+  async promoteMemberToAdmin(
+    account: Account,
+    conversationId: string,
+    dto: PromoteMemberDto
+  ): Promise<HttpResponse> {
+    if (dto.memberId === account.id) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.CannotPromoteYourself`)
+      );
+    }
+
+    const [accountParticipant, memberToPromote] = await Promise.all([
+      this.conversationParticipantRepository.findOne({
+        where: { conversationId, accountId: account.id },
+        relations: ['conversation'],
+      }),
+      this.conversationParticipantRepository.findOne({
+        where: {
+          conversationId,
+          accountId: dto.memberId,
+          leftAt: IsNull(),
+        },
+      }),
+    ]);
+
+    // The account should be an admin in a group conversation
+    this.validateConversationForManagingMembers(accountParticipant);
+
+    // Check member existance
+    if (!memberToPromote) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.MemberNotInGroup`)
+      );
+    }
+
+    // Check if already an admin
+    if (memberToPromote.role === ParticipantRole.ADMIN) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.MemberAlreadyAdmin`)
+      );
+    }
+
+    // Promote the member
+    await this.conversationParticipantRepository.update(
+      { conversationId, accountId: dto.memberId },
+      { role: ParticipantRole.ADMIN }
+    );
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.MemberPromotedSuccessfully`),
     };
   }
 

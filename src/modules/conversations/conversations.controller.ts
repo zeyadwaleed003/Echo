@@ -20,6 +20,7 @@ import { CreateConversationDto } from './dto/create-conversation.dto';
 import { ConversationsService } from './conversations.service';
 import { UuidDto } from 'src/common/dtos/uuid.dto';
 import { ManageMembersDto } from './dto/manage-members.dto';
+import { PromoteMemberDto } from './dto/promote-member.dto';
 
 @Controller('conversations')
 @UseGuards(AuthGuard)
@@ -69,5 +70,19 @@ export class ConversationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   leaveGroup(@Req() req: Request, @Param() { id }: UuidDto) {
     return this.conversationsService.leaveGroup(req.account!, id);
+  }
+
+  @Post(':id/promote')
+  @HttpCode(HttpStatus.OK)
+  promoteMember(
+    @Req() req: Request,
+    @Param() { id }: UuidDto,
+    @Body() dto: PromoteMemberDto
+  ) {
+    return this.conversationsService.promoteMemberToAdmin(
+      req.account!,
+      id,
+      dto
+    );
   }
 }

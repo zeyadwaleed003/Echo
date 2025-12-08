@@ -225,6 +225,11 @@
       "ARRAY_MIN_SIZE": "Member IDs array must contain at least one member",
       "ARRAY_UNIQUE": "Member IDs must be unique",
       "IS_POSITIVE": "Each member ID must be a positive number"
+    },
+    "memberId": {
+      "IS_INT": "Member ID must be an integer",
+      "NOT_EMPTY": "Member ID is required",
+      "IS_POSITIVE": "Member ID must be a positive number"
     }
   },
   "id": {

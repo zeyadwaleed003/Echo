@@ -160,7 +160,11 @@
     "CanOnlyLeaveGroupConversations": "You can only leave group conversations",
     "LeftGroup": "Successfully left the group",
     "NoMembersToPromote": "No members available to promote to admin",
-    "NewAdminNotInGroup": "The specified new admin is not an active member of the group"
+    "NewAdminNotInGroup": "The specified new admin is not an active member of the group",
+    "CannotPromoteYourself": "You cannot promote yourself",
+    "MemberNotInGroup": "The specified member is not an active member of this group",
+    "MemberAlreadyAdmin": "The specified member is already an admin",
+    "MemberPromotedSuccessfully": "Member promoted to admin successfully"
   },
   "messages": {
     "replyDoesNotExist": "The message you are replying to does not exist"

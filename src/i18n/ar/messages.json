@@ -160,7 +160,11 @@
     "CanOnlyLeaveGroupConversations": "يمكنك فقط مغادرة محادثات المجموعة",
     "LeftGroup": "تم مغادرة المجموعة بنجاح",
     "NoMembersToPromote": "لا يوجد أعضاء متاحون للترقية إلى مشرف",
-    "NewAdminNotInGroup": "المشرف الجديد المحدد ليس عضوًا نشطًا في المجموعة"
+    "NewAdminNotInGroup": "المشرف الجديد المحدد ليس عضوًا نشطًا في المجموعة",
+    "CannotPromoteYourself": "لا يمكنك ترقية نفسك",
+    "MemberNotInGroup": "العضو المحدد ليس عضوًا نشطًا في هذه المجموعة",
+    "MemberAlreadyAdmin": "العضو المحدد هو مشرف بالفعل",
+    "MemberPromotedSuccessfully": "تمت ترقية العضو إلى مشرف بنجاح"
   },
   "messages": {
     "replyDoesNotExist": "الرسالة التي ترد عليها غير موجودة"

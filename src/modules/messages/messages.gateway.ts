@@ -167,4 +167,29 @@ export class MessagesGateway
       };
     }
   }
+
+  @SubscribeMessage(EVENTS.MESSAGE_READ)
+  async handleMessageRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: MessageDto
+  ): Promise<AckResponse> {
+    // Read the message
+    try {
+      const { data } = await this.messagesService.read(
+        payload,
+        client.account!.id
+      );
+
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_READ, data);
+
+      return { success: true, data };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || "Failed to read the message",
+      };
+    }
+  }
 }

@@ -93,7 +93,19 @@ export class MessagesService {
     };
   }
 
-  async deliver(payload: MessageDto, accountId: number): Promise<HttpResponse> {
+  async deliver(payload: MessageDto, accountId: number) {
+    return this.changeStatus(payload, accountId, MessageStatusType.DELIVERED);
+  }
+
+  async read(payload: MessageDto, accountId: number) {
+    return this.changeStatus(payload, accountId, MessageStatusType.READ);
+  }
+
+  private async changeStatus(
+    payload: MessageDto,
+    accountId: number,
+    status: MessageStatusType
+  ): Promise<HttpResponse> {
     const { conversationId, messageId } = payload;
 
     const [_, message, messageStatus] = await Promise.all([
@@ -112,7 +124,7 @@ export class MessagesService {
 
     if (message.senderId === accountId)
       throw new BadRequestException(
-        "Message cannot be delivered to its sender"
+        "Message cannot be delivered to/read by its sender"
       );
 
     if (message.conversationId !== conversationId)
@@ -120,26 +132,45 @@ export class MessagesService {
         "This message does not belong to this conversation"
       );
 
-    if (!messageStatus.length)
-      throw new NotFoundException("No message found with this id");
-
-    const cannotDeliver = messageStatus.filter(
-      (message) =>
-        message.status === MessageStatusType.READ ||
-        message.status === MessageStatusType.DELIVERED
-    );
-    if (cannotDeliver.length)
-      throw new NotFoundException("This message is already delivered");
+    this.validateStatusChange(messageStatus, status);
 
     const newStatus = this.messageStatusRepository.create({
       messageId: message.id,
       accountId,
-      status: MessageStatusType.DELIVERED,
+      status,
     });
     await this.messageStatusRepository.save(newStatus);
 
     return {
       data: newStatus,
     };
+  }
+
+  private validateStatusChange(
+    messageStatus: MessageStatus[],
+    status: MessageStatusType
+  ) {
+    const st = messageStatus.map((message) => message.status);
+    if (!st.length)
+      throw new BadRequestException("No message found with this id.");
+
+    if (!st.includes(MessageStatusType.SENT))
+      throw new BadRequestException("This message was not sent");
+
+    if (status === MessageStatusType.DELIVERED) {
+      if (
+        st.includes(MessageStatusType.DELIVERED) ||
+        st.includes(MessageStatusType.READ)
+      )
+        throw new BadRequestException("This message is already delivered");
+    }
+
+    if (status === MessageStatusType.READ) {
+      if (!st.includes(MessageStatusType.DELIVERED))
+        throw new BadRequestException("This message was not delivered");
+
+      if (st.includes(MessageStatusType.READ))
+        throw new BadRequestException("This message is already read");
+    }
   }
 }

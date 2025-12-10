@@ -1,21 +1,29 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Message } from './entities/message.entity';
-import { HttpResponse } from 'src/common/types/api.types';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { MessageStatus } from './entities/message-status.entity';
-import { Conversation } from '../conversations/entities/conversation.entity';
-import { ConversationsService } from '../conversations/conversations.service';
-import { I18nService } from 'nestjs-i18n';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { DataSource, Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Message } from "./entities/message.entity";
+import { HttpResponse } from "src/common/types/api.types";
+import { CreateMessageDto } from "./dto/create-message.dto";
+import { MessageStatus } from "./entities/message-status.entity";
+import { Conversation } from "../conversations/entities/conversation.entity";
+import { ConversationsService } from "../conversations/conversations.service";
+import { I18nService } from "nestjs-i18n";
+import { MessageDto } from "./dto/message.dto";
+import { MessageStatusType } from "./messages.enum";
 
 @Injectable()
 export class MessagesService {
-  private readonly i18nNamespace = 'messages.messages';
+  private readonly i18nNamespace = "messages.messages";
 
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
+    @InjectRepository(MessageStatus)
+    private readonly messageStatusRepository: Repository<MessageStatus>,
     private readonly conversationsService: ConversationsService,
     private readonly dataSource: DataSource,
     private readonly i18n: I18nService
@@ -82,6 +90,56 @@ export class MessagesService {
         ...message,
         tempId: dto.tempId,
       },
+    };
+  }
+
+  async deliver(payload: MessageDto, accountId: number): Promise<HttpResponse> {
+    const { conversationId, messageId } = payload;
+
+    const [_, message, messageStatus] = await Promise.all([
+      this.conversationsService.checkIfUserInConversation(
+        accountId,
+        conversationId
+      ),
+      this.messageRepository.findOneBy({ id: messageId }),
+      this.messageStatusRepository.findBy({
+        messageId,
+        accountId,
+      }),
+    ]);
+
+    if (!message) throw new NotFoundException("No message found with this id");
+
+    if (message.senderId === accountId)
+      throw new BadRequestException(
+        "Message cannot be delivered to its sender"
+      );
+
+    if (message.conversationId !== conversationId)
+      throw new BadRequestException(
+        "This message does not belong to this conversation"
+      );
+
+    if (!messageStatus.length)
+      throw new NotFoundException("No message found with this id");
+
+    const cannotDeliver = messageStatus.filter(
+      (message) =>
+        message.status === MessageStatusType.READ ||
+        message.status === MessageStatusType.DELIVERED
+    );
+    if (cannotDeliver.length)
+      throw new NotFoundException("This message is already delivered");
+
+    const newStatus = this.messageStatusRepository.create({
+      messageId: message.id,
+      accountId,
+      status: MessageStatusType.DELIVERED,
+    });
+    await this.messageStatusRepository.save(newStatus);
+
+    return {
+      data: newStatus,
     };
   }
 }

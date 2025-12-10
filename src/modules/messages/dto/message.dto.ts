@@ -1,6 +1,8 @@
+import { PickType } from "@nestjs/swagger";
 import { IsNotEmpty, IsUUID } from "class-validator";
+import { CreateMessageDto } from "./create-message.dto";
 
-export class MessageDto {
+export class MessageDto extends PickType(CreateMessageDto, ["tempId"]) {
   @IsUUID("4", {
     message: "Message ID must be a valid UUID",
   })

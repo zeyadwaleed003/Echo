@@ -3,17 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { I18nService } from "nestjs-i18n";
+import { MessageDto } from "./dto/message.dto";
 import { DataSource, Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
+import { MessageStatusType } from "./messages.enum";
 import { Message } from "./entities/message.entity";
 import { HttpResponse } from "src/common/types/api.types";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { MessageStatus } from "./entities/message-status.entity";
 import { Conversation } from "../conversations/entities/conversation.entity";
 import { ConversationsService } from "../conversations/conversations.service";
-import { I18nService } from "nestjs-i18n";
-import { MessageDto } from "./dto/message.dto";
-import { MessageStatusType } from "./messages.enum";
+import { MessageReactDto } from "./dto/message-react.dto";
+import { MessageReaction } from "./entities/message-reaction.entity";
 
 @Injectable()
 export class MessagesService {
@@ -24,6 +26,8 @@ export class MessagesService {
     private readonly messageRepository: Repository<Message>,
     @InjectRepository(MessageStatus)
     private readonly messageStatusRepository: Repository<MessageStatus>,
+    @InjectRepository(MessageReaction)
+    private readonly messageReactionRepository: Repository<MessageReaction>,
     private readonly conversationsService: ConversationsService,
     private readonly dataSource: DataSource,
     private readonly i18n: I18nService
@@ -101,6 +105,64 @@ export class MessagesService {
     return this.changeStatus(payload, accountId, MessageStatusType.READ);
   }
 
+  async react(
+    payload: MessageReactDto,
+    accountId: number
+  ): Promise<HttpResponse> {
+    const { conversationId, messageId, emoji } = payload;
+
+    const [_, message, messageStatus] = await Promise.all([
+      this.conversationsService.checkIfUserInConversation(
+        accountId,
+        conversationId
+      ),
+      this.messageRepository.findOneBy({ id: messageId }),
+      this.messageStatusRepository.findBy({
+        messageId,
+        accountId,
+      }),
+    ]);
+
+    if (!message) throw new NotFoundException("No message found with this id");
+
+    if (message.conversationId !== conversationId)
+      throw new BadRequestException(
+        "This message does not belong to this conversation"
+      );
+
+    const isRead = messageStatus.filter(
+      (message) => message.status === MessageStatusType.READ
+    );
+    if (!isRead.length)
+      throw new BadRequestException("Cannot react to an unread message");
+
+    const react = await this.messageReactionRepository.existsBy({
+      accountId,
+      messageId,
+    });
+    const data = react
+      ? await this.messageReactionRepository.update(
+          { accountId, messageId },
+          { emoji }
+        )
+      : await this.messageReactionRepository.save(
+          this.messageReactionRepository.create({
+            accountId,
+            messageId,
+            emoji,
+          })
+        );
+
+    return {
+      data: {
+        ...data,
+        tempId: payload.tempId,
+      },
+    };
+  }
+
+  // <----- Helpers ----->
+
   private async changeStatus(
     payload: MessageDto,
     accountId: number,
@@ -142,7 +204,7 @@ export class MessagesService {
     await this.messageStatusRepository.save(newStatus);
 
     return {
-      data: newStatus,
+      data: { ...newStatus, tempId: payload.tempId },
     };
   }
 

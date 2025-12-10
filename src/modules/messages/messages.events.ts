@@ -1,6 +1,9 @@
 export enum EVENTS {
   MESSAGE_SEND = "message:send",
   MESSAGE_SENT = "message:sent",
+  MESSAGE_DELIVER = "message:deliver",
   MESSAGE_DELIVERED = "message:delivered",
   MESSAGE_READ = "message:read",
+  MESSAGE_REACT = "message:react",
+  MESSAGE_REACTED = "message:reacted",
 }

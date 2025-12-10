@@ -12,6 +12,7 @@ import {
 import { Repository } from "typeorm";
 import { Server, Socket } from "socket.io";
 import { EVENTS } from "./messages.events";
+import { MessageDto } from "./dto/message.dto";
 import { AccountStatus } from "./messages.types";
 import { InjectRepository } from "@nestjs/typeorm";
 import { MessagesService } from "./messages.service";
@@ -22,7 +23,7 @@ import { CreateMessageDto } from "./dto/create-message.dto";
 import { Account } from "../accounts/entities/account.entity";
 import { WsAuthHelper } from "src/common/helpers/ws-auth.helper";
 import { RefreshToken } from "../auth/entities/refresh-token.entity";
-import { MessageDto } from "./dto/message.dto";
+import { MessageReactDto } from "./dto/message-react.dto";
 
 @WebSocketGateway({
   cors: {
@@ -143,7 +144,7 @@ export class MessagesGateway
     return { success: true, data };
   }
 
-  @SubscribeMessage(EVENTS.MESSAGE_DELIVERED)
+  @SubscribeMessage(EVENTS.MESSAGE_DELIVER)
   async handleMessageDelivery(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: MessageDto
@@ -189,6 +190,30 @@ export class MessagesGateway
       return {
         success: false,
         error: error.message || "Failed to read the message",
+      };
+    }
+  }
+
+  @SubscribeMessage(EVENTS.MESSAGE_REACT)
+  async handleMessageReact(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: MessageReactDto
+  ) {
+    try {
+      const { data } = await this.messagesService.react(
+        payload,
+        client.account!.id
+      );
+
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_REACTED, data);
+
+      return { success: true, data };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || "Failed to react to the message",
       };
     }
   }

@@ -6,4 +6,6 @@ export enum EVENTS {
   MESSAGE_READ = "message:read",
   MESSAGE_REACT = "message:react",
   MESSAGE_REACTED = "message:reacted",
+  MESSAGE_REACT_DELETE = "message:react:delete",
+  MESSAGE_REACT_DELETED = "message:react:deleted",
 }

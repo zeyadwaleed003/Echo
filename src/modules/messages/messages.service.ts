@@ -109,26 +109,8 @@ export class MessagesService {
     payload: MessageReactDto,
     accountId: number
   ): Promise<HttpResponse> {
-    const { conversationId, messageId, emoji } = payload;
-
-    const [_, message, messageStatus] = await Promise.all([
-      this.conversationsService.checkIfUserInConversation(
-        accountId,
-        conversationId
-      ),
-      this.messageRepository.findOneBy({ id: messageId }),
-      this.messageStatusRepository.findBy({
-        messageId,
-        accountId,
-      }),
-    ]);
-
-    if (!message) throw new NotFoundException("No message found with this id");
-
-    if (message.conversationId !== conversationId)
-      throw new BadRequestException(
-        "This message does not belong to this conversation"
-      );
+    const messageStatus = await this.validateBeforeReact(payload, accountId);
+    const { messageId, emoji } = payload;
 
     const isRead = messageStatus.filter(
       (message) => message.status === MessageStatusType.READ
@@ -159,6 +141,21 @@ export class MessagesService {
         tempId: payload.tempId,
       },
     };
+  }
+
+  async deleteReact(payload: MessageDto, accountId: number) {
+    await this.validateBeforeReact(payload, accountId);
+
+    const { messageId } = payload;
+
+    const react = await this.messageReactionRepository.findOneBy({
+      messageId,
+      accountId,
+    });
+    if (!react)
+      throw new BadRequestException("You have not reacted to this message");
+
+    await this.messageReactionRepository.delete({ id: react.id });
   }
 
   // <----- Helpers ----->
@@ -234,5 +231,33 @@ export class MessagesService {
       if (st.includes(MessageStatusType.READ))
         throw new BadRequestException("This message is already read");
     }
+  }
+
+  private async validateBeforeReact<T extends MessageDto>(
+    payload: T,
+    accountId: number
+  ) {
+    const { conversationId, messageId } = payload;
+
+    const [_, message, messageStatus] = await Promise.all([
+      this.conversationsService.checkIfUserInConversation(
+        accountId,
+        conversationId
+      ),
+      this.messageRepository.findOneBy({ id: messageId }),
+      this.messageStatusRepository.findBy({
+        messageId,
+        accountId,
+      }),
+    ]);
+
+    if (!message) throw new NotFoundException("No message found with this id");
+
+    if (message.conversationId !== conversationId)
+      throw new BadRequestException(
+        "This message does not belong to this conversation"
+      );
+
+    return messageStatus;
   }
 }

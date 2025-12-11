@@ -5,11 +5,13 @@ import {
   JoinColumn,
   CreateDateColumn,
   Column,
+  Index,
 } from 'typeorm';
 import { Post } from '../../posts/entities/post.entity';
 import { Account } from '../../accounts/entities/account.entity';
 
 @Entity('bookmarks')
+@Index(['postId'])
 export class Bookmark {
   @PrimaryGeneratedColumn('increment')
   id: number;

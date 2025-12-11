@@ -7,12 +7,14 @@ import {
   UpdateDateColumn,
   Index,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { Account } from './account.entity';
 import { RelationshipType } from '../accounts.enums';
 
 @Entity('account_relationships')
-@Index(['actorId', 'targetId'], { unique: true })
+@Unique(['actorId', 'targetId'])
+@Index(['actorId', 'targetId', 'relationshipType'], { unique: true })
 export class AccountRelationships {
   @PrimaryGeneratedColumn('increment')
   id: number;

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,7 @@ import { PostType } from '../posts.enums';
 import { MaxLength } from 'class-validator';
 
 @Entity('posts')
+@Index(['accountId'])
 export class Post {
   @PrimaryGeneratedColumn('increment')
   id: number;

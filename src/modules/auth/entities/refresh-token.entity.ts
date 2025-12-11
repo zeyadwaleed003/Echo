@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,6 +11,8 @@ import {
 import { RevocationReason } from '../auth.enums';
 
 @Entity('refresh_tokens')
+@Index(['sessionId'])
+@Index(['accountId'])
 export class RefreshToken {
   @PrimaryGeneratedColumn('uuid')
   id: string;

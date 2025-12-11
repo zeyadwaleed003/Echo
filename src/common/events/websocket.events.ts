@@ -11,6 +11,9 @@ export enum EVENTS {
   MESSAGE_EDITED = 'message:edited',
   MESSAGE_REACT_DELETE = 'message:react:delete',
   MESSAGE_REACT_DELETED = 'message:react:deleted',
+  MESSAGE_DELETE_FOR_ME = 'message:delete:for:me',
+  MESSAGE_DELETE_FOR_ALL = 'message:delete:for:all',
+  MESSAGE_DELETED_FOR_ALL = 'message:deleted:for:all',
 
   // Conversation events
   CONVERSATION_JOIN = 'conversation:join',

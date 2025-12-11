@@ -1,4 +1,5 @@
 export enum EVENTS {
+  // Message events
   MESSAGE_SEND = 'message:send',
   MESSAGE_SENT = 'message:sent',
   MESSAGE_DELIVER = 'message:deliver',
@@ -10,6 +11,12 @@ export enum EVENTS {
   MESSAGE_EDITED = 'message:edited',
   MESSAGE_REACT_DELETE = 'message:react:delete',
   MESSAGE_REACT_DELETED = 'message:react:deleted',
-  TYPING_START = 'message:typing:start',
-  TYPING_STOP = 'message:typing:stop',
+
+  // Conversation events
+  CONVERSATION_JOIN = 'conversation:join',
+  CONVERSATION_LEAVE = 'conversation:leave',
+
+  // Typing events
+  TYPING_START = 'typing:start',
+  TYPING_STOP = 'typing:stop',
 }

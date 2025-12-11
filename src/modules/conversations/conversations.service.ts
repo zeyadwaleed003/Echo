@@ -655,6 +655,7 @@ export class ConversationsService {
     const exists = await this.conversationParticipantRepository.existsBy({
       accountId,
       conversationId,
+      leftAt: IsNull(),
     });
 
     if (!exists) {
@@ -668,7 +669,7 @@ export class ConversationsService {
     conversationId: string,
     excludeAccountId?: number
   ) {
-    return await this.conversationParticipantRepository.find({
+    const conversations = await this.conversationParticipantRepository.find({
       where: {
         conversationId,
         ...(excludeAccountId && { accountId: Not(excludeAccountId) }),
@@ -676,6 +677,8 @@ export class ConversationsService {
       },
       select: ['accountId'],
     });
+
+    return conversations.map((c) => c.accountId);
   }
 
   // === Private Helpers === //

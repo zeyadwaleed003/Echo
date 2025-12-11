@@ -41,6 +41,7 @@ export class MessagesService {
       senderId,
       dto.conversationId
     );
+    console.log(1);
 
     // If he is replying to a message ... need to check if the message exists in the same conversation
     if (dto.replyToMessageId) {
@@ -78,7 +79,7 @@ export class MessagesService {
       await Promise.all([
         messageStatusRepo.insert([
           ...conversationParticipants.map((p) => ({
-            accountId: p.accountId,
+            accountId: p,
             messageId: message.id,
           })),
         ]),

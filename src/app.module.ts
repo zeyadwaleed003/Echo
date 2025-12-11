@@ -1,6 +1,6 @@
 import path from 'path';
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -22,10 +22,9 @@ import { BlockedWordsModule } from './modules/blocked-words/blocked-words.module
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { CacheModule } from '@nestjs/cache-manager';
-import { createKeyv } from '@keyv/redis';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { RedisModule } from './modules/redis/redis.module';
 
 @Module({
   imports: [
@@ -54,19 +53,9 @@ import { MessagesModule } from './modules/messages/messages.module';
         },
       ],
     }),
-    CacheModule.registerAsync({
-      isGlobal: true,
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        stores: [
-          createKeyv(
-            `redis://${configService.get('REDIS_HOST', 'localhost')}:${configService.get('REDIS_PORT', 6379)}`
-          ),
-        ],
-      }),
-    }),
     AiModule,
     AuthModule,
+    RedisModule,
     LikesModule,
     PostsModule,
     TasksModule,

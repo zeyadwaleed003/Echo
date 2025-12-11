@@ -8,4 +8,10 @@ declare global {
   }
 }
 
+declare module 'socket.io' {
+  interface Socket {
+    account?: Account;
+  }
+}
+
 export {};

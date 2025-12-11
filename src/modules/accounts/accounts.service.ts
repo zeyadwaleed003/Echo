@@ -13,13 +13,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from './entities/account.entity';
 import {
   DataSource,
+  EntityManager,
   FindManyOptions,
   FindOptionsWhere,
   In,
   Not,
   Repository,
 } from 'typeorm';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
 import { hashCode } from 'src/common/utils/functions';
 import ApiFeatures from 'src/common/utils/ApiFeatures';
 import { instanceToPlain } from 'class-transformer';
@@ -28,6 +29,7 @@ import { UpdateMeDto } from './dto/update-me.dto';
 import { AccountRelationships } from './entities/account-relationship.entity';
 import {
   AccountStatus,
+  DirectMessagingStatus,
   RelationshipDirection,
   RelationshipType,
 } from './accounts.enums';
@@ -57,7 +59,7 @@ export class AccountsService {
     private readonly notificationsService: NotificationsService
   ) {}
 
-  async create(createAccountDto: CreateAccountDto): Promise<APIResponse> {
+  async create(createAccountDto: CreateAccountDto): Promise<HttpResponse> {
     if (createAccountDto.password)
       createAccountDto.password = await hashCode(createAccountDto.password);
 
@@ -93,7 +95,7 @@ export class AccountsService {
     // This will add a security layer. I don't trust the client to select whatever field he wants (security vulnerability)!
     const safeAccounts = instanceToPlain(accounts);
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       size: safeAccounts.length,
       data: safeAccounts,
     };
@@ -108,14 +110,14 @@ export class AccountsService {
         this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
       );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       data: instanceToPlain(account),
     };
 
     return result;
   }
 
-  async delete(id: number): Promise<APIResponse> {
+  async delete(id: number): Promise<HttpResponse> {
     await this.accountsRepository.delete({ id });
 
     this.logger.log(`Account deleted: id=${id}`);
@@ -129,7 +131,7 @@ export class AccountsService {
   async update(
     id: number,
     updateAccountAdminDto: UpdateAccountAdminDto
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     if (updateAccountAdminDto.password)
       updateAccountAdminDto.password = await hashCode(
         updateAccountAdminDto.password
@@ -150,8 +152,8 @@ export class AccountsService {
     };
   }
 
-  async findCurrentUserAccount(account: Account): Promise<APIResponse> {
-    const result: APIResponse = {
+  async findCurrentUserAccount(account: Account): Promise<HttpResponse> {
+    const result: HttpResponse = {
       data: account,
     };
 
@@ -250,7 +252,7 @@ export class AccountsService {
       `Account blocked: actor=${accountId}, target=${targetAccountId}`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nNamespace}.accountBlockedSuccessfully`, {
         args: { username: targetAccount.username },
       }),
@@ -262,7 +264,7 @@ export class AccountsService {
   async unblock(
     accountId: number,
     targetAccountId: number
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       accountId,
       targetAccountId,
@@ -319,7 +321,7 @@ export class AccountsService {
   async follow(
     account: Account,
     targetAccountId: number
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       account.id,
       targetAccountId,
@@ -417,7 +419,7 @@ export class AccountsService {
       targetId: targetAccountId,
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message:
         relationship.relationshipType === RelationshipType.FOLLOW_REQUEST
           ? this.i18n.t(`${this.i18nNamespace}.followRequestCancelled`, {
@@ -445,7 +447,7 @@ export class AccountsService {
     const relationships =
       await this.accountRelationshipsRepository.findBy(whereOption);
 
-    let result: APIResponse = {
+    let result: HttpResponse = {
       size: 0,
       data: [],
     };
@@ -608,7 +610,7 @@ export class AccountsService {
 
     this.logger.log(`Account deactivated: id=${account.id}`);
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nNamespace}.accountDeactivatedSuccessfully`
       ),
@@ -620,7 +622,7 @@ export class AccountsService {
   async acceptFollowRequest(
     account: Account,
     requestId: number
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const relationship = await this.accountRelationshipsRepository.findOneBy({
       id: requestId,
       targetId: account.id,
@@ -661,14 +663,14 @@ export class AccountsService {
 
     await this.accountRelationshipsRepository.remove(relationship);
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nNamespace}.followRequestRefused`),
     };
 
     return result;
   }
 
-  async findFollowRequests(accountId: number, q: any): Promise<APIResponse> {
+  async findFollowRequests(accountId: number, q: any): Promise<HttpResponse> {
     const whereClause: FindOptionsWhere<AccountRelationships> = {
       targetId: accountId,
       relationshipType: RelationshipType.FOLLOW_REQUEST,
@@ -695,7 +697,7 @@ export class AccountsService {
     };
   }
 
-  async deleteMe(accountId: number): Promise<APIResponse> {
+  async deleteMe(accountId: number): Promise<HttpResponse> {
     await this.accountsRepository.delete({ id: accountId });
 
     this.logger.log(`Account self-deleted: id=${accountId}`);
@@ -734,7 +736,7 @@ export class AccountsService {
       `Follower removed: account=${accountId}, follower=${followerId}`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nNamespace}.followerRemovedSuccessfully`,
         {
@@ -826,5 +828,50 @@ export class AccountsService {
     return await this.accountsRepository.findBy({
       id: In(ids),
     });
+  }
+
+  async validateConversationParticipants(
+    manager: EntityManager,
+    admin: Account,
+    participantIds: number[]
+  ) {
+    const dmStatus = [DirectMessagingStatus.EVERYONE];
+    if (admin.isVerified) dmStatus.push(DirectMessagingStatus.VERIFIED);
+
+    const [validParticipants, blockExists] = await Promise.all([
+      // Check if a user doesn't accept direct messages from me because of the directMessaging config
+      manager.getRepository(Account).findBy([
+        {
+          id: In(participantIds),
+          directMessaging: In(dmStatus),
+          status: AccountStatus.ACTIVATED,
+        },
+      ]),
+      ,
+      // Check if a user doesn't accept direct messages from me because of a block
+      manager.getRepository(AccountRelationships).existsBy([
+        {
+          actorId: In(participantIds),
+          targetId: admin.id,
+          relationshipType: RelationshipType.BLOCK,
+        },
+        {
+          actorId: admin.id,
+          targetId: In(participantIds),
+          relationshipType: RelationshipType.BLOCK,
+        },
+      ]),
+    ]);
+
+    if (validParticipants.length !== participantIds.length || blockExists)
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.UserCannotReceiveMessage`)
+      );
+
+    return validParticipants;
+  }
+
+  async findByIds(ids: number[]) {
+    return await this.accountsRepository.findBy({ id: In(ids) });
   }
 }

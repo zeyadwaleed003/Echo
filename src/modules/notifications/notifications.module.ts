@@ -7,12 +7,14 @@ import { Account } from '../accounts/entities/account.entity';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { TokenModule } from '../token/token.module';
 import { AuthModule } from '../auth/auth.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification, Account, RefreshToken]),
     forwardRef(() => AuthModule),
     TokenModule,
+    RedisModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService],

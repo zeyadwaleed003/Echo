@@ -20,7 +20,7 @@ import { AccountStatus } from '../accounts/accounts.enums';
 import { SignupDto } from './dto/signup.dto';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { VerifyOtpDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { TokenService } from '../token/token.service';
@@ -115,7 +115,7 @@ export class AuthService {
     res.cookie(name, val, options);
   }
 
-  async signup(signupDto: SignupDto): Promise<APIResponse> {
+  async signup(signupDto: SignupDto): Promise<HttpResponse> {
     // Check if the email is in the database
     const account = await this.accountsRepository.findOneBy({
       email: signupDto.email,
@@ -158,7 +158,7 @@ export class AuthService {
     this.logger.log(`Resend verification email requested for: ${email}`);
     const account = await this.accountsRepository.findOneBy({ email });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `verificationSent`),
     };
 
@@ -184,7 +184,7 @@ export class AuthService {
     id: number,
     error: boolean = false,
     message: string = this.i18n.t(`${this.i18nAuthNamespace}` + `emailVerified`)
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const setupToken = await this.tokenService.generateSetupToken({
       id,
     });
@@ -276,7 +276,7 @@ export class AuthService {
     return await this.sendCompleteProfileSetupResponse(account.id);
   }
 
-  async googleAuth(googleAuthDto: GoogleAuthDto): Promise<APIResponse> {
+  async googleAuth(googleAuthDto: GoogleAuthDto): Promise<HttpResponse> {
     const { idToken } = googleAuthDto;
     const ticket = await this.googleClient.verifyIdToken({
       idToken,
@@ -454,7 +454,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       data: cleanAccount,
       accessToken,
       refreshToken,
@@ -550,7 +550,7 @@ export class AuthService {
       }
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       data: account,
       accessToken,
       refreshToken: newRefreshToken,
@@ -559,7 +559,7 @@ export class AuthService {
     return result;
   }
 
-  async logout(refreshToken: string): Promise<APIResponse> {
+  async logout(refreshToken: string): Promise<HttpResponse> {
     const verifiedToken =
       await this.tokenService.verifyRefreshToken(refreshToken);
 
@@ -617,7 +617,7 @@ export class AuthService {
       `All sessions revoked for account: ${account.id} after password change`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `passwordChanged`),
     };
 
@@ -630,7 +630,7 @@ export class AuthService {
       email: forgotPasswordDto.email,
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nAuthNamespace}` + `passwordResetCodeSent`
       ),
@@ -734,7 +734,7 @@ export class AuthService {
       id: account.id,
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       passwordResetToken: token,
     };
 
@@ -776,7 +776,7 @@ export class AuthService {
       `All sessions revoked for account: ${verifiedToken.id} after password reset`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nAuthNamespace}` + `passwordResetSuccess`
       ),
@@ -815,7 +815,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `accountReactivated`),
       data: account,
       accessToken,
@@ -827,7 +827,7 @@ export class AuthService {
 
   async completeSetup(
     completeSetupDto: CompleteSetupDto
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const verifiedSetupToken = await this.tokenService.verifySetupToken(
       completeSetupDto.setupToken
     );

@@ -34,6 +34,7 @@ export class MessageStatus {
   @Column({
     type: 'enum',
     enum: MessageStatusType,
+    default: MessageStatusType.SENT,
   })
   status: MessageStatusType;
 

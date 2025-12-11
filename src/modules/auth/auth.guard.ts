@@ -6,14 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { TokenService } from '../token/token.service';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Account } from '../accounts/entities/account.entity';
-import { IsNull, Repository } from 'typeorm';
-import { AccountStatus } from '../accounts/accounts.enums';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
+import { IsNull, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { TokenService } from '../token/token.service';
+import { AccountStatus } from '../accounts/accounts.enums';
+import { Account } from '../accounts/entities/account.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 export const IS_OPTIONAL_AUTH = 'isOptionalAuth';
 
@@ -68,10 +68,10 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Access token is missing or invalid');
       }
 
-      const { refreshToken } = req.cookies;
+      const { refreshToken } = req!.cookies;
       if (!refreshToken) {
         if (isOptional) {
-          delete req.account;
+          delete req!.account;
           return true;
         }
         throw new UnauthorizedException('Refresh token is invalid or expired');
@@ -90,11 +90,12 @@ export class AuthGuard implements CanActivate {
 
       if (!storedRefreshToken) {
         if (isOptional) {
-          delete req.account;
+          delete req!.account;
           return true;
         }
         throw new UnauthorizedException('Refresh token is invalid or expired');
       }
+
       if (account?.status === AccountStatus.SUSPENDED)
         throw new ForbiddenException(
           'Your account has been suspended. Please contact support for assistance'
@@ -112,7 +113,7 @@ export class AuthGuard implements CanActivate {
           'Please complete your profile setup to access this resource'
         );
 
-      req.account = account!;
+      req.account = account;
     } catch (err) {
       if (isOptional) {
         delete req.account;

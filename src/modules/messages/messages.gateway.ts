@@ -244,4 +244,25 @@ export class MessagesGateway extends BaseGateway {
       };
     }
   }
+
+  @SubscribeMessage(EVENTS.MESSAGE_DELETE_FOR_ALL)
+  async handleDeleteForAll(
+    @ConnectedSocket() client: Socket,
+    payload: MessageDto
+  ) {
+    try {
+      await this.messagesService.deleteForAll(payload, client.account!.id);
+
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_DELETED_FOR_ALL);
+
+      return { success: true };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to delete the message',
+      };
+    }
+  }
 }

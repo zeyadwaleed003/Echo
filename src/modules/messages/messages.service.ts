@@ -181,6 +181,16 @@ export class MessagesService {
     );
   }
 
+  async deleteForAll(payload: MessageDto, accountId: number) {
+    const { messageId } = payload;
+
+    await this.validateBeforeEdit(payload, accountId);
+    await this.messageRepository.update(
+      { id: messageId },
+      { deletedAt: new Date(), deletionType: DeletionType.EVERYONE }
+    );
+  }
+
   // <----- Helpers ----->
 
   private async changeStatus(

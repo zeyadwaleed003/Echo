@@ -10,4 +10,6 @@ export enum EVENTS {
   MESSAGE_EDITED = 'message:edited',
   MESSAGE_REACT_DELETE = 'message:react:delete',
   MESSAGE_REACT_DELETED = 'message:react:deleted',
+  TYPING_START = 'message:typing:start',
+  TYPING_STOP = 'message:typing:stop',
 }

@@ -25,6 +25,7 @@ import { WsAuthHelper } from 'src/common/helpers/ws-auth.helper';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { MessageReactDto } from './dto/message-react.dto';
 import { EditMessageDto } from './dto/edit-message.dto';
+import { TypingDto } from './dto/typing.dto';
 
 @WebSocketGateway({
   cors: {
@@ -263,5 +264,31 @@ export class MessagesGateway
         error: error.message || 'Failed to edit the message',
       };
     }
+  }
+
+  @SubscribeMessage(EVENTS.TYPING_START)
+  async handleTypingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: TypingDto
+  ) {
+    client
+      .to(`conversation:${payload.conversationId}`)
+      .emit(EVENTS.TYPING_START, {
+        accountId: client.account!.id,
+        conversationId: payload.conversationId,
+      });
+  }
+
+  @SubscribeMessage(EVENTS.TYPING_STOP)
+  async handleTypingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: TypingDto
+  ) {
+    client
+      .to(`conversation:${payload.conversationId}`)
+      .emit(EVENTS.TYPING_STOP, {
+        accountId: client.account!.id,
+        conversationId: payload.conversationId,
+      });
   }
 }

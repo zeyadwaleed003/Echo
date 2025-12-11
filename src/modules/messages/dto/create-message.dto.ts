@@ -8,55 +8,51 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { ContentType } from '../messages.enum';
-import { i18nValidationMessage } from 'nestjs-i18n';
 
 export class CreateMessageDto {
   @IsUUID('4', {
-    message: i18nValidationMessage('validation.messages.conversationId.isUuid'),
+    message: 'Conversation ID must be a valid UUID',
   })
   @IsNotEmpty({
-    message: i18nValidationMessage(
-      'validation.messages.conversationId.isNotEmpty'
-    ),
+    message: 'Conversation ID is required',
   })
   conversationId: string;
 
   @IsString({
-    message: i18nValidationMessage('validation.messages.content.isString'),
+    message: 'Message content must be a string',
   })
   @IsNotEmpty({
-    message: i18nValidationMessage('validation.messages.content.isNotEmpty'),
+    message: 'Message content is required',
   })
   content: string;
 
   @IsEnum(ContentType, {
-    message: i18nValidationMessage('validation.messages.type.isEnum'),
+    message:
+      'Invalid message type. Must be one of: text, image, video, audio, document, location, contact, sticker',
   })
   @IsOptional()
   type?: ContentType = ContentType.TEXT;
 
   @IsObject({
-    message: i18nValidationMessage('validation.messages.metadata.isObject'),
+    message: 'Metadata must be a valid object',
   })
   @IsOptional()
   metadata?: Record<string, any>;
 
   @IsUUID('4', {
-    message: i18nValidationMessage(
-      'validation.messages.replyToMessageId.isUuid'
-    ),
+    message: 'Reply message ID must be a valid UUID',
   })
   @IsOptional()
   replyToMessageId?: string;
 
   @IsString({
-    message: i18nValidationMessage('validation.messages.tempId.isString'),
+    message: 'Temporary ID must be a string',
   })
   @IsOptional()
   tempId?: string; // This is for the client to use
 
   @IsBoolean({
-    message: i18nValidationMessage('validation.messages.isForwarded.isBoolean'),
+    message: 'isForwarded must be a boolean',
   })
   @IsOptional()
   isForwarded?: boolean;

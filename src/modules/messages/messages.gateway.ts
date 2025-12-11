@@ -1,4 +1,4 @@
-import { Logger, UsePipes, ValidationPipe } from "@nestjs/common";
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,26 +8,27 @@ import {
   WebSocketGateway,
   WebSocketServer,
   WsException,
-} from "@nestjs/websockets";
-import { Repository } from "typeorm";
-import { Server, Socket } from "socket.io";
-import { EVENTS } from "./messages.events";
-import { MessageDto } from "./dto/message.dto";
-import { AccountStatus } from "./messages.types";
-import { InjectRepository } from "@nestjs/typeorm";
-import { MessagesService } from "./messages.service";
-import { RedisService } from "../redis/redis.service";
-import { TokenService } from "../token/token.service";
-import { AckResponse } from "src/common/types/api.types";
-import { CreateMessageDto } from "./dto/create-message.dto";
-import { Account } from "../accounts/entities/account.entity";
-import { WsAuthHelper } from "src/common/helpers/ws-auth.helper";
-import { RefreshToken } from "../auth/entities/refresh-token.entity";
-import { MessageReactDto } from "./dto/message-react.dto";
+} from '@nestjs/websockets';
+import { Repository } from 'typeorm';
+import { Server, Socket } from 'socket.io';
+import { EVENTS } from './messages.events';
+import { MessageDto } from './dto/message.dto';
+import { AccountStatus } from './messages.types';
+import { InjectRepository } from '@nestjs/typeorm';
+import { MessagesService } from './messages.service';
+import { RedisService } from '../redis/redis.service';
+import { TokenService } from '../token/token.service';
+import { AckResponse } from 'src/common/types/api.types';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { Account } from '../accounts/entities/account.entity';
+import { WsAuthHelper } from 'src/common/helpers/ws-auth.helper';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
+import { MessageReactDto } from './dto/message-react.dto';
+import { EditMessageDto } from './dto/edit-message.dto';
 
 @WebSocketGateway({
   cors: {
-    origin: "*",
+    origin: '*',
     credentials: true,
   },
 })
@@ -41,7 +42,7 @@ export class MessagesGateway
   server = Server;
 
   private readonly wsAuthHelper: WsAuthHelper;
-  private readonly logger = new Logger("MessageGateway");
+  private readonly logger = new Logger('MessageGateway');
   private readonly REDIS_KEYS = {
     accountStatus: (accountId: number) => `account:${accountId}`,
     accountSockets: (accountId: number) => `account:${accountId}:sockets`,
@@ -73,7 +74,7 @@ export class MessagesGateway
         `Client connection rejected: ${client.id}, reason: ${isAuth.reason}`
       );
 
-      client.emit("error", { reason: isAuth.reason });
+      client.emit('error', { reason: isAuth.reason });
       return;
     }
   }
@@ -164,7 +165,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to deliver the message",
+        error: error.message || 'Failed to deliver the message',
       };
     }
   }
@@ -189,7 +190,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to read the message",
+        error: error.message || 'Failed to read the message',
       };
     }
   }
@@ -213,7 +214,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to react to the message",
+        error: error.message || 'Failed to react to the message',
       };
     }
   }
@@ -234,7 +235,32 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to delete the react from the message",
+        error: error.message || 'Failed to delete the react from the message',
+      };
+    }
+  }
+
+  @SubscribeMessage(EVENTS.MESSAGE_EDIT)
+  async handleMessageEdit(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: EditMessageDto
+  ): Promise<AckResponse> {
+    try {
+      const { data } = await this.messagesService.edit(
+        payload,
+        client.account!.id
+      );
+
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_EDITED, data);
+
+      return { success: true, data };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to edit the message',
       };
     }
   }

@@ -186,9 +186,11 @@ export class MessagesService {
 
     await this.messageRepository.update({ id: messageId }, { content });
 
-    message.content = content;
+    const newMessage = await this.messageRepository.findOneBy({
+      id: messageId,
+    });
 
-    return { data: message };
+    return { data: newMessage };
   }
 
   // <----- Helpers ----->

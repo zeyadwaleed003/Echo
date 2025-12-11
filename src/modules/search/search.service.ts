@@ -34,6 +34,8 @@ export class SearchService implements OnModuleInit {
     await this.createIndices();
   }
 
+  // ElasticSearch Related Functions
+
   private async createIndices() {
     const accountsIndexExists = await this.elasticsearchService.indices.exists({
       index: this.ACCOUNTS_INDEX,
@@ -168,6 +170,8 @@ export class SearchService implements OnModuleInit {
     await this.elasticsearchService.bulk({ body });
   }
 
+  // === Helpers === //
+
   private decodeCursor(
     cursor: string | undefined
   ): estypes.SortResults | undefined {
@@ -202,6 +206,8 @@ export class SearchService implements OnModuleInit {
 
     return null;
   }
+
+  // Accounts Search
 
   private assignAccountSearchParams(
     search_after: estypes.SortResults | undefined,
@@ -303,6 +309,8 @@ export class SearchService implements OnModuleInit {
       nextCursor,
     };
   }
+
+  // Posts Search
 
   private assignPostSearchParams(
     search_after: estypes.SortResults | undefined,
@@ -446,6 +454,8 @@ export class SearchService implements OnModuleInit {
       nextCursor,
     };
   }
+
+  // Main Search Function
 
   async search(
     query: SearchQueryDto,

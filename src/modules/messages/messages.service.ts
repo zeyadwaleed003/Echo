@@ -1,25 +1,27 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { I18nService } from "nestjs-i18n";
-import { MessageDto } from "./dto/message.dto";
-import { DataSource, Repository } from "typeorm";
-import { InjectRepository } from "@nestjs/typeorm";
-import { MessageStatusType } from "./messages.enum";
-import { Message } from "./entities/message.entity";
-import { HttpResponse } from "src/common/types/api.types";
-import { CreateMessageDto } from "./dto/create-message.dto";
-import { MessageStatus } from "./entities/message-status.entity";
-import { Conversation } from "../conversations/entities/conversation.entity";
-import { ConversationsService } from "../conversations/conversations.service";
-import { MessageReactDto } from "./dto/message-react.dto";
-import { MessageReaction } from "./entities/message-reaction.entity";
+} from '@nestjs/common';
+import { I18nService } from 'nestjs-i18n';
+import { MessageDto } from './dto/message.dto';
+import { DataSource, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { MessageStatusType } from './messages.enum';
+import { Message } from './entities/message.entity';
+import { HttpResponse } from 'src/common/types/api.types';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { MessageStatus } from './entities/message-status.entity';
+import { Conversation } from '../conversations/entities/conversation.entity';
+import { ConversationsService } from '../conversations/conversations.service';
+import { MessageReactDto } from './dto/message-react.dto';
+import { MessageReaction } from './entities/message-reaction.entity';
+import { EditMessageDto } from './dto/edit-message.dto';
 
 @Injectable()
 export class MessagesService {
-  private readonly i18nNamespace = "messages.messages";
+  private readonly i18nNamespace = 'messages.messages';
 
   constructor(
     @InjectRepository(Message)
@@ -39,6 +41,7 @@ export class MessagesService {
       senderId,
       dto.conversationId
     );
+    console.log(1);
 
     // If he is replying to a message ... need to check if the message exists in the same conversation
     if (dto.replyToMessageId) {
@@ -76,7 +79,7 @@ export class MessagesService {
       await Promise.all([
         messageStatusRepo.insert([
           ...conversationParticipants.map((p) => ({
-            accountId: p.accountId,
+            accountId: p,
             messageId: message.id,
           })),
         ]),
@@ -116,7 +119,7 @@ export class MessagesService {
       (message) => message.status === MessageStatusType.READ
     );
     if (!isRead.length)
-      throw new BadRequestException("Cannot react to an unread message");
+      throw new BadRequestException('Cannot react to an unread message');
 
     const react = await this.messageReactionRepository.existsBy({
       accountId,
@@ -153,9 +156,39 @@ export class MessagesService {
       accountId,
     });
     if (!react)
-      throw new BadRequestException("You have not reacted to this message");
+      throw new BadRequestException('You have not reacted to this message');
 
     await this.messageReactionRepository.delete({ id: react.id });
+  }
+
+  async edit(payload: EditMessageDto, accountId: number) {
+    const { conversationId, messageId, content } = payload;
+
+    const [_, message] = await Promise.all([
+      this.conversationsService.checkIfUserInConversation(
+        accountId,
+        conversationId
+      ),
+      this.messageRepository.findOneBy({ id: messageId }),
+    ]);
+
+    if (!message) throw new NotFoundException('No message found with this id');
+
+    if (message.conversationId !== conversationId)
+      throw new BadRequestException(
+        'This message does not belong to this conversation'
+      );
+
+    if (message.senderId !== accountId || message.isForwarded)
+      throw new ForbiddenException(
+        'You do not have the permission to edit this message'
+      );
+
+    await this.messageRepository.update({ id: messageId }, { content });
+
+    message.content = content;
+
+    return { data: message };
   }
 
   // <----- Helpers ----->
@@ -179,16 +212,16 @@ export class MessagesService {
       }),
     ]);
 
-    if (!message) throw new NotFoundException("No message found with this id");
+    if (!message) throw new NotFoundException('No message found with this id');
 
     if (message.senderId === accountId)
       throw new BadRequestException(
-        "Message cannot be delivered to/read by its sender"
+        'Message cannot be delivered to/read by its sender'
       );
 
     if (message.conversationId !== conversationId)
       throw new BadRequestException(
-        "This message does not belong to this conversation"
+        'This message does not belong to this conversation'
       );
 
     this.validateStatusChange(messageStatus, status);
@@ -211,25 +244,25 @@ export class MessagesService {
   ) {
     const st = messageStatus.map((message) => message.status);
     if (!st.length)
-      throw new BadRequestException("No message found with this id.");
+      throw new BadRequestException('No message found with this id.');
 
     if (!st.includes(MessageStatusType.SENT))
-      throw new BadRequestException("This message was not sent");
+      throw new BadRequestException('This message was not sent');
 
     if (status === MessageStatusType.DELIVERED) {
       if (
         st.includes(MessageStatusType.DELIVERED) ||
         st.includes(MessageStatusType.READ)
       )
-        throw new BadRequestException("This message is already delivered");
+        throw new BadRequestException('This message is already delivered');
     }
 
     if (status === MessageStatusType.READ) {
       if (!st.includes(MessageStatusType.DELIVERED))
-        throw new BadRequestException("This message was not delivered");
+        throw new BadRequestException('This message was not delivered');
 
       if (st.includes(MessageStatusType.READ))
-        throw new BadRequestException("This message is already read");
+        throw new BadRequestException('This message is already read');
     }
   }
 
@@ -251,11 +284,11 @@ export class MessagesService {
       }),
     ]);
 
-    if (!message) throw new NotFoundException("No message found with this id");
+    if (!message) throw new NotFoundException('No message found with this id');
 
     if (message.conversationId !== conversationId)
       throw new BadRequestException(
-        "This message does not belong to this conversation"
+        'This message does not belong to this conversation'
       );
 
     return messageStatus;

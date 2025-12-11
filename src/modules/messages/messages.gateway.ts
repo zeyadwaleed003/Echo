@@ -1,54 +1,46 @@
-import { Logger, UsePipes, ValidationPipe } from "@nestjs/common";
+import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
   WsException,
-} from "@nestjs/websockets";
-import { Repository } from "typeorm";
-import { Server, Socket } from "socket.io";
-import { EVENTS } from "./messages.events";
-import { MessageDto } from "./dto/message.dto";
-import { AccountStatus } from "./messages.types";
-import { InjectRepository } from "@nestjs/typeorm";
-import { MessagesService } from "./messages.service";
-import { RedisService } from "../redis/redis.service";
-import { TokenService } from "../token/token.service";
-import { AckResponse } from "src/common/types/api.types";
-import { CreateMessageDto } from "./dto/create-message.dto";
-import { Account } from "../accounts/entities/account.entity";
-import { WsAuthHelper } from "src/common/helpers/ws-auth.helper";
-import { RefreshToken } from "../auth/entities/refresh-token.entity";
-import { MessageReactDto } from "./dto/message-react.dto";
+} from '@nestjs/websockets';
+import { Repository } from 'typeorm';
+import { Server, Socket } from 'socket.io';
+import { MessageDto } from './dto/message.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { MessagesService } from './messages.service';
+import { RedisService } from '../redis/redis.service';
+import { TokenService } from '../token/token.service';
+import { EditMessageDto } from './dto/edit-message.dto';
+import { AckResponse } from 'src/common/types/api.types';
+import { MessageReactDto } from './dto/message-react.dto';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { EVENTS } from 'src/common/events/websocket.events';
+import { Account } from '../accounts/entities/account.entity';
+import { ConversationIdDto } from './dto/conversation-id.dto';
+import { BaseGateway } from 'src/common/gateways/base.gateway';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 @WebSocketGateway({
   cors: {
-    origin: "*",
+    origin: '*',
     credentials: true,
   },
 })
 @UsePipes(
   new ValidationPipe({ exceptionFactory: (errors) => new WsException(errors) })
 )
-export class MessagesGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class MessagesGateway extends BaseGateway {
   @WebSocketServer()
-  server = Server;
+  server: Server;
 
-  private readonly wsAuthHelper: WsAuthHelper;
-  private readonly logger = new Logger("MessageGateway");
-  private readonly REDIS_KEYS = {
-    accountStatus: (accountId: number) => `account:${accountId}`,
-    accountSockets: (accountId: number) => `account:${accountId}:sockets`,
-  };
+  protected readonly logger = new Logger('MessageGateway');
 
   constructor(
-    private readonly redisService: RedisService,
+    redisService: RedisService,
     tokenService: TokenService,
     private readonly messagesService: MessagesService,
     @InjectRepository(Account)
@@ -56,72 +48,12 @@ export class MessagesGateway
     @InjectRepository(RefreshToken)
     refreshTokenRepository: Repository<RefreshToken>
   ) {
-    this.wsAuthHelper = new WsAuthHelper(
+    super(
+      redisService,
       tokenService,
       accountsRepository,
       refreshTokenRepository
     );
-  }
-
-  private async handleAuth(client: Socket) {
-    // Authorize
-    const isAuth = await this.wsAuthHelper.authenticate(client);
-
-    // If authentication fails
-    if (!isAuth.success) {
-      this.logger.warn(
-        `Client connection rejected: ${client.id}, reason: ${isAuth.reason}`
-      );
-
-      client.emit("error", { reason: isAuth.reason });
-      return;
-    }
-  }
-
-  async handleConnection(@ConnectedSocket() client: Socket) {
-    await this.handleAuth(client);
-
-    this.logger.log(`Client connected: ${client.id}`);
-
-    const accountId = client.account!.id;
-    await this.redisService.set<AccountStatus>(
-      this.REDIS_KEYS.accountStatus(accountId),
-      {
-        online: true,
-        lastSeen: Date.now(),
-      }
-    );
-
-    await this.redisService.sadd(
-      this.REDIS_KEYS.accountSockets(accountId),
-      client.id
-    );
-  }
-
-  async handleDisconnect(@ConnectedSocket() client: Socket) {
-    this.logger.log(`Client disconnected: ${client.id}`);
-
-    if (client.account) {
-      const accountId = client.account.id;
-
-      await this.redisService.srem(
-        this.REDIS_KEYS.accountSockets(accountId),
-        client.id
-      );
-
-      const socketsLeft = await this.redisService.scard(
-        this.REDIS_KEYS.accountSockets(accountId)
-      );
-      if (!socketsLeft) {
-        await this.redisService.set<AccountStatus>(
-          this.REDIS_KEYS.accountStatus(accountId),
-          {
-            online: false,
-            lastSeen: Date.now(),
-          }
-        );
-      }
-    }
   }
 
   @SubscribeMessage(EVENTS.MESSAGE_SEND)
@@ -129,19 +61,26 @@ export class MessagesGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: CreateMessageDto
   ): Promise<AckResponse> {
-    this.logger.log(`Client: ${client.id} is sending a message`);
+    try {
+      this.logger.log(`Client: ${client.id} is sending a message`);
 
-    // Create the message
-    const { data } = await this.messagesService.create(
-      client.account!.id,
-      payload
-    );
+      // Create the message
+      const { data } = await this.messagesService.create(
+        client.account!.id,
+        payload
+      );
 
-    client
-      .to(`conversation:${payload.conversationId}`)
-      .emit(EVENTS.MESSAGE_SENT, data);
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_SENT, data);
 
-    return { success: true, data };
+      return { success: true, data };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to send message',
+      };
+    }
   }
 
   @SubscribeMessage(EVENTS.MESSAGE_DELIVER)
@@ -164,7 +103,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to deliver the message",
+        error: error.message || 'Failed to deliver the message',
       };
     }
   }
@@ -189,7 +128,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to read the message",
+        error: error.message || 'Failed to read the message',
       };
     }
   }
@@ -213,7 +152,7 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to react to the message",
+        error: error.message || 'Failed to react to the message',
       };
     }
   }
@@ -234,8 +173,59 @@ export class MessagesGateway
     } catch (error: any) {
       return {
         success: false,
-        error: error.message || "Failed to delete the react from the message",
+        error: error.message || 'Failed to delete the react from the message',
       };
     }
+  }
+
+  @SubscribeMessage(EVENTS.MESSAGE_EDIT)
+  async handleMessageEdit(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: EditMessageDto
+  ): Promise<AckResponse> {
+    try {
+      const { data } = await this.messagesService.edit(
+        payload,
+        client.account!.id
+      );
+
+      client
+        .to(`conversation:${payload.conversationId}`)
+        .emit(EVENTS.MESSAGE_EDITED, data);
+
+      return { success: true, data };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to edit the message',
+      };
+    }
+  }
+
+  @SubscribeMessage(EVENTS.TYPING_START)
+  async handleTypingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: ConversationIdDto
+  ) {
+    client
+      .to(`conversation:${payload.conversationId}`)
+      .emit(EVENTS.TYPING_START, {
+        accountId: client.account!.id,
+        conversationId: payload.conversationId,
+      });
+  }
+
+  @SubscribeMessage(EVENTS.TYPING_STOP)
+  async handleTypingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: ConversationIdDto
+  ) {
+    client
+      .to(`conversation:${payload.conversationId}`)
+      .emit(EVENTS.TYPING_STOP, {
+        accountId: client.account!.id,
+        conversationId: payload.conversationId,
+      });
   }
 }

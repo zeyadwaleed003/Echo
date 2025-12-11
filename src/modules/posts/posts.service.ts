@@ -33,7 +33,7 @@ import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class PostsService {
-  private readonly i18nNamespace = 'messages.posts';
+  private readonly i18nNamespace = "messages.posts";
 
   constructor(
     private readonly dataSource: DataSource,
@@ -58,16 +58,16 @@ export class PostsService {
 
   private containFiles(q: QueryString) {
     const queryString = { ...q };
-    const fields = queryString.fields?.split(',');
-    return fields?.includes('files');
+    const fields = queryString.fields?.split(",");
+    return fields?.includes("files");
   }
 
   private cleanFields(q: QueryString) {
     const queryString = { ...q };
-    const fields = queryString.fields?.split(',');
+    const fields = queryString.fields?.split(",");
 
-    const validFields = fields!.filter((field: string) => field !== 'files');
-    return { ...queryString, fields: validFields.join(',') };
+    const validFields = fields!.filter((field: string) => field !== "files");
+    return { ...queryString, fields: validFields.join(",") };
   }
 
   private async uploadFiles(
@@ -95,7 +95,7 @@ export class PostsService {
     actionPostId?: number,
     files?: Express.Multer.File[]
   ) {
-    if (content === '' && (!files || files.length === 0)) {
+    if (content === "" && (!files || files.length === 0)) {
       if (type !== PostType.REPOST) {
         throw new BadRequestException(
           this.i18n.t(`${this.i18nNamespace}.postMustContainContent`)
@@ -105,7 +105,7 @@ export class PostsService {
       const id = actionPostId!;
       const [repost, files] = await Promise.all([
         this.postRepository.find({
-          where: { type: PostType.REPOST, content: '', id, accountId },
+          where: { type: PostType.REPOST, content: "", id, accountId },
         }),
         this.postFilesRepository.find({ where: { postId: id } }),
       ]);
@@ -155,7 +155,7 @@ export class PostsService {
     }
 
     if (
-      (await this.aiService.classifyContent(content || '', files)) ===
+      (await this.aiService.classifyContent(content || "", files)) ===
       ContentClassification.DANGEROUS
     )
       throw new ForbiddenException(
@@ -288,7 +288,7 @@ export class PostsService {
       );
 
     if (account) {
-      await this.relationshipHelper.checkRelationship(account, author, 'view');
+      await this.relationshipHelper.checkRelationship(account, author, "view");
     }
 
     if (!author.isPrivate)
@@ -327,13 +327,13 @@ export class PostsService {
 
     if (
       (await this.aiService.classifyContent(
-        updatePostDto.content || '',
+        updatePostDto.content || "",
         files
       )) === ContentClassification.DANGEROUS
     )
       throw new ForbiddenException(
         this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
-          args: { type: 'post' },
+          args: { type: "post" },
         })
       );
 
@@ -389,7 +389,7 @@ export class PostsService {
 
         const updatedPost = await postRepository.findOne({
           where: { id },
-          relations: ['account'],
+          relations: ["account"],
         });
         const postFiles = await postFilesRepository.find({
           where: { postId: id },
@@ -566,7 +566,7 @@ export class PostsService {
 
     const privateAccounts = await this.accountsRepository.find({
       where: { id: In(accountsIds), isPrivate: true },
-      select: ['id'],
+      select: ["id"],
     });
     const privateAccountsIds = new Set(privateAccounts.map((acc) => acc.id));
 
@@ -587,7 +587,7 @@ export class PostsService {
         // Only query if there are private accounts
         privateAccountsIds.size > 0
           ? this.accountRelationshipsRepository.find({
-              select: ['targetId'],
+              select: ["targetId"],
               where: {
                 actorId: account.id,
                 targetId: In([...privateAccountsIds]),
@@ -596,7 +596,7 @@ export class PostsService {
             })
           : [],
         this.accountRelationshipsRepository.find({
-          select: ['targetId'],
+          select: ["targetId"],
           where: {
             targetId: In(accountsIds),
             actorId: account.id,
@@ -607,7 +607,7 @@ export class PostsService {
           },
         }),
         this.accountRelationshipsRepository.find({
-          select: ['actorId'],
+          select: ["actorId"],
           where: {
             actorId: In(accountsIds),
             targetId: account.id,
@@ -684,14 +684,14 @@ export class PostsService {
 
   async findPostFiles(postIds: number[]) {
     return (await this.postFilesRepository
-      .createQueryBuilder('f')
-      .select('f.postId', 'postId')
+      .createQueryBuilder("f")
+      .select("f.postId", "postId")
       .addSelect(
         "json_agg(json_build_object('id', f.id, 'url', f.url, 'createdAt', f.createdAt))",
-        'files'
+        "files"
       )
-      .where('f.postId IN (:...postIds)', { postIds })
-      .groupBy('f.postId')
+      .where("f.postId IN (:...postIds)", { postIds })
+      .groupBy("f.postId")
       .getRawMany()) as GroupedPostFile[];
   }
 }

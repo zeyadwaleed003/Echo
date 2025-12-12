@@ -64,6 +64,10 @@ A social media API built with NestJS, TypeORM, PostgreSQL, Socket.io, Redis, and
 - **AI**: Content moderation integration
 - **Documentation**: Swagger/OpenAPI
 
+## Database Design
+
+View the complete database schema: [dbdiagram.io](https://dbdiagram.io/d/Echo-692ece4ad6676488ba3d3188)
+
 ## Getting Started
 
 ### Installation
@@ -77,7 +81,7 @@ cd echo
 cp .env.example .env
 
 # Start server with docker compose
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Available Services

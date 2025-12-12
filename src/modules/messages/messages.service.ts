@@ -8,7 +8,7 @@ import { I18nService } from 'nestjs-i18n';
 import { MessageDto } from './dto/message.dto';
 import { DataSource, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MessageStatusType } from './messages.enum';
+import { DeletionType, MessageStatusType } from './messages.enum';
 import { Message } from './entities/message.entity';
 import { HttpResponse } from 'src/common/types/api.types';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -162,35 +162,33 @@ export class MessagesService {
   }
 
   async edit(payload: EditMessageDto, accountId: number) {
-    const { conversationId, messageId, content } = payload;
-
-    const [_, message] = await Promise.all([
-      this.conversationsService.checkIfUserInConversation(
-        accountId,
-        conversationId
-      ),
-      this.messageRepository.findOneBy({ id: messageId }),
-    ]);
-
-    if (!message) throw new NotFoundException('No message found with this id');
-
-    if (message.conversationId !== conversationId)
-      throw new BadRequestException(
-        'This message does not belong to this conversation'
-      );
-
-    if (message.senderId !== accountId || message.isForwarded)
-      throw new ForbiddenException(
-        'You do not have the permission to edit this message'
-      );
+    const { messageId, content } = payload;
+    await this.validateBeforeEdit(payload, accountId);
 
     await this.messageRepository.update({ id: messageId }, { content });
+    const message = await this.messageRepository.findOneBy({ id: messageId });
 
-    const newMessage = await this.messageRepository.findOneBy({
-      id: messageId,
-    });
+    return { data: message };
+  }
 
-    return { data: newMessage };
+  async deleteForMe(payload: MessageDto, accountId: number) {
+    const { messageId } = payload;
+
+    await this.validateBeforeEdit(payload, accountId);
+    await this.messageRepository.update(
+      { id: messageId },
+      { deletedAt: new Date(), deletionType: DeletionType.ME }
+    );
+  }
+
+  async deleteForAll(payload: MessageDto, accountId: number) {
+    const { messageId } = payload;
+
+    await this.validateBeforeEdit(payload, accountId);
+    await this.messageRepository.update(
+      { id: messageId },
+      { deletedAt: new Date(), deletionType: DeletionType.EVERYONE }
+    );
   }
 
   // <----- Helpers ----->
@@ -215,6 +213,11 @@ export class MessagesService {
     ]);
 
     if (!message) throw new NotFoundException('No message found with this id');
+
+    if (message.deletionType === DeletionType.EVERYONE)
+      throw new BadRequestException(
+        'You cannot perform this operation on a message that is deleted'
+      );
 
     if (message.senderId === accountId)
       throw new BadRequestException(
@@ -288,11 +291,47 @@ export class MessagesService {
 
     if (!message) throw new NotFoundException('No message found with this id');
 
+    if (message.deletionType === DeletionType.EVERYONE)
+      throw new BadRequestException(
+        'You cannot perform this operation on a message that is deleted'
+      );
+
     if (message.conversationId !== conversationId)
       throw new BadRequestException(
         'This message does not belong to this conversation'
       );
 
     return messageStatus;
+  }
+
+  private async validateBeforeEdit<T extends MessageDto>(
+    payload: T,
+    accountId: number
+  ) {
+    const { conversationId, messageId } = payload;
+
+    const [_, message] = await Promise.all([
+      this.conversationsService.checkIfUserInConversation(
+        accountId,
+        conversationId
+      ),
+      this.messageRepository.findOneBy({ id: messageId }),
+    ]);
+
+    if (!message) throw new NotFoundException('No message found with this id');
+    if (message.deletedAt)
+      throw new BadRequestException(
+        'You cannot perform this operation on a message that is deleted'
+      );
+
+    if (message.conversationId !== conversationId)
+      throw new BadRequestException(
+        'This message does not belong to this conversation'
+      );
+
+    if (message.senderId !== accountId || message.isForwarded)
+      throw new ForbiddenException(
+        'You do not have the permission to edit/delete this message'
+      );
   }
 }

@@ -136,8 +136,8 @@
 **Http**:
 
 - [x] **Create a new conversation**: Direct or Group conversation
-- [] **Get conversation by id**: TODO: unread messages number, last message
-- [] **Get current user conversation list**: sort by the last sent message, unread messages number and the last message. Pagination needed (Cursor or Offset idk)
+- [ ] **Get conversation by id**: TODO: unread messages number, last message
+- [ ] **Get current user conversation list**: sort by the last sent message, unread messages number and the last message. Pagination needed (Cursor or Offset idk)
 - [x] **Update a group conversation**: Only the admin of the group can do this
 - [x] **Add members to group conversation**
 - [x] **Remove members from group conversation**
@@ -163,8 +163,8 @@
 
 **Http**:
 
-- [] **Search for conversations**
-- [] **Search for messages in a conversation**
+- [ ] **Search for conversations**
+- [ ] **Search for messages in a conversation**
 
 ## Future
 

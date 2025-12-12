@@ -1,7 +1,10 @@
-import { Post } from '../../modules/posts/entities/post.entity';
-import { Account } from '../../modules/accounts/entities/account.entity';
+import { Logger } from '@nestjs/common';
 import dataSource from '../data-source';
 import { PostType } from '../../modules/posts/posts.enums';
+import { Post } from '../../modules/posts/entities/post.entity';
+import { Account } from '../../modules/accounts/entities/account.entity';
+
+const logger = new Logger('CreatePostsSeeder');
 
 const postContents = [
   'Just had an amazing coffee',
@@ -46,7 +49,7 @@ async function createTestPosts() {
   const accounts = await accountRepo.find();
 
   if (accounts.length === 0) {
-    console.log('No accounts found. Please create accounts first.');
+    logger.log('No accounts found. Please create accounts first.');
     await dataSource.destroy();
     return;
   }
@@ -117,12 +120,12 @@ async function createTestPosts() {
       savedPosts.push(saved);
     }
 
-    console.log(`Created ${savedPosts.length} test posts`);
+    logger.log(`Created ${savedPosts.length} test posts`);
   } catch (error) {
-    console.error('Error creating posts:', error);
+    logger.error('Error creating posts:', error);
   }
 
   await dataSource.destroy();
 }
 
-createTestPosts().catch(console.error);
+createTestPosts().catch(logger.error);

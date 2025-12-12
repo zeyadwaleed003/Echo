@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Account } from '../../modules/accounts/entities/account.entity';
 import dataSource from '../data-source';
 import {
@@ -6,6 +7,8 @@ import {
   Gender,
 } from '../../modules/accounts/accounts.enums';
 import { hashCode } from '../../common/utils/functions';
+
+const logger = new Logger('CreateAccountsSeeder');
 
 const baseNames = [
   'John',
@@ -136,12 +139,12 @@ async function createTestAccounts() {
   if (newAccounts.length > 0) {
     const accountEntities = accountRepo.create(newAccounts);
     await accountRepo.save(accountEntities);
-    console.log(`Created ${newAccounts.length} test accounts`);
+    logger.log(`Created ${newAccounts.length} test accounts`);
   } else {
-    console.log('All accounts already exist');
+    logger.log('All accounts already exist');
   }
 
   await dataSource.destroy();
 }
 
-createTestAccounts().catch(console.error);
+createTestAccounts().catch(logger.error);

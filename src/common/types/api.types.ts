@@ -1,4 +1,4 @@
-export type APIResponse = {
+export type HttpResponse = {
   statusCode?: number;
   size?: number;
   message?: string;
@@ -10,6 +10,12 @@ export type APIResponse = {
   setupToken?: string;
   nextCursor?: string | null;
   unreadNotificationsNumber?: number;
+};
+
+export type AckResponse = {
+  success: boolean;
+  data?: any;
+  error?: any;
 };
 
 export type RefreshTokenPayload = {

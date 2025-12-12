@@ -2,6 +2,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { I18nService } from 'nestjs-i18n';
+import { AppConfig } from 'src/config/configuration';
 
 @Injectable()
 export class EmailService {
@@ -10,7 +11,7 @@ export class EmailService {
 
   constructor(
     private readonly mailerService: MailerService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly i18n: I18nService
   ) {}
 

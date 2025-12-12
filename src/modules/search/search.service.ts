@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { SearchQueryDto } from './dto/search-query.dto';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { SearchFilter } from './search.enums';
 import { Account } from '../accounts/entities/account.entity';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -33,6 +33,8 @@ export class SearchService implements OnModuleInit {
   async onModuleInit() {
     await this.createIndices();
   }
+
+  // ElasticSearch Related Functions
 
   private async createIndices() {
     const accountsIndexExists = await this.elasticsearchService.indices.exists({
@@ -168,6 +170,8 @@ export class SearchService implements OnModuleInit {
     await this.elasticsearchService.bulk({ body });
   }
 
+  // === Helpers === //
+
   private decodeCursor(
     cursor: string | undefined
   ): estypes.SortResults | undefined {
@@ -202,6 +206,8 @@ export class SearchService implements OnModuleInit {
 
     return null;
   }
+
+  // Accounts Search
 
   private assignAccountSearchParams(
     search_after: estypes.SortResults | undefined,
@@ -256,7 +262,7 @@ export class SearchService implements OnModuleInit {
     q: string,
     limit: number,
     accountId: number | undefined
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const hits = (
       await this.elasticsearchService.search<AccountIndex>(
         this.assignAccountSearchParams(search_after, q, limit)
@@ -303,6 +309,8 @@ export class SearchService implements OnModuleInit {
       nextCursor,
     };
   }
+
+  // Posts Search
 
   private assignPostSearchParams(
     search_after: estypes.SortResults | undefined,
@@ -447,10 +455,12 @@ export class SearchService implements OnModuleInit {
     };
   }
 
+  // Main Search Function
+
   async search(
     query: SearchQueryDto,
     accountId: number | undefined
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const { f, q, cursor, limit } = query;
 
     // decode the given cursor

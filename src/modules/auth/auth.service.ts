@@ -20,7 +20,7 @@ import { AccountStatus } from '../accounts/accounts.enums';
 import { SignupDto } from './dto/signup.dto';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 import { VerifyOtpDto } from './dto/verify-account.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { TokenService } from '../token/token.service';
@@ -40,6 +40,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CompleteSetupDto } from './dto/complete-setup.dto';
 import { SearchService } from '../search/search.service';
 import { I18nService } from 'nestjs-i18n';
+import { AppConfig } from 'src/config/configuration';
 
 @Injectable()
 export class AuthService {
@@ -53,7 +54,7 @@ export class AuthService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly tokenService: TokenService,
     @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService,
@@ -64,58 +65,7 @@ export class AuthService {
     );
   }
 
-  private generateOTP(length = 6) {
-    const max = 10 ** length;
-    const num = randomInt(0, max);
-    return num.toString().padStart(length, '0');
-  }
-
-  private async generateAndSendVerificationEmail(email: string, name: string) {
-    // Generate the OTP
-    const otp = this.generateOTP();
-
-    // Sent the email with the otp
-    await this.emailService.sendVerificationEmail(email, otp, name);
-
-    // Hash the otp
-    const hashedOTP = await hashCode(otp);
-
-    // Store the otp in the database with a ttl
-    const expiresAt = new Date();
-    expiresAt.setMinutes(
-      expiresAt.getMinutes() +
-        this.configService.get<number>('VERIFICATION_OTP_EXPIRES_IN')!
-    );
-
-    await this.accountsRepository.update(
-      {
-        email,
-      },
-      {
-        verificationCode: hashedOTP,
-        verificationCodeExpiresAt: expiresAt,
-      }
-    );
-  }
-
-  sendCookie(res: Response, name: string, val: string) {
-    const options: CookieOptions = {
-      httpOnly: true,
-      path: '/',
-      sameSite: 'strict',
-      secure: this.configService.get('NODE_ENV') === 'production', // In production cookie will be sent only via HTTPs - encrypted
-      maxAge: 7 * 24 * 60 * 60 * 100, // default max age of 7 days
-    };
-
-    if (name === 'refreshToken')
-      options.maxAge = parseExpiresInMs(
-        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN')!
-      );
-
-    res.cookie(name, val, options);
-  }
-
-  async signup(signupDto: SignupDto): Promise<APIResponse> {
+  async signup(signupDto: SignupDto): Promise<HttpResponse> {
     // Check if the email is in the database
     const account = await this.accountsRepository.findOneBy({
       email: signupDto.email,
@@ -158,7 +108,7 @@ export class AuthService {
     this.logger.log(`Resend verification email requested for: ${email}`);
     const account = await this.accountsRepository.findOneBy({ email });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `verificationSent`),
     };
 
@@ -184,7 +134,7 @@ export class AuthService {
     id: number,
     error: boolean = false,
     message: string = this.i18n.t(`${this.i18nAuthNamespace}` + `emailVerified`)
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const setupToken = await this.tokenService.generateSetupToken({
       id,
     });
@@ -276,7 +226,7 @@ export class AuthService {
     return await this.sendCompleteProfileSetupResponse(account.id);
   }
 
-  async googleAuth(googleAuthDto: GoogleAuthDto): Promise<APIResponse> {
+  async googleAuth(googleAuthDto: GoogleAuthDto): Promise<HttpResponse> {
     const { idToken } = googleAuthDto;
     const ticket = await this.googleClient.verifyIdToken({
       idToken,
@@ -454,7 +404,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       data: cleanAccount,
       accessToken,
       refreshToken,
@@ -550,7 +500,7 @@ export class AuthService {
       }
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       data: account,
       accessToken,
       refreshToken: newRefreshToken,
@@ -559,7 +509,7 @@ export class AuthService {
     return result;
   }
 
-  async logout(refreshToken: string): Promise<APIResponse> {
+  async logout(refreshToken: string): Promise<HttpResponse> {
     const verifiedToken =
       await this.tokenService.verifyRefreshToken(refreshToken);
 
@@ -617,7 +567,7 @@ export class AuthService {
       `All sessions revoked for account: ${account.id} after password change`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `passwordChanged`),
     };
 
@@ -630,7 +580,7 @@ export class AuthService {
       email: forgotPasswordDto.email,
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nAuthNamespace}` + `passwordResetCodeSent`
       ),
@@ -734,7 +684,7 @@ export class AuthService {
       id: account.id,
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       passwordResetToken: token,
     };
 
@@ -776,7 +726,7 @@ export class AuthService {
       `All sessions revoked for account: ${verifiedToken.id} after password reset`
     );
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(
         `${this.i18nAuthNamespace}` + `passwordResetSuccess`
       ),
@@ -815,7 +765,7 @@ export class AuthService {
       sessionId: uuidv4(),
     });
 
-    const result: APIResponse = {
+    const result: HttpResponse = {
       message: this.i18n.t(`${this.i18nAuthNamespace}` + `accountReactivated`),
       data: account,
       accessToken,
@@ -827,7 +777,7 @@ export class AuthService {
 
   async completeSetup(
     completeSetupDto: CompleteSetupDto
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const verifiedSetupToken = await this.tokenService.verifySetupToken(
       completeSetupDto.setupToken
     );
@@ -877,5 +827,60 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  // === Helpers === //
+
+  sendCookie(res: Response, name: string, val: string) {
+    const options: CookieOptions = {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'strict',
+      secure: this.configService.get('NODE_ENV') === 'production', // In production cookie will be sent only via HTTPs - encrypted
+      maxAge: 7 * 24 * 60 * 60 * 100, // default max age of 7 days
+    };
+
+    if (name === 'refreshToken')
+      options.maxAge = parseExpiresInMs(
+        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN')!
+      );
+
+    res.cookie(name, val, options);
+  }
+
+  // === Private Helpers === //
+
+  private generateOTP(length = 6) {
+    const max = 10 ** length;
+    const num = randomInt(0, max);
+    return num.toString().padStart(length, '0');
+  }
+
+  private async generateAndSendVerificationEmail(email: string, name: string) {
+    // Generate the OTP
+    const otp = this.generateOTP();
+
+    // Sent the email with the otp
+    await this.emailService.sendVerificationEmail(email, otp, name);
+
+    // Hash the otp
+    const hashedOTP = await hashCode(otp);
+
+    // Store the otp in the database with a ttl
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() +
+        this.configService.get<number>('VERIFICATION_OTP_EXPIRES_IN')!
+    );
+
+    await this.accountsRepository.update(
+      {
+        email,
+      },
+      {
+        verificationCode: hashedOTP,
+        verificationCodeExpiresAt: expiresAt,
+      }
+    );
   }
 }

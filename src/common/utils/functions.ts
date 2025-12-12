@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { APIResponse } from '../types/api.types';
+import { HttpResponse } from '../types/api.types';
 import { compare, hash } from 'bcrypt';
 
 export const parseExpiresInMs = (expiresIn: string): number => {
@@ -21,7 +21,7 @@ export const parseExpiresInMs = (expiresIn: string): number => {
   return value * units[unit]!;
 };
 
-export const sendResponse = (res: Response, result: APIResponse) => {
+export const sendResponse = (res: Response, result: HttpResponse) => {
   res.status(result.statusCode!).json({
     size: result.size,
     message: result.message,

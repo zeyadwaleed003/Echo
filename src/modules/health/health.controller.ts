@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { APIResponse } from 'src/common/types/api.types';
+import { HttpResponse } from 'src/common/types/api.types';
 
 @Controller({
   version: '', // disable the versioning for this route
@@ -8,7 +8,7 @@ import { APIResponse } from 'src/common/types/api.types';
 export class HealthController {
   @Get()
   check() {
-    const res: APIResponse = {
+    const res: HttpResponse = {
       message: 'ᗧ···ᗣ···ᗣ··',
       timestamp: new Date().toISOString(),
     };

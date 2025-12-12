@@ -5,10 +5,12 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { Post } from './post.entity';
 
 @Entity('post_files')
+@Index(['postId'])
 export class PostFiles {
   @PrimaryGeneratedColumn('increment')
   id: string;

@@ -16,10 +16,10 @@ import {
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -31,6 +31,7 @@ import { IdDto } from '../../common/dtos/id.dto';
 import { UpdateAccountAdminDto } from './dto/update-account-admin.dto';
 import type { Request, Response } from 'express';
 import { UpdateMeDto } from './dto/update-me.dto';
+import type { QueryString } from 'src/common/types/api.types';
 
 @ApiTags('Accounts')
 @Controller('accounts')
@@ -67,7 +68,7 @@ export class AccountsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
-  async find(@Query() q: any) {
+  async find(@Query() q: QueryString) {
     return await this.accountService.find(q);
   }
 

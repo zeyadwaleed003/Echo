@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { APIResponse, QueryString } from 'src/common/types/api.types';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindManyOptions, Repository } from 'typeorm';
 import { Post } from '../posts/entities/post.entity';
@@ -32,7 +32,7 @@ export class BookmarksService {
   ) {}
 
   // This creates a bookmark for a reply, repost, post
-  async create(accountId: number, postId: number): Promise<APIResponse> {
+  async create(accountId: number, postId: number): Promise<HttpResponse> {
     // Check if available post
     const post = await this.postRepository.findOne({
       where: { id: postId },
@@ -113,7 +113,7 @@ export class BookmarksService {
   async findAll(
     q: QueryString,
     qOptions?: FindManyOptions<Bookmark>
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const queryOptions: FindManyOptions<Bookmark> = {
       ...qOptions,
       relations: ['post', 'bookmarkedBy'],
@@ -147,9 +147,39 @@ export class BookmarksService {
   async findCurrentUserBookmarks(
     accountId: number,
     q: QueryString
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     return await this.findAll(q, { where: { bookmarkedById: accountId } });
   }
+
+  async findOne(accountId: number, id: number): Promise<HttpResponse> {
+    const bookmark = await this.findSpecificBookmarkForUser(accountId, id, [
+      'post',
+      'bookmarkedBy',
+    ]);
+
+    const postFiles = await this.postFilesRepository.findBy({
+      postId: bookmark.postId,
+    });
+
+    return {
+      data: {
+        ...bookmark,
+        postFiles,
+      },
+    };
+  }
+
+  async remove(accountId: number, id: number): Promise<HttpResponse> {
+    const bookmark = await this.findSpecificBookmarkForUser(accountId, id);
+
+    await this.bookmarkRepository.remove(bookmark);
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
+    };
+  }
+
+  // === Private Helpers === //
 
   private async findSpecificBookmarkForUser(
     accountId: number,
@@ -169,33 +199,5 @@ export class BookmarksService {
       );
 
     return bookmark;
-  }
-
-  async findOne(accountId: number, id: number): Promise<APIResponse> {
-    const bookmark = await this.findSpecificBookmarkForUser(accountId, id, [
-      'post',
-      'bookmarkedBy',
-    ]);
-
-    const postFiles = await this.postFilesRepository.findBy({
-      postId: bookmark.postId,
-    });
-
-    return {
-      data: {
-        ...bookmark,
-        postFiles,
-      },
-    };
-  }
-
-  async remove(accountId: number, id: number): Promise<APIResponse> {
-    const bookmark = await this.findSpecificBookmarkForUser(accountId, id);
-
-    await this.bookmarkRepository.remove(bookmark);
-
-    return {
-      message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
-    };
   }
 }

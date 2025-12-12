@@ -6,34 +6,34 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from "@nestjs/common";
-import { CreatePostDto } from "./dto/create-post.dto";
-import { UpdatePostDto } from "./dto/update-post.dto";
-import { Post } from "./entities/post.entity";
-import { DataSource, EntityManager, In, Repository } from "typeorm";
-import { PostFiles } from "./entities/post-file.entity";
-import { CloudinaryService } from "src/modules/cloudinary/cloudinary.service";
-import { PostType } from "./posts.enums";
-import { Account } from "../accounts/entities/account.entity";
-import { APIResponse, QueryString } from "src/common/types/api.types";
-import { InjectRepository } from "@nestjs/typeorm";
-import ApiFeatures from "src/common/utils/ApiFeatures";
-import { AccountRelationships } from "../accounts/entities/account-relationship.entity";
-import { RelationshipType } from "../accounts/accounts.enums";
-import { CreateReplyDto } from "./dto/create-reply.dto";
-import { AiService, ContentClassification } from "../ai/ai.service";
-import { Bookmark } from "../bookmarks/entities/bookmark.entity";
-import { CreateRepostDto } from "./dto/create-repost.dto";
-import { RelationshipHelper } from "src/common/helpers/relationship.helper";
-import { SearchService } from "../search/search.service";
-import { GroupedPostFile } from "./posts.types";
-import { I18nService } from "nestjs-i18n";
-import { NotificationsService } from "../notifications/notifications.service";
-import { NotificationType } from "../notifications/notifications.enums";
+} from '@nestjs/common';
+import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { Post } from './entities/post.entity';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { PostFiles } from './entities/post-file.entity';
+import { CloudinaryService } from 'src/modules/cloudinary/cloudinary.service';
+import { PostType } from './posts.enums';
+import { Account } from '../accounts/entities/account.entity';
+import { HttpResponse, QueryString } from 'src/common/types/api.types';
+import { InjectRepository } from '@nestjs/typeorm';
+import ApiFeatures from 'src/common/utils/ApiFeatures';
+import { AccountRelationships } from '../accounts/entities/account-relationship.entity';
+import { RelationshipType } from '../accounts/accounts.enums';
+import { CreateReplyDto } from './dto/create-reply.dto';
+import { AiService, ContentClassification } from '../ai/ai.service';
+import { Bookmark } from '../bookmarks/entities/bookmark.entity';
+import { CreateRepostDto } from './dto/create-repost.dto';
+import { RelationshipHelper } from 'src/common/helpers/relationship.helper';
+import { SearchService } from '../search/search.service';
+import { GroupedPostFile } from './posts.types';
+import { I18nService } from 'nestjs-i18n';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notifications.enums';
 
 @Injectable()
 export class PostsService {
-  private readonly i18nNamespace = "messages.posts";
+  private readonly i18nNamespace = 'messages.posts';
 
   constructor(
     private readonly dataSource: DataSource,
@@ -55,158 +55,6 @@ export class PostsService {
     private readonly searchService: SearchService,
     private readonly notificationsService: NotificationsService
   ) {}
-
-  private containFiles(q: QueryString) {
-    const queryString = { ...q };
-    const fields = queryString.fields?.split(",");
-    return fields?.includes("files");
-  }
-
-  private cleanFields(q: QueryString) {
-    const queryString = { ...q };
-    const fields = queryString.fields?.split(",");
-
-    const validFields = fields!.filter((field: string) => field !== "files");
-    return { ...queryString, fields: validFields.join(",") };
-  }
-
-  private async uploadFiles(
-    manager: EntityManager,
-    files: Express.Multer.File[],
-    postId: number
-  ) {
-    let postFiles = [];
-    const uploadedFiles =
-      await this.cloudinaryService.uploadMultipleFiles(files);
-    postFiles = uploadedFiles.map((file) =>
-      manager.create(PostFiles, {
-        url: file.secure_url,
-        postId,
-      })
-    );
-    await manager.save(PostFiles, postFiles);
-    return postFiles;
-  }
-
-  private async validateContentWithFiles(
-    content: string,
-    type: PostType,
-    accountId: number,
-    actionPostId?: number,
-    files?: Express.Multer.File[]
-  ) {
-    if (content === "" && (!files || files.length === 0)) {
-      if (type !== PostType.REPOST) {
-        throw new BadRequestException(
-          this.i18n.t(`${this.i18nNamespace}.postMustContainContent`)
-        );
-      }
-
-      const id = actionPostId!;
-      const [repost, files] = await Promise.all([
-        this.postRepository.find({
-          where: { type: PostType.REPOST, content: "", id, accountId },
-        }),
-        this.postFilesRepository.find({ where: { postId: id } }),
-      ]);
-
-      if (repost && !files)
-        throw new BadRequestException(
-          this.i18n.t(`${this.i18nNamespace}.alreadyReposted`)
-        );
-    }
-  }
-
-  private async create(
-    content: string,
-    type: PostType,
-    account: Account,
-    files?: Express.Multer.File[],
-    actionPostId?: number
-  ) {
-    this.validateContentWithFiles(
-      content,
-      type,
-      account.id,
-      actionPostId,
-      files
-    );
-
-    if (
-      (type === PostType.REPLY || type === PostType.REPOST) &&
-      !actionPostId
-    ) {
-      throw new NotFoundException(
-        this.i18n.t(`${this.i18nNamespace}.originalPostRequired`)
-      );
-    }
-
-    let accounts = null;
-    if (actionPostId) {
-      accounts = await this.relationshipHelper.validateActionPost(
-        actionPostId,
-        type
-      );
-      await this.relationshipHelper.checkRelationship(
-        account,
-        accounts.targetAccount,
-        type
-      );
-    }
-
-    if (
-      (await this.aiService.classifyContent(content || "", files)) ===
-      ContentClassification.DANGEROUS
-    )
-      throw new ForbiddenException(
-        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
-          args: { type },
-        })
-      );
-
-    const [post, postFiles] = await this.dataSource.transaction(
-      async (manager) => {
-        const post = manager.create(Post, {
-          content,
-          type,
-          accountId: account.id,
-          actionPostId: actionPostId || null,
-        });
-        await manager.save(Post, post);
-
-        let postFiles: PostFiles[] = [];
-
-        if (files?.length)
-          postFiles = await this.uploadFiles(manager, files, post.id);
-
-        return [post, postFiles];
-      }
-    );
-
-    post.account = account;
-    this.searchService.createPostDocument(post);
-
-    // Notify the user if his post was reposted or someone replied to his post
-    if (type === PostType.REPLY || type === PostType.REPOST) {
-      let notificationType = NotificationType.REPLY;
-      if (type === PostType.REPOST) notificationType = NotificationType.REPOST;
-
-      this.notificationsService.create({
-        actorId: account.id,
-        type: notificationType,
-        postId: accounts!.actionPost.id,
-        accountId: accounts!.actionPost.accountId,
-        description: `@${account.username} ${type}ed your post`,
-      });
-    }
-
-    return {
-      message: this.i18n.t(`${this.i18nNamespace}.createdSuccessfully`, {
-        args: { type },
-      }),
-      data: { ...post, postFiles },
-    };
-  }
 
   async findAll(q: any) {
     let queryString = { ...q };
@@ -256,7 +104,7 @@ export class PostsService {
 
   async findAllPosts(q: any) {
     const data = await this.findAll(q);
-    const res: APIResponse = {
+    const res: HttpResponse = {
       size: data.length,
       data,
     };
@@ -288,7 +136,7 @@ export class PostsService {
       );
 
     if (account) {
-      await this.relationshipHelper.checkRelationship(account, author, "view");
+      await this.relationshipHelper.checkRelationship(account, author, 'view');
     }
 
     if (!author.isPrivate)
@@ -301,7 +149,7 @@ export class PostsService {
         this.i18n.t(`${this.i18nNamespace}.privateAccountLogin`)
       );
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       data: { ...post, files },
     };
 
@@ -313,7 +161,7 @@ export class PostsService {
     account: Account,
     updatePostDto: UpdatePostDto,
     files?: Express.Multer.File[]
-  ): Promise<APIResponse> {
+  ): Promise<HttpResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
@@ -327,13 +175,13 @@ export class PostsService {
 
     if (
       (await this.aiService.classifyContent(
-        updatePostDto.content || "",
+        updatePostDto.content || '',
         files
       )) === ContentClassification.DANGEROUS
     )
       throw new ForbiddenException(
         this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
-          args: { type: "post" },
+          args: { type: 'post' },
         })
       );
 
@@ -389,7 +237,7 @@ export class PostsService {
 
         const updatedPost = await postRepository.findOne({
           where: { id },
-          relations: ["account"],
+          relations: ['account'],
         });
         const postFiles = await postFilesRepository.find({
           where: { postId: id },
@@ -409,7 +257,7 @@ export class PostsService {
     };
   }
 
-  async remove(id: number, account: Account): Promise<APIResponse> {
+  async remove(id: number, account: Account): Promise<HttpResponse> {
     const post = await this.postRepository.findOneBy({ id });
     if (!post)
       throw new NotFoundException(
@@ -518,7 +366,7 @@ export class PostsService {
 
       await postRepository.update({ id }, { pinned: true });
 
-      const res: APIResponse = {
+      const res: HttpResponse = {
         message: this.i18n.t(`${this.i18nNamespace}.pinnedSuccessfully`),
       };
       return res;
@@ -553,7 +401,7 @@ export class PostsService {
 
     const allReplies = await this.findAll(queryString);
     if (!allReplies.length) {
-      const res: APIResponse = {
+      const res: HttpResponse = {
         size: 0,
         data: [],
       };
@@ -566,7 +414,7 @@ export class PostsService {
 
     const privateAccounts = await this.accountsRepository.find({
       where: { id: In(accountsIds), isPrivate: true },
-      select: ["id"],
+      select: ['id'],
     });
     const privateAccountsIds = new Set(privateAccounts.map((acc) => acc.id));
 
@@ -575,7 +423,7 @@ export class PostsService {
       const data = allReplies.filter(
         (reply) => !privateAccountsIds.has(reply.accountId)
       );
-      const res: APIResponse = {
+      const res: HttpResponse = {
         size: data.length,
         data,
       };
@@ -587,7 +435,7 @@ export class PostsService {
         // Only query if there are private accounts
         privateAccountsIds.size > 0
           ? this.accountRelationshipsRepository.find({
-              select: ["targetId"],
+              select: ['targetId'],
               where: {
                 actorId: account.id,
                 targetId: In([...privateAccountsIds]),
@@ -596,7 +444,7 @@ export class PostsService {
             })
           : [],
         this.accountRelationshipsRepository.find({
-          select: ["targetId"],
+          select: ['targetId'],
           where: {
             targetId: In(accountsIds),
             actorId: account.id,
@@ -607,7 +455,7 @@ export class PostsService {
           },
         }),
         this.accountRelationshipsRepository.find({
-          select: ["actorId"],
+          select: ['actorId'],
           where: {
             actorId: In(accountsIds),
             targetId: account.id,
@@ -641,7 +489,7 @@ export class PostsService {
       return privateFollowedAccountsIds.has(accountId);
     });
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       size: visibleReplies.length,
       data: visibleReplies,
     };
@@ -659,7 +507,7 @@ export class PostsService {
       where: { postId: id },
     });
 
-    const res: APIResponse = {
+    const res: HttpResponse = {
       data: {
         bookmarksNumber,
       },
@@ -682,16 +530,172 @@ export class PostsService {
     );
   }
 
+  // === Helpers === //
+
   async findPostFiles(postIds: number[]) {
     return (await this.postFilesRepository
-      .createQueryBuilder("f")
-      .select("f.postId", "postId")
+      .createQueryBuilder('f')
+      .select('f.postId', 'postId')
       .addSelect(
         "json_agg(json_build_object('id', f.id, 'url', f.url, 'createdAt', f.createdAt))",
-        "files"
+        'files'
       )
-      .where("f.postId IN (:...postIds)", { postIds })
-      .groupBy("f.postId")
+      .where('f.postId IN (:...postIds)', { postIds })
+      .groupBy('f.postId')
       .getRawMany()) as GroupedPostFile[];
+  }
+
+  // === Private Helpers === //
+
+  private async create(
+    content: string,
+    type: PostType,
+    account: Account,
+    files?: Express.Multer.File[],
+    actionPostId?: number
+  ) {
+    this.validateContentWithFiles(
+      content,
+      type,
+      account.id,
+      actionPostId,
+      files
+    );
+
+    if (
+      (type === PostType.REPLY || type === PostType.REPOST) &&
+      !actionPostId
+    ) {
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.originalPostRequired`)
+      );
+    }
+
+    let accounts = null;
+    if (actionPostId) {
+      accounts = await this.relationshipHelper.validateActionPost(
+        actionPostId,
+        type
+      );
+      await this.relationshipHelper.checkRelationship(
+        account,
+        accounts.targetAccount,
+        type
+      );
+    }
+
+    if (
+      (await this.aiService.classifyContent(content || '', files)) ===
+      ContentClassification.DANGEROUS
+    )
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.violatesGuidelines`, {
+          args: { type },
+        })
+      );
+
+    const [post, postFiles] = await this.dataSource.transaction(
+      async (manager) => {
+        const post = manager.create(Post, {
+          content,
+          type,
+          accountId: account.id,
+          actionPostId: actionPostId || null,
+        });
+        await manager.save(Post, post);
+
+        let postFiles: PostFiles[] = [];
+
+        if (files?.length)
+          postFiles = await this.uploadFiles(manager, files, post.id);
+
+        return [post, postFiles];
+      }
+    );
+
+    post.account = account;
+    this.searchService.createPostDocument(post);
+
+    // Notify the user if his post was reposted or someone replied to his post
+    if (type === PostType.REPLY || type === PostType.REPOST) {
+      let notificationType = NotificationType.REPLY;
+      if (type === PostType.REPOST) notificationType = NotificationType.REPOST;
+
+      this.notificationsService.create({
+        actorId: account.id,
+        type: notificationType,
+        postId: accounts!.actionPost.id,
+        accountId: accounts!.actionPost.accountId,
+        description: `@${account.username} ${type}ed your post`,
+      });
+    }
+
+    return {
+      message: this.i18n.t(`${this.i18nNamespace}.createdSuccessfully`, {
+        args: { type },
+      }),
+      data: { ...post, postFiles },
+    };
+  }
+
+  private containFiles(q: QueryString) {
+    const queryString = { ...q };
+    const fields = queryString.fields?.split(',');
+    return fields?.includes('files');
+  }
+
+  private cleanFields(q: QueryString) {
+    const queryString = { ...q };
+    const fields = queryString.fields?.split(',');
+
+    const validFields = fields!.filter((field: string) => field !== 'files');
+    return { ...queryString, fields: validFields.join(',') };
+  }
+
+  private async uploadFiles(
+    manager: EntityManager,
+    files: Express.Multer.File[],
+    postId: number
+  ) {
+    let postFiles = [];
+    const uploadedFiles =
+      await this.cloudinaryService.uploadMultipleFiles(files);
+    postFiles = uploadedFiles.map((file) =>
+      manager.create(PostFiles, {
+        url: file.secure_url,
+        postId,
+      })
+    );
+    await manager.save(PostFiles, postFiles);
+    return postFiles;
+  }
+
+  private async validateContentWithFiles(
+    content: string,
+    type: PostType,
+    accountId: number,
+    actionPostId?: number,
+    files?: Express.Multer.File[]
+  ) {
+    if (content === '' && (!files || files.length === 0)) {
+      if (type !== PostType.REPOST) {
+        throw new BadRequestException(
+          this.i18n.t(`${this.i18nNamespace}.postMustContainContent`)
+        );
+      }
+
+      const id = actionPostId!;
+      const [repost, files] = await Promise.all([
+        this.postRepository.find({
+          where: { type: PostType.REPOST, content: '', id, accountId },
+        }),
+        this.postFilesRepository.find({ where: { postId: id } }),
+      ]);
+
+      if (repost && !files)
+        throw new BadRequestException(
+          this.i18n.t(`${this.i18nNamespace}.alreadyReposted`)
+        );
+    }
   }
 }

@@ -73,7 +73,8 @@
     "followerRemovedSuccessfully": "Account @{username} has been removed from your followers",
     "followRequestDescription": "@{username} wants to follow you",
     "followDescription": "@{username} started following you",
-    "followRequestAcceptedDescription": "@{username} accepted your follow request"
+    "followRequestAcceptedDescription": "@{username} accepted your follow request",
+    "UserCannotReceiveMessage": "One or more users cannot receive messages from you"
   },
   "posts": {
     "postMustContainContent": "Post must contain either text content or at least one file",
@@ -139,5 +140,44 @@
     "notificationAlreadyRead": "This notification is already marked as read",
     "notificationMarkedAsRead": "Notification marked as read",
     "allNotificationsMarkedAsRead": "All notifications marked as read"
+  },
+  "conversations": {
+    "NoValidParticipants": "At least one participant is required to create a conversation",
+    "TooManyParticipants": "A conversation cannot have more than {{max}} participants",
+    "GroupNameRequired": "Group conversations must have a name",
+    "DirectConversationExists": "A direct conversation with this user already exists",
+    "NoConversationFound": "No conversation found with the provided id",
+    "NotConversationMember": "You must be a conversation member to access this resource",
+    "NoValidMembersToAdd": "No valid members to add to the group",
+    "NoValidMembersToRemove": "No valid members to remove from the group",
+    "OnlyGroupConversations": "This action can be only done to group conversations",
+    "OnlyAdminCanManageMembers": "Only the group admin can do this action",
+    "MembersAlreadyInGroup": "All specified members are already in the group",
+    "InvalidMemberIds": "One or more member IDs are invalid",
+    "ExceedsMaxParticipants": "Cannot add members. Group limit is {{max}} members. Current: {{current}}, Attempting to add: {{adding}}",
+    "FailedToAddMembers": "Failed to add members to the group. Please try again",
+    "RemovedFromConversation": "Accounts Removed from the conversation successfully",
+    "CanOnlyLeaveGroupConversations": "You can only leave group conversations",
+    "LeftGroup": "Successfully left the group",
+    "NoMembersToPromote": "No members available to promote to admin",
+    "NewAdminNotInGroup": "The specified new admin is not an active member of the group",
+    "CannotPromoteYourself": "You cannot promote yourself",
+    "MemberNotInGroup": "The specified member is not an active member of this group",
+    "MemberAlreadyAdmin": "The specified member is already an admin",
+    "MemberPromotedSuccessfully": "Member promoted to admin successfully",
+    "ConversationPinned": "Conversation pinned successfully",
+    "ConversationUnpinned": "Conversation unpinned successfully",
+    "ConversationArchived": "Conversation archived successfully",
+    "ConversationUnarchived": "Conversation unarchived successfully",
+    "ConversationMuted": "Conversation muted successfully",
+    "ConversationUnmuted": "Conversation unmuted successfully",
+    "ConversationAlreadyMuted": "This conversation is already muted",
+    "ConversationNotMuted": "This conversation is not muted",
+    "MuteUntilMustBeFuture": "Mute until date must be in the future",
+    "NoFieldsToUpdate": "At least one field must be provided to update the conversation",
+    "ConversationUpdatedSuccessfully": "Conversation updated successfully"
+  },
+  "messages": {
+    "replyDoesNotExist": "The message you are replying to does not exist"
   }
 }

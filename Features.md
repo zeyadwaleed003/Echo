@@ -131,7 +131,7 @@
 
 **Sockets**:
 
-- [x]: **Join and Leave conversation**
+- [x] **Join and Leave conversation**
 
 **Http**:
 

@@ -59,6 +59,3 @@ Flow.md
 Features.md
 TODO.md
 Requests.http
-
-# Seeds
-src/database/seeds/*

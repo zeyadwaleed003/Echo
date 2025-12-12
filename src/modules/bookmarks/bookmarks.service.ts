@@ -151,26 +151,6 @@ export class BookmarksService {
     return await this.findAll(q, { where: { bookmarkedById: accountId } });
   }
 
-  private async findSpecificBookmarkForUser(
-    accountId: number,
-    id: number,
-    relations?: string[]
-  ): Promise<Bookmark> {
-    const bookmark = await this.bookmarkRepository.findOne({
-      where: {
-        id,
-        bookmarkedById: accountId,
-      },
-      ...(relations && { relations }),
-    });
-    if (!bookmark)
-      throw new NotFoundException(
-        this.i18n.t(`${this.i18nNamespace}.bookmarkNotFound`)
-      );
-
-    return bookmark;
-  }
-
   async findOne(accountId: number, id: number): Promise<HttpResponse> {
     const bookmark = await this.findSpecificBookmarkForUser(accountId, id, [
       'post',
@@ -197,5 +177,27 @@ export class BookmarksService {
     return {
       message: this.i18n.t(`${this.i18nNamespace}.deletedSuccessfully`),
     };
+  }
+
+  // === Private Helpers === //
+
+  private async findSpecificBookmarkForUser(
+    accountId: number,
+    id: number,
+    relations?: string[]
+  ): Promise<Bookmark> {
+    const bookmark = await this.bookmarkRepository.findOne({
+      where: {
+        id,
+        bookmarkedById: accountId,
+      },
+      ...(relations && { relations }),
+    });
+    if (!bookmark)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.bookmarkNotFound`)
+      );
+
+    return bookmark;
   }
 }

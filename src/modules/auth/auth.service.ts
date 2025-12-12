@@ -40,6 +40,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CompleteSetupDto } from './dto/complete-setup.dto';
 import { SearchService } from '../search/search.service';
 import { I18nService } from 'nestjs-i18n';
+import { AppConfig } from 'src/config/configuration';
 
 @Injectable()
 export class AuthService {
@@ -53,7 +54,7 @@ export class AuthService {
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly tokenService: TokenService,
     @Inject(forwardRef(() => SearchService))
     private readonly searchService: SearchService,
@@ -62,57 +63,6 @@ export class AuthService {
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID')
     );
-  }
-
-  private generateOTP(length = 6) {
-    const max = 10 ** length;
-    const num = randomInt(0, max);
-    return num.toString().padStart(length, '0');
-  }
-
-  private async generateAndSendVerificationEmail(email: string, name: string) {
-    // Generate the OTP
-    const otp = this.generateOTP();
-
-    // Sent the email with the otp
-    await this.emailService.sendVerificationEmail(email, otp, name);
-
-    // Hash the otp
-    const hashedOTP = await hashCode(otp);
-
-    // Store the otp in the database with a ttl
-    const expiresAt = new Date();
-    expiresAt.setMinutes(
-      expiresAt.getMinutes() +
-        this.configService.get<number>('VERIFICATION_OTP_EXPIRES_IN')!
-    );
-
-    await this.accountsRepository.update(
-      {
-        email,
-      },
-      {
-        verificationCode: hashedOTP,
-        verificationCodeExpiresAt: expiresAt,
-      }
-    );
-  }
-
-  sendCookie(res: Response, name: string, val: string) {
-    const options: CookieOptions = {
-      httpOnly: true,
-      path: '/',
-      sameSite: 'strict',
-      secure: this.configService.get('NODE_ENV') === 'production', // In production cookie will be sent only via HTTPs - encrypted
-      maxAge: 7 * 24 * 60 * 60 * 100, // default max age of 7 days
-    };
-
-    if (name === 'refreshToken')
-      options.maxAge = parseExpiresInMs(
-        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN')!
-      );
-
-    res.cookie(name, val, options);
   }
 
   async signup(signupDto: SignupDto): Promise<HttpResponse> {
@@ -877,5 +827,60 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  // === Helpers === //
+
+  sendCookie(res: Response, name: string, val: string) {
+    const options: CookieOptions = {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'strict',
+      secure: this.configService.get('NODE_ENV') === 'production', // In production cookie will be sent only via HTTPs - encrypted
+      maxAge: 7 * 24 * 60 * 60 * 100, // default max age of 7 days
+    };
+
+    if (name === 'refreshToken')
+      options.maxAge = parseExpiresInMs(
+        this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN')!
+      );
+
+    res.cookie(name, val, options);
+  }
+
+  // === Private Helpers === //
+
+  private generateOTP(length = 6) {
+    const max = 10 ** length;
+    const num = randomInt(0, max);
+    return num.toString().padStart(length, '0');
+  }
+
+  private async generateAndSendVerificationEmail(email: string, name: string) {
+    // Generate the OTP
+    const otp = this.generateOTP();
+
+    // Sent the email with the otp
+    await this.emailService.sendVerificationEmail(email, otp, name);
+
+    // Hash the otp
+    const hashedOTP = await hashCode(otp);
+
+    // Store the otp in the database with a ttl
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() +
+        this.configService.get<number>('VERIFICATION_OTP_EXPIRES_IN')!
+    );
+
+    await this.accountsRepository.update(
+      {
+        email,
+      },
+      {
+        verificationCode: hashedOTP,
+        verificationCodeExpiresAt: expiresAt,
+      }
+    );
   }
 }

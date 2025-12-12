@@ -83,7 +83,7 @@ export class AccountsService {
     };
   }
 
-  async find(q: any) {
+  async find(q: QueryString): Promise<HttpResponse> {
     const accounts = await new ApiFeatures<Account>(this.accountsRepository, q)
       .filter()
       .limitFields()
@@ -95,26 +95,22 @@ export class AccountsService {
     // This will add a security layer. I don't trust the client to select whatever field he wants (security vulnerability)!
     const safeAccounts = instanceToPlain(accounts);
 
-    const result: HttpResponse = {
+    return {
       size: safeAccounts.length,
       data: safeAccounts,
     };
-
-    return result;
   }
 
-  async findById(id: number) {
+  async findById(id: number): Promise<HttpResponse> {
     const account = await this.accountsRepository.findOneBy({ id });
     if (!account)
       throw new NotFoundException(
         this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
       );
 
-    const result: HttpResponse = {
+    return {
       data: instanceToPlain(account),
     };
-
-    return result;
   }
 
   async delete(id: number): Promise<HttpResponse> {
@@ -153,14 +149,15 @@ export class AccountsService {
   }
 
   async findCurrentUserAccount(account: Account): Promise<HttpResponse> {
-    const result: HttpResponse = {
+    return {
       data: account,
     };
-
-    return result;
   }
 
-  async updateMe(account: Account, updateMeDto: UpdateMeDto) {
+  async updateMe(
+    account: Account,
+    updateMeDto: UpdateMeDto
+  ): Promise<HttpResponse> {
     const { id } = account;
     await this.accountsRepository.update({ id }, updateMeDto);
 
@@ -173,37 +170,10 @@ export class AccountsService {
     };
   }
 
-  private async validateAndGetTargetAccount(
+  async block(
     accountId: number,
-    targetAccountId: number,
-    type: string
-  ) {
-    if (accountId === targetAccountId)
-      throw new BadRequestException(
-        this.i18n.t(
-          `${this.i18nNamespace}.cannot${this.capitalizeFirstLetter(type)}Yourself`
-        )
-      );
-
-    const targetAccount = await this.accountsRepository.findOne({
-      where: {
-        id: targetAccountId,
-      },
-      select: ['username', 'isPrivate'],
-    });
-    if (!targetAccount)
-      throw new NotFoundException(
-        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
-      );
-
-    return targetAccount;
-  }
-
-  private capitalizeFirstLetter(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  }
-
-  async block(accountId: number, targetAccountId: number) {
+    targetAccountId: number
+  ): Promise<HttpResponse> {
     const targetAccount = await this.validateAndGetTargetAccount(
       accountId,
       targetAccountId,
@@ -252,13 +222,11 @@ export class AccountsService {
       `Account blocked: actor=${accountId}, target=${targetAccountId}`
     );
 
-    const result: HttpResponse = {
+    return {
       message: this.i18n.t(`${this.i18nNamespace}.accountBlockedSuccessfully`, {
         args: { username: targetAccount.username },
       }),
     };
-
-    return result;
   }
 
   async unblock(
@@ -296,26 +264,6 @@ export class AccountsService {
         }
       ),
     };
-  }
-
-  private validateRelationshipType(relationship: AccountRelationships) {
-    if (relationship.relationshipType === RelationshipType.BLOCK) {
-      throw new BadRequestException(
-        this.i18n.t(`${this.i18nNamespace}.cannotFollowBlockedAccount`)
-      );
-    }
-
-    if (relationship.relationshipType === RelationshipType.FOLLOW) {
-      throw new BadRequestException(
-        this.i18n.t(`${this.i18nNamespace}.alreadyFollowing`)
-      );
-    }
-
-    if (relationship.relationshipType === RelationshipType.FOLLOW_REQUEST) {
-      throw new BadRequestException(
-        this.i18n.t(`${this.i18nNamespace}.followRequestAlreadySent`)
-      );
-    }
   }
 
   async follow(
@@ -433,51 +381,6 @@ export class AccountsService {
     return result;
   }
 
-  private async findRelatedAccounts(
-    accountId: number,
-    q: any,
-    direction: RelationshipDirection,
-    relationshipType: RelationshipType
-  ) {
-    const whereOption: FindOptionsWhere<AccountRelationships> =
-      direction === RelationshipDirection.ACTOR
-        ? { actorId: accountId, relationshipType }
-        : { targetId: accountId, relationshipType };
-
-    const relationships =
-      await this.accountRelationshipsRepository.findBy(whereOption);
-
-    let result: HttpResponse = {
-      size: 0,
-      data: [],
-    };
-    if (!relationships.length) return result;
-
-    const ids = relationships.map((id) =>
-      direction === RelationshipDirection.ACTOR ? id.targetId : id.actorId
-    );
-    const queryOptions: FindManyOptions<Account> = {
-      where: ids.map((id) => ({ id })),
-    };
-
-    const accounts = await new ApiFeatures(
-      this.accountsRepository,
-      q,
-      queryOptions
-    )
-      .sort()
-      .limitFields()
-      .paginate()
-      .exec();
-
-    result = {
-      size: accounts.length,
-      data: accounts,
-    };
-
-    return result;
-  }
-
   async findBlockedAccounts(accountId: number, q: QueryString) {
     return await this.findRelatedAccounts(
       accountId,
@@ -502,74 +405,6 @@ export class AccountsService {
       q,
       RelationshipDirection.ACTOR,
       RelationshipType.FOLLOW
-    );
-  }
-
-  private async findRelatedAccountsById(
-    accountId: number,
-    targetAccountId: number,
-    q: any,
-    direction: RelationshipDirection,
-    relationshipType: RelationshipType = RelationshipType.FOLLOW
-  ) {
-    if (accountId === targetAccountId)
-      return await this.findRelatedAccounts(
-        accountId,
-        q,
-        direction,
-        relationshipType
-      );
-
-    const targetAccount = await this.accountsRepository.findOne({
-      where: {
-        id: targetAccountId,
-      },
-      select: ['isPrivate'],
-    });
-    if (!targetAccount)
-      throw new NotFoundException(
-        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
-      );
-
-    // Check if the current account is blocked
-    const isBlocked = await this.accountRelationshipsRepository.exists({
-      where: {
-        actorId: targetAccountId,
-        targetId: accountId,
-        relationshipType: RelationshipType.BLOCK,
-      },
-    });
-    if (isBlocked) {
-      this.logger.warn(
-        `Access denied - blocked: viewer=${accountId}, target=${targetAccountId}`
-      );
-      throw new ForbiddenException(
-        this.i18n.t(`${this.i18nNamespace}.noPermissionToView`)
-      );
-    }
-
-    if (targetAccount.isPrivate) {
-      const relationship = await this.accountRelationshipsRepository.findOneBy({
-        actorId: accountId,
-        targetId: targetAccountId,
-        relationshipType: RelationshipType.FOLLOW,
-      });
-
-      if (!relationship) {
-        this.logger.warn(
-          `Access denied - private account: viewer=${accountId}, target=${targetAccountId}`
-        );
-        throw new ForbiddenException(
-          this.i18n.t(`${this.i18nNamespace}.privateAccountFollowRequired`)
-        );
-      }
-    }
-
-    return await this.findRelatedAccounts(
-      targetAccountId,
-      q,
-      direction,
-      relationshipType
     );
   }
 
@@ -610,13 +445,11 @@ export class AccountsService {
 
     this.logger.log(`Account deactivated: id=${account.id}`);
 
-    const result: HttpResponse = {
+    return {
       message: this.i18n.t(
         `${this.i18nNamespace}.accountDeactivatedSuccessfully`
       ),
     };
-
-    return result;
   }
 
   async acceptFollowRequest(
@@ -663,11 +496,9 @@ export class AccountsService {
 
     await this.accountRelationshipsRepository.remove(relationship);
 
-    const result: HttpResponse = {
+    return {
       message: this.i18n.t(`${this.i18nNamespace}.followRequestRefused`),
     };
-
-    return result;
   }
 
   async findFollowRequests(accountId: number, q: any): Promise<HttpResponse> {
@@ -736,7 +567,7 @@ export class AccountsService {
       `Follower removed: account=${accountId}, follower=${followerId}`
     );
 
-    const result: HttpResponse = {
+    return {
       message: this.i18n.t(
         `${this.i18nNamespace}.followerRemovedSuccessfully`,
         {
@@ -744,9 +575,9 @@ export class AccountsService {
         }
       ),
     };
-
-    return result;
   }
+
+  // === Helpers === //
 
   async getBlockedAccountIds(accountId: number | undefined) {
     if (!accountId) return [];
@@ -871,7 +702,166 @@ export class AccountsService {
     return validParticipants;
   }
 
-  async findByIds(ids: number[]) {
-    return await this.accountsRepository.findBy({ id: In(ids) });
+  // === Private Helpers === //
+
+  private async findRelatedAccountsById(
+    accountId: number,
+    targetAccountId: number,
+    q: any,
+    direction: RelationshipDirection,
+    relationshipType: RelationshipType = RelationshipType.FOLLOW
+  ) {
+    if (accountId === targetAccountId)
+      return await this.findRelatedAccounts(
+        accountId,
+        q,
+        direction,
+        relationshipType
+      );
+
+    const targetAccount = await this.accountsRepository.findOne({
+      where: {
+        id: targetAccountId,
+      },
+      select: ['isPrivate'],
+    });
+    if (!targetAccount)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
+
+    // Check if the current account is blocked
+    const isBlocked = await this.accountRelationshipsRepository.exists({
+      where: {
+        actorId: targetAccountId,
+        targetId: accountId,
+        relationshipType: RelationshipType.BLOCK,
+      },
+    });
+    if (isBlocked) {
+      this.logger.warn(
+        `Access denied - blocked: viewer=${accountId}, target=${targetAccountId}`
+      );
+      throw new ForbiddenException(
+        this.i18n.t(`${this.i18nNamespace}.noPermissionToView`)
+      );
+    }
+
+    if (targetAccount.isPrivate) {
+      const relationship = await this.accountRelationshipsRepository.findOneBy({
+        actorId: accountId,
+        targetId: targetAccountId,
+        relationshipType: RelationshipType.FOLLOW,
+      });
+
+      if (!relationship) {
+        this.logger.warn(
+          `Access denied - private account: viewer=${accountId}, target=${targetAccountId}`
+        );
+        throw new ForbiddenException(
+          this.i18n.t(`${this.i18nNamespace}.privateAccountFollowRequired`)
+        );
+      }
+    }
+
+    return await this.findRelatedAccounts(
+      targetAccountId,
+      q,
+      direction,
+      relationshipType
+    );
+  }
+
+  private async findRelatedAccounts(
+    accountId: number,
+    q: any,
+    direction: RelationshipDirection,
+    relationshipType: RelationshipType
+  ) {
+    const whereOption: FindOptionsWhere<AccountRelationships> =
+      direction === RelationshipDirection.ACTOR
+        ? { actorId: accountId, relationshipType }
+        : { targetId: accountId, relationshipType };
+
+    const relationships =
+      await this.accountRelationshipsRepository.findBy(whereOption);
+
+    let result: HttpResponse = {
+      size: 0,
+      data: [],
+    };
+    if (!relationships.length) return result;
+
+    const ids = relationships.map((id) =>
+      direction === RelationshipDirection.ACTOR ? id.targetId : id.actorId
+    );
+    const queryOptions: FindManyOptions<Account> = {
+      where: ids.map((id) => ({ id })),
+    };
+
+    const accounts = await new ApiFeatures(
+      this.accountsRepository,
+      q,
+      queryOptions
+    )
+      .sort()
+      .limitFields()
+      .paginate()
+      .exec();
+
+    return {
+      size: accounts.length,
+      data: accounts,
+    };
+  }
+
+  private validateRelationshipType(relationship: AccountRelationships) {
+    if (relationship.relationshipType === RelationshipType.BLOCK) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.cannotFollowBlockedAccount`)
+      );
+    }
+
+    if (relationship.relationshipType === RelationshipType.FOLLOW) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.alreadyFollowing`)
+      );
+    }
+
+    if (relationship.relationshipType === RelationshipType.FOLLOW_REQUEST) {
+      throw new BadRequestException(
+        this.i18n.t(`${this.i18nNamespace}.followRequestAlreadySent`)
+      );
+    }
+  }
+
+  private async validateAndGetTargetAccount(
+    accountId: number,
+    targetAccountId: number,
+    type: string
+  ) {
+    if (accountId === targetAccountId)
+      throw new BadRequestException(
+        this.i18n.t(
+          `${this.i18nNamespace}.cannot${this.capitalizeFirstLetter(type)}Yourself`
+        )
+      );
+
+    const targetAccount = await this.accountsRepository.findOne({
+      where: {
+        id: targetAccountId,
+      },
+      select: ['username', 'isPrivate'],
+    });
+    if (!targetAccount)
+      throw new NotFoundException(
+        this.i18n.t(`${this.i18nNamespace}.accountNotFound`)
+      );
+
+    return targetAccount;
+  }
+
+  private capitalizeFirstLetter(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 }

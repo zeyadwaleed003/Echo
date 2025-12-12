@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,6 +13,7 @@ import { ParticipantRole } from '../conversations.enums';
 import { Account } from '../../accounts/entities/account.entity';
 
 @Entity('conversation_participants')
+@Index(['conversationId', 'accountId'])
 export class ConversationParticipant {
   @PrimaryGeneratedColumn('uuid')
   id: string;

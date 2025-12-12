@@ -7,8 +7,17 @@ import {
   IsPositive,
 } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ManageMembersDto {
+  @ApiProperty({
+    description:
+      'Array of member user IDs to add or remove from the conversation',
+    type: [Number],
+    example: [4, 5, 6],
+    isArray: true,
+    minimum: 1,
+  })
   @IsNotEmpty({
     message: i18nValidationMessage(
       'validation.conversations.memberIds.NOT_EMPTY'

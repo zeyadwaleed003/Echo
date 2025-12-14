@@ -74,7 +74,7 @@ View the complete database schema: [dbdiagram.io](https://dbdiagram.io/d/Echo-69
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/echo.git
+git clone https://github.com/zeyadwaleed003/Echo
 cd echo
 
 # Configure your environment variables
